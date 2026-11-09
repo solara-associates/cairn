@@ -1,60 +1,64 @@
 # CAIRN Architecture Decision Records
 
-This directory holds the architecture decisions for CAIRN. Each ADR is a short, immutable record of a decision, its context and its consequences. ADRs are the mechanism for settling the open product decisions in `CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md` §19 before code is committed to them.
+This directory holds the architecture decisions for CAIRN. Each ADR is a short, immutable record of a decision, its context and its consequences. ADRs settle the product and architecture choices behind `CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md` before code relies on them.
 
 ## Status vocabulary
 
 | Status | Meaning |
 |---|---|
 | Proposed | Written and awaiting review. It is the working default, not a final commitment. |
-| Accepted | Approved by the architecture review. Code may rely on it. |
+| Accepted | Approved by the product owner. Code may rely on it. |
 | Rejected | Considered and declined. The ADR stays to preserve the reasoning. |
 | Superseded | Replaced by a later ADR, which is named in the header. |
 
-ADR-017 is Accepted as a product constraint. All other ADRs are Proposed as of 2026-11-09.
+All ADRs are Accepted as of 2026-11-09. The product owner accepted the recommended defaults, with the deviations recorded in ADR-003, ADR-010 and ADR-013.
 
 ## Decision log
 
-| ADR | Title | Status | Date | Blocks R0 exit |
-|---|---|---|---|---|
-| [ADR-001](ADR-001-monorepo.md) | Monorepo with independently deployable apps | Proposed | 2026-11-09 | Yes |
-| [ADR-002](ADR-002-hexagonal-ddd.md) | Clean/Hexagonal architecture with DDD, enforced by import-linter | Proposed | 2026-11-09 | No |
-| [ADR-003](ADR-003-canonical-estate-model.md) | One canonical estate model, versioned | Proposed | 2026-11-09 | No |
-| [ADR-004](ADR-004-mapping-registry.md) | One mapping registry with immutable releases | Proposed | 2026-11-09 | No |
-| [ADR-005](ADR-005-gcp-first.md) | GCP-first adapters behind provider-neutral contracts | Proposed | 2026-11-09 | Yes |
-| [ADR-006](ADR-006-python-rust.md) | Python 3.12 for domain and application, Rust only for the transformation hot path | Proposed | 2026-11-09 | No |
-| [ADR-007](ADR-007-postgres-bigquery.md) | PostgreSQL for OLTP and registry metadata, BigQuery for analytics | Proposed | 2026-11-09 | Yes |
-| [ADR-008](ADR-008-evidence.md) | Signed JSON evidence plus a human-readable report, with audit-before-effect | Proposed | 2026-11-09 | No |
-| [ADR-009](ADR-009-approval-binding.md) | Approval is bound to an immutable plan revision | Proposed | 2026-11-09 | No |
-| [ADR-010](ADR-010-read-only-mvp.md) | Read-only MVP; no customer environment mutation before R4 | Proposed | 2026-11-09 | Yes |
-| [ADR-011](ADR-011-mcp-a2a.md) | MCP per bounded context, with an A2A bridge | Proposed | 2026-11-09 | No |
-| [ADR-012](ADR-012-tenant-isolation.md) | TenantId is a domain concept, with database RLS as a backstop | Proposed | 2026-11-09 | No |
-| [ADR-013](ADR-013-saas-first.md) | SaaS multi-tenant control plane first, customer-deployed deferred | Proposed | 2026-11-09 | Yes |
-| [ADR-014](ADR-014-model-port.md) | One MVP model provider behind ModelPort; additional providers are adapters | Proposed | 2026-11-09 | Yes |
-| [ADR-015](ADR-015-clean-room-transform-engine.md) | Build one transformation engine clean-room in Rust | Proposed | 2026-11-09 | No |
-| [ADR-016](ADR-016-launch-jurisdiction.md) | One launch jurisdiction pack first, versioned like a mapping release | Proposed | 2026-11-09 | No |
-| [ADR-017](ADR-017-clean-room.md) | Greenfield clean-room implementation; no code reuse from reference repositories | Accepted | 2026-11-09 | Yes (constraint) |
+| ADR | Title | Status | Date |
+|---|---|---|---|
+| [ADR-001](ADR-001-monorepo.md) | Monorepo with independently deployable apps, public at `solara-associates/cairn` | Accepted | 2026-11-09 |
+| [ADR-002](ADR-002-hexagonal-ddd.md) | Clean/Hexagonal architecture with DDD, enforced by import-linter | Accepted | 2026-11-09 |
+| [ADR-003](ADR-003-canonical-estate-model.md) | One canonical estate model, versioned; full model defined up front | Accepted | 2026-11-09 |
+| [ADR-004](ADR-004-mapping-registry.md) | One mapping registry with immutable releases; Allan Smeyatsky approves | Accepted | 2026-11-09 |
+| [ADR-005](ADR-005-gcp-first.md) | GCP-first adapters behind provider-neutral contracts | Accepted | 2026-11-09 |
+| [ADR-006](ADR-006-python-rust.md) | Python 3.12 for domain and application, Rust for transformation and measured hot paths, from R0 | Accepted | 2026-11-09 |
+| [ADR-007](ADR-007-postgres-bigquery.md) | Cloud SQL PostgreSQL (europe-west2) for OLTP, BigQuery for analytics | Accepted | 2026-11-09 |
+| [ADR-008](ADR-008-evidence.md) | Signed JSON evidence plus a human-readable report, with audit-before-effect and CAIRN-held keys | Accepted | 2026-11-09 |
+| [ADR-009](ADR-009-approval-binding.md) | Approval is bound to an immutable plan revision | Accepted | 2026-11-09 |
+| [ADR-010](ADR-010-gated-writes.md) | Gated writes from the first release; no un-gated mutation | Accepted | 2026-11-09 |
+| [ADR-011](ADR-011-mcp-a2a.md) | MCP per bounded context, with an A2A bridge, internal until R5 | Accepted | 2026-11-09 |
+| [ADR-012](ADR-012-tenant-isolation.md) | TenantId is a domain concept, with database RLS as a backstop | Accepted | 2026-11-09 |
+| [ADR-013](ADR-013-saas-first.md) | SaaS-only multi-tenant product; no supported customer-deployed edition; mid-market first | Accepted | 2026-11-09 |
+| [ADR-014](ADR-014-model-port.md) | Gemini-only model provider behind ModelPort; no customer BYO key | Accepted | 2026-11-09 |
+| [ADR-015](ADR-015-clean-room-transform-engine.md) | Build one transformation engine clean-room in Rust; Terraform and Python first | Accepted | 2026-11-09 |
+| [ADR-016](ADR-016-launch-jurisdiction.md) | United Kingdom launch jurisdiction pack, versioned like a mapping release | Accepted | 2026-11-09 |
+| [ADR-017](ADR-017-clean-room.md) | Greenfield clean-room implementation; no code reuse from reference repositories | Accepted | 2026-11-09 |
+| [ADR-018](ADR-018-open-source.md) | Open-source distribution under Apache-2.0 with professional services revenue | Accepted | 2026-11-09 |
 
-**Blocking set for R0 exit:** ADR-001, ADR-005, ADR-007, ADR-010, ADR-013, ADR-014. These change repository shape, adapter scope, data stores, the mutation boundary, the product boundary or the model dependency. Everything else can be amended during R0/R1 without rework.
+## Decisions that differ from the original proposal
 
-**Accepted constraint:** ADR-017 fixes the build as greenfield. It is not reopened by review; reversing it requires a new ADR and a rewrite of spec section 17, ADR-015 and the delivery outlook.
+- **ADR-003:** the full estate model is defined up front, not an assessment-only slice.
+- **ADR-010:** gated writes start in R1, not R4. The approval and audit-before-effect path moves into R1.
+- **ADR-013:** SaaS only. There is no supported customer-deployed edition; the open-source licence permits unsupported self-hosting.
+- **ADR-006:** Rust starts in R0, not R3.
+- **ADR-014:** Gemini is the only provider at launch.
 
 ## How decisions change
 
-1. A proposed ADR is reviewed as a document; amend it in place until it is accepted or rejected.
-2. Once accepted, an ADR is not edited except for status, typo fixes and link updates.
-3. A changed decision gets a new ADR that supersedes the old one; the old header gains `Superseded by ADR-0xx`.
-4. Any change to a contract in technical spec §7-§13 requires an ADR and a version bump, per spec §0.
+1. An accepted ADR is not edited except for status, typo fixes and link updates.
+2. A changed decision gets a new ADR that supersedes the old one; the old header gains `Superseded by ADR-0xx`.
+3. Any change to a contract in technical spec §7-§13 requires an ADR and a version bump, per spec §0.
 
 ## Review checklist
 
-For each ADR, the reviewer should be able to answer:
+For each new or superseding ADR, the reviewer should be able to answer:
 
 - Is the context factual and free of assumptions presented as facts?
 - Is the decision specific enough that two engineers would implement it the same way?
 - Are the consequences honest, including the negative ones?
 - Is the rejected alternative genuinely viable, or a straw man?
-- Does the decision conflict with any other Proposed or Accepted ADR?
+- Does the decision conflict with any other Accepted ADR?
 
 ## Template
 
@@ -63,7 +67,7 @@ For each ADR, the reviewer should be able to answer:
 
 - **Status:** Proposed
 - **Date:** YYYY-MM-DD
-- **Deciders:** Architecture review (pending)
+- **Deciders:** Product owner (Allan Smeyatsky)
 - **Related:** Implementation spec §x, ADR-0yy
 
 ## Context

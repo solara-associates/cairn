@@ -1,8 +1,8 @@
 # ADR-016: One launch jurisdiction pack first, versioned like a mapping release
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-11-09
-- **Deciders:** Architecture review (pending)
+- **Deciders:** Product owner (Allan Smeyatsky)
 - **Related:** Implementation spec §7, §14, ADR-004, ADR-013
 
 ## Context
@@ -11,7 +11,7 @@ Compliance claims, data residency and control catalogues differ by jurisdiction.
 
 ## Decision
 
-- Launch with one jurisdiction pack, chosen before R1 exit.
+- Launch with the United Kingdom jurisdiction pack, deployed in `europe-west2` (London).
 - A pack defines residency constraints, applicable controls, disclaimer text and mapping rules for that jurisdiction.
 - Packs are versioned and published through the same immutable release machinery as the mapping registry (ADR-004).
 - Every assessment records the jurisdiction pack and version used.

@@ -1,8 +1,8 @@
 # ADR-009: Approval is bound to an immutable plan revision
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-11-09
-- **Deciders:** Architecture review (pending)
+- **Deciders:** Product owner (Allan Smeyatsky)
 - **Related:** Implementation spec §11, §12, ADR-008, ADR-010
 
 ## Context

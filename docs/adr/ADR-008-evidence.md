@@ -1,8 +1,8 @@
 # ADR-008: Signed JSON evidence plus a human-readable report, with audit-before-effect
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-11-09
-- **Deciders:** Architecture review (pending)
+- **Deciders:** Product owner (Allan Smeyatsky)
 - **Related:** Implementation spec §12, ADR-009, ADR-016
 
 ## Context
@@ -13,6 +13,7 @@ CAIRN's differentiator is that a customer, auditor or migration partner can veri
 
 - Produce an evidence package for every assessment, design and execution: inputs, provenance, model/mapping/pattern versions, decisions, outputs and timestamps.
 - The package is canonical JSON, hash-chained, signed with a KMS-held key, and verifiable offline with a published verifier.
+- Signing keys are CAIRN-held at launch. Customer-held keys are not offered until a later ADR.
 - Pair it with a human-readable report that references the package hash.
 - Governed writes record intent and authorization **before** the effect (audit-before-effect) and fail closed if the audit sink is unavailable.
 - Key rotation and verification keys are published; verification does not require CAIRN to be online.

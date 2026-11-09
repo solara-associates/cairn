@@ -1,8 +1,8 @@
 # ADR-004: One mapping registry with immutable releases
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-11-09
-- **Deciders:** Architecture review (pending)
+- **Deciders:** Product owner (Allan Smeyatsky); named mapping release approver
 - **Related:** Implementation spec §7, ADR-003, ADR-016
 
 ## Context
@@ -17,6 +17,8 @@ Provide a single mapping registry service with:
 - An explicit equivalence enum: `EQUIVALENT`, `APPROXIMATE`, `UNAVAILABLE`, `UNRESOLVED`.
 - A caveat and rationale field for every non-equivalent mapping.
 - Human review before publication; published releases are immutable.
+- The named approver is Allan Smeyatsky, the product owner, until delegated.
+- Initial seed coverage is the top 40 services per pilot pair; gaps are labelled `UNRESOLVED`.
 - Every design artefact records the mapping release id and version.
 
 The resolver is the only way modules obtain a mapping. Hard-coded service maps in modules are forbidden.

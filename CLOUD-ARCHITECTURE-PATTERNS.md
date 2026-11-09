@@ -415,7 +415,7 @@ Terraform for foundation and per-environment composition, Cloud Build for plan/a
 - Portable open-source stack on Kubernetes: CloudNativePG, MinIO, Keycloak, Vault, Kafka, Redis (`dpdp`).
 - Single-image, multi-runtime deployment: `Meridian` serves MCP or web and deploys to Cloud Run, ECS/App Runner or Azure Container Apps.
 
-**What to standardise:** a Terraform module library (landing zone, network, IAM, data, runtime, observability, guardrails), environment composition, and a deployment interface with three targets: Cloud Run, GKE, and customer Kubernetes.
+**What to standardise:** a Terraform module library (landing zone, network, IAM, data, runtime, observability, guardrails), environment composition, and a deployment interface with two targets: Cloud Run (supported SaaS) and GKE (internal portability). There is no supported customer-deployed edition (ADR-013).
 
 ---
 
@@ -598,7 +598,7 @@ Build these once:
 | UI | React/TypeScript, Vite | ESLint, boundary rules |
 | Architecture | Clean/Hexagonal plus DDD | `import-linter`, CI |
 | Integration boundary | MCP, with A2A for agent hosts | MCP Kit, conformance tests |
-| Runtime | Cloud Run for stateless; GKE or customer Kubernetes for portable workloads | Terraform, Helm |
+| Runtime | Cloud Run for stateless; GKE for internal portability only | Terraform, Helm |
 | Data | BigQuery for analytics; Postgres for OLTP; Firestore for config | Terraform modules |
 | Streaming | Pub/Sub; Dataflow or Airflow for batch | Terraform, DAG definitions |
 | AI | Vertex/Gemini default; Bedrock and Azure OpenAI behind `ModelPort` | provider contract tests |
@@ -644,7 +644,7 @@ This sequence describes design dependencies, not reusable increments. It does no
 Create the monorepo, implement the shared kernel, contracts and conformance harness from scratch, and freeze the mapping registry schema. No code is imported.
 
 **Phase 1 - Assess and prove.**
-Ship M1 (posture) and M2 (assessment/TCO) first. These are read-only, low-risk and immediately demoable. The reference evidence for the Finding model, canonical estate model and 6R flow comes from `autoinfra`/`autoinfra_aws`, `agent-assess` and `infracc`. Produce one evidence report that covers posture, cost and migration readiness.
+Ship M1 (posture) and M2 (assessment/TCO) first. Assessment is read-only by design and immediately demoable. The gated execution path is built alongside it and starts in R1 (ADR-010), so a customer can act on a validated finding. The reference evidence for the Finding model, canonical estate model and 6R flow comes from `autoinfra`/`autoinfra_aws`, `agent-assess` and `infracc`. Produce one evidence report that covers posture, cost and migration readiness.
 
 **Phase 2 - Plan and design.**
 Add M4 (architecture synthesis) and the planning half of M3. Use the `drawio-gen` and `anytoany` canonical-model lessons so the diagram, the plan and the Terraform come from one source.
@@ -697,13 +697,14 @@ All 43 repositories in `asmeyatsky-work` were cloned and inspected. Every reposi
 
 ### 6.3 Decisions and their status
 
-1. **Repository shape.** One monorepo with packages per module, or a small number of repos (kernel, assessment, modernization, operations, vertical packs)? The portfolio's current fragmentation suggests a monorepo or at least a shared kernel package.
-2. **Target cloud priority.** GCP-first with AWS/Azure parity (the portfolio's bias), or provider-neutral from day one? `Meridian` proves neutrality is feasible; it costs roughly 2-3x the adapter work.
-3. **Product boundary.** Is the new platform an internal delivery accelerator for Searce-style engagements, or a commercial multi-tenant SaaS? The answer changes M12 and the security/tenancy scope.
-4. **AI provider policy.** Gemini-only for depth, or multi-provider via `ModelPort` from day one? `llmops` and `Meridian` already implement the multi-provider seam.
-5. **Evidence standard.** Do clients require signed, verifiable evidence (audit chain, attestation) or is a rendered PDF report sufficient? This determines whether M11 includes the ledger from `dpdp` and the audit-before-write guard from `tda`.
-6. **Transformation engine provenance.** Resolved by the greenfield decision: one engine is built clean-room in Rust (ADR-015, ADR-017). The four source engines are reference behaviour only; none is reused.
-7. **Timeline and team size.** The Phase 0-5 sequence is directional. See the technical specification section 16.2 for the re-baselined outlook (R1 at 4-6 months, R4 at 9-14 months, R5 undated).
+1. **Repository shape.** Resolved: one monorepo, public at `solara-associates/cairn` (ADR-001, ADR-018).
+2. **Target cloud priority.** Resolved: GCP-first behind provider-neutral contracts (ADR-005). `Meridian` remains the portability proof.
+3. **Product boundary.** Resolved: commercial multi-tenant SaaS, mid-market first, with no supported customer-deployed edition (ADR-013). Searce-style engagements are delivered as professional services on the same product.
+4. **AI provider policy.** Resolved: Gemini only behind `ModelPort`, no customer BYO key (ADR-014).
+5. **Evidence standard.** Resolved: signed JSON plus a human report, audit-before-effect, CAIRN-held keys (ADR-008). The `dpdp` ledger and `tda` audit-before-write guard are behaviour evidence.
+6. **Transformation engine provenance.** Resolved: one engine built clean-room in Rust, Terraform and Python first (ADR-015, ADR-017). The four source engines are reference behaviour only; none is reused.
+7. **Timeline and team size.** Resolved: solo maintainer, ASAP with no hard date. See the technical specification section 16.2 for the re-baselined outlook (R0 8-12 weeks, R1 9-15 months, R4 24-36 months).
+8. **Licence.** Resolved: Apache-2.0 with professional services revenue and no open-core gate (ADR-018).
 
 ### 6.4 Highest-leverage patterns to reimplement (if you only do five things)
 

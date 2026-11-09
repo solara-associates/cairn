@@ -1,8 +1,8 @@
 # ADR-015: Build one transformation engine clean-room in Rust
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-11-09
-- **Deciders:** Architecture review (pending)
+- **Deciders:** Product owner (Allan Smeyatsky)
 - **Related:** Implementation spec §17, ADR-006, ADR-017
 
 ## Context
@@ -12,6 +12,7 @@ The reference portfolio contains four transformation codebases (`cloudshift_v2`,
 ## Decision
 
 - Build a single new transformation engine in `transform-core`, in Rust, behind a versioned input/output contract: parse, detect, transform, diff, validate.
+- R3 scope is Terraform/HCL and Python source. Java and .NET are out of scope until a new ADR.
 - Use the reference engines only to enumerate behaviours and edge cases; capture each as a golden test written for CAIRN, not as copied code or fixtures.
 - Record detector and pattern versions, applied/skipped/unsupported outcomes and reasons in the transformation manifest.
 - No reference engine is vendored, forked or added as a build dependency.

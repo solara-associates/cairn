@@ -1,8 +1,8 @@
 # ADR-012: TenantId is a domain concept, with database RLS as a backstop
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-11-09
-- **Deciders:** Architecture review (pending)
+- **Deciders:** Product owner (Allan Smeyatsky)
 - **Related:** Implementation spec §8, §12, ADR-013
 
 ## Context

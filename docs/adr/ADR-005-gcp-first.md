@@ -1,8 +1,8 @@
 # ADR-005: GCP-first adapters behind provider-neutral contracts
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-11-09
-- **Deciders:** Architecture review (pending)
+- **Deciders:** Product owner (Allan Smeyatsky)
 - **Related:** Implementation spec §4.2, §5, ADR-013
 
 ## Context
