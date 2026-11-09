@@ -1,8 +1,8 @@
 # ADR-007: PostgreSQL for OLTP and registry metadata, BigQuery for analytics
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-11-09
-- **Deciders:** Architecture review (pending)
+- **Deciders:** Product owner (Allan Smeyatsky)
 - **Related:** Implementation spec §8, ADR-003, ADR-012
 
 ## Context
@@ -11,7 +11,7 @@ CAIRN needs transactional guarantees for tenancy, projects, jobs, approvals, aud
 
 ## Decision
 
-- **PostgreSQL (Cloud SQL):** source of truth for tenants, projects, users, roles, connections, job state, approvals, evidence indices, mapping release metadata and audit.
+- **PostgreSQL (Cloud SQL):** source of truth for tenants, projects, users, roles, connections, job state, approvals, evidence indices, mapping release metadata and audit. The instance is Cloud SQL for PostgreSQL, primary region `europe-west2` (London).
 - **BigQuery:** raw, curated and consumption datasets for estate observations, findings, cost facts and analytics.
 - **No dual source of truth.** Analytical tables are derived from Postgres or ingestion via events/ELT; they are not written independently as authoritative state.
 - Tenant scoping and RLS apply in Postgres; BigQuery access is scoped by dataset and authorized views.

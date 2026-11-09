@@ -1,8 +1,8 @@
-# ADR-014: One MVP model provider behind ModelPort; additional providers are adapters
+# ADR-014: Gemini-only model provider behind ModelPort; no other providers at launch
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-11-09
-- **Deciders:** Architecture review (pending)
+- **Deciders:** Product owner (Allan Smeyatsky)
 - **Related:** Implementation spec §5, §11, ADR-005
 
 ## Context
@@ -12,8 +12,8 @@ CAIRN uses models for summarisation, drafting and agent workflows. The PRD leave
 ## Decision
 
 - Define a `ModelPort` in the kernel with a narrow request/response contract: prompt, structured output expectations, token and latency telemetry, safety metadata, and no authority to perform irreversible actions.
-- Ship one provider as the MVP default via an adapter (Gemini, given the GCP-first decision).
-- Additional adapters (Bedrock, Azure OpenAI) implement the same contract and are tested against the same suite.
+- Ship Gemini as the only real provider at launch. No Bedrock or Azure OpenAI adapter is built until a new ADR justifies it.
+- No customer bring-your-own-key at launch; model access is CAIRN-operated.
 - A fake adapter is mandatory for deterministic tests.
 - Prompt versions, model ids and parameters are recorded in evidence where model output influenced a decision.
 - Model output that proposes an action must be validated against the domain contract and, if irreversible, approved before execution.
@@ -29,8 +29,8 @@ CAIRN uses models for summarisation, drafting and agent workflows. The PRD leave
 **Negative**
 
 - The lowest-common-denominator contract limits provider-specific features.
-- One provider is a single dependency at launch.
-- Adapter parity is an ongoing test burden.
+- One provider is a single dependency and a single point of failure at launch.
+- Provider-specific capabilities cannot be used directly, even when they would help.
 
 **Neutral**
 

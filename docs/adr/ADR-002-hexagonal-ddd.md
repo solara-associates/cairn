@@ -1,8 +1,8 @@
 # ADR-002: Clean/Hexagonal architecture with DDD, enforced by import-linter
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-11-09
-- **Deciders:** Architecture review (pending)
+- **Deciders:** Product owner (Allan Smeyatsky)
 - **Related:** Implementation spec §4.2-§4.3, ADR-001
 
 ## Context

@@ -1,8 +1,8 @@
 # ADR-001: Monorepo with independently deployable apps
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-11-09
-- **Deciders:** Architecture review (pending)
+- **Deciders:** Product owner (Allan Smeyatsky)
 - **Related:** Implementation spec §4, ADR-002, ADR-006
 
 ## Context
@@ -16,6 +16,7 @@ Use a single monorepo with:
 - A `uv` Python workspace, a `Cargo` Rust workspace and a `pnpm` workspace, all driven from one `Makefile`.
 - `packages/` for libraries (kernel, contracts, kits, adapters, modules, transform-core) and `apps/` for deployment entrypoints.
 - One CI pipeline with path-filtered jobs; each app still builds and deploys as its own signed image.
+- The repository is public at `github.com/solara-associates/cairn`.
 
 Independently deployable does not mean independently versioned: releases are tagged at repository level.
 
@@ -32,6 +33,7 @@ Independently deployable does not mean independently versioned: releases are tag
 - CI must use path filters and caching to stay within budget.
 - Repository access is coarser than per-package access.
 - All packages share one release tag, so partial releases are not possible.
+- Public visibility means secrets, customer data and internal runbooks must never be committed; CI secret scanning is mandatory.
 
 **Neutral**
 
