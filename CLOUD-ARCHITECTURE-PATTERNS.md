@@ -6,6 +6,8 @@ Prepared: 9 November 2026
 Source of truth: `github.com/asmeyatsky-work` (43 repositories, all archived at time of analysis)
 Local analysis clone: shallow clones of every repository, README/architecture docs/manifests/IaC inspected
 
+> **Greenfield note (9 November 2026).** CAIRN is a clean-room build. No source code, assets or configuration from these repositories is reused (ADR-017). This catalogue is design evidence only. Words such as "reuse", "lift" and "consolidate" describe relationships between the source repositories, not what CAIRN will copy. See the technical specification section 17.
+
 ---
 
 ## 1. Purpose and how to read this
@@ -13,12 +15,12 @@ Local analysis clone: shallow clones of every repository, README/architecture do
 You asked for two things:
 
 1. A cloud architecture pattern catalogue covering every solution in the archived `asmeyatsky-work` organization.
-2. A basis for a new **cloud modernization platform** that reuses the architecture platforms already built in those repositories.
+2. A basis for a new **cloud modernization platform** informed by the architecture platforms built in those repositories, without reusing their code.
 
 This document delivers both:
 
 - **Part A** maps the 43 solutions into capability clusters.
-- **Part B** extracts the reusable architecture patterns, with the repositories that evidence each one.
+- **Part B** extracts the recurring architecture patterns, with the repositories that evidence each one.
 - **Part C** defines the target blueprint for the new platform and a build sequence.
 - **Part D** records coverage, gaps and the decisions you still need to make.
 
@@ -68,7 +70,7 @@ Legend for "Pattern signature":
 
 ### A. FinOps and cost governance
 
-| Repository | What it does | Pattern signature | Runtime and cloud services | Reusable asset |
+| Repository | What it does | Pattern signature | Runtime and cloud services | Reference value |
 |---|---|---|---|---|
 | `clearvue-foundation` | GCP cost guardrails plus foundation posture review for a large GCP estate. One repo, two workstreams, one unified report. | Hex/DDD, MCP, IaC, Evidence | Cloud Run MCP/SSE service, BigQuery billing export, Budgets, Spend Caps, Org Policy, Pub/Sub, Cloud Monitoring, Prowler, Steampipe, OPA, Gemini advisor, WeasyPrint | FinOps domain model (Budget, SpendThreshold, EscalationTier, KillAction), selective stop and disable-billing adapters, unified cost-plus-posture report |
 | `Meridian` | Cross-cloud FinOps agent. Provider-portable cost governance with swappable LLM backends across AWS, Azure and GCP. | Hex/DDD, ports and adapters, MCP, HITL | Cloud Run, ECS/App Runner, Azure Container Apps; BigQuery, AWS CUR/Cost Explorer, Azure Cost Management; Vertex, Bedrock, Azure OpenAI; SQLite/Postgres audit | Canonical cost schema, `CostSourcePort`, `RemediationPort`, `ModelPort`, `AuditSinkPort`, `ObservabilityPort`; one container that serves MCP or web |
@@ -78,7 +80,7 @@ Legend for "Pattern signature":
 
 ### B. Foundation posture, security and compliance
 
-| Repository | What it does | Pattern signature | Runtime and cloud services | Reusable asset |
+| Repository | What it does | Pattern signature | Runtime and cloud services | Reference value |
 |---|---|---|---|---|
 | `autoinfra` | GFPR, the GCP Foundation Posture Reviewer. Assesses landing zone, IAM, networking, DR and security, then emits a branded report with roadmap and Terraform snippets. | Hex/DDD, evidence, IaC, MCP-ready CLI | Prowler, Steampipe, OPA, Postgres, Gemini, WeasyPrint; Cloud Run job and customer-onboarding Terraform | Posture domain model, control catalogue, roadmap builder, read-only cross-org onboarding pattern |
 | `autoinfra_aws` | AFPR, the AWS port of GFPR. Same assessment model, AWS services and Bedrock advisor. | Hex/DDD, cross-account read-only role | Prowler for AWS, Steampipe, OPA, Postgres, Bedrock, WeasyPrint; STS AssumeRole | Provider-parity proof for a multi-cloud posture module |
@@ -88,7 +90,7 @@ Legend for "Pattern signature":
 
 ### C. Migration and modernization engines
 
-| Repository | What it does | Pattern signature | Runtime and cloud services | Reusable asset |
+| Repository | What it does | Pattern signature | Runtime and cloud services | Reference value |
 |---|---|---|---|---|
 | `cloudshift` | Secure, air-gapped AWS/Azure-to-GCP migration. Scans, plans, transforms, validates and audits code and Terraform. | Rust core plus Hex/DDD Python, config-driven patterns, Evidence | Rust core via PyO3, Python CLI/REST/WebSocket, optional local Ollama or Gemini, Cloud Run | 134 service-mapping patterns, detectors, diff and AST validation, air-gapped operation, audit report |
 | `cloudshift_v2` | Universal GCP-oriented refactoring with Rust transformation core, CLI, web UI, Cloud Run API, Python bindings, LSP and VS Code extension. | Same as above plus LSP | Rust, PyO3/Maturin, Cloud Run, static UI | LSP and editor integration, pattern catalogue, single binary plus service surfaces |
@@ -102,7 +104,7 @@ Legend for "Pattern signature":
 
 ### D. MLOps and LLMOps
 
-| Repository | What it does | Pattern signature | Runtime and cloud services | Reusable asset |
+| Repository | What it does | Pattern signature | Runtime and cloud services | Reference value |
 |---|---|---|---|---|
 | `mlops` | Agentic MLOps lifecycle management with a seven-agent swarm on MCP. | Hex/DDD, multi-agent swarm, MCP, HITL | Vertex AI, GKE, Cloud Logging, Billing, Cloud Run; KS/chi-square/KL/PSI drift detection | Swarm coordination patterns, DAG orchestrator, self-healing loop, EU AI Act compliance, model registry |
 | `mlops-aws` | AWS port of the MLOps orchestrator. | Same, AWS adapters | SageMaker Training/Endpoints/Batch Transform/Model Packages, S3, ECS Fargate, CloudWatch, Athena, IAM/STS, Bedrock | Explicit cloud adapter mapping table (port to provider service), India DPDP and responsible-AI compliance |
@@ -110,7 +112,7 @@ Legend for "Pattern signature":
 
 ### E. Agentic platforms, MCP/A2A and customer experience
 
-| Repository | What it does | Pattern signature | Runtime and cloud services | Reusable asset |
+| Repository | What it does | Pattern signature | Runtime and cloud services | Reference value |
 |---|---|---|---|---|
 | `cockpit` | Agentic Cloud Modernization Platform. Unified multi-cloud control plane with an agent hierarchy, natural-language co-pilot and migration factory. | Hex/DDD, HMAS hierarchy, A2A, MCP, multi-tenant | FastAPI plus React, 6 MCP servers, AWS/Azure/GCP adapters, OTLP | L3/L2/L1 agent hierarchy (EPA plus six specialists), agent cards, per-agent IAM, migration factory |
 | `byomcp` | Bring-your-own MCP server plus A2A-to-MCP bridge for Gemini Enterprise. | MCP, A2A, OAuth | Cloud Run, StreamableHTTP, OAuth/JWT, OTel | MCP server kit, A2A bridge, OAuth against customer IdP, keyword MCP routing |
@@ -130,7 +132,7 @@ Legend for "Pattern signature":
 
 ### F. Data and analytics accelerators
 
-| Repository | What it does | Pattern signature | Runtime and cloud services | Reusable asset |
+| Repository | What it does | Pattern signature | Runtime and cloud services | Reference value |
 |---|---|---|---|---|
 | `barq` | Configuration-driven financial reconciliation framework on BigQuery. Matches core-banking against third-party processor transactions with no code change when rules evolve. | Config-driven rules, Hex/DDD, DAG | BigQuery, Cloud Composer/Airflow, Cloud Run or GCE, GCS, Secret Manager, Cloud Monitoring | Config tables for accounts/rules/joins/filters/transformations, dynamic CTE SQL generator, carryover service |
 | `taa` | Telco Analytics Accelerator. Turns BSS/OSS configuration into BigQuery DDL, Terraform, Dataflow pipelines, Airflow DAGs and compliance reports for ten jurisdictions. | Config-driven generation, multi-cloud, IaC, evidence | BigQuery, Dataflow, Airflow, Terraform, Helm/Kubernetes, Vertex notebooks, MCP | Jurisdiction rule packs, vendor mappings, artefact-pack generator, cost estimator |
@@ -140,7 +142,7 @@ Legend for "Pattern signature":
 
 ### G. Resilience and sovereignty
 
-| Repository | What it does | Pattern signature | Runtime and cloud services | Reusable asset |
+| Repository | What it does | Pattern signature | Runtime and cloud services | Reference value |
 |---|---|---|---|---|
 | `raas` | Resilience as a Service. Multi-cloud, sovereignty-aware, AI-driven failover, DR drills and evidence. | Hex/DDD, multi-cloud ports, MCP, A2A, HITL, evidence | FastAPI, Click CLI, React console, Firestore, Keycloak, Kubernetes, Terraform, Prometheus, OTel, 6 MCP servers, AWS/Azure/GCP adapters | One sovereignty rule consulted by every surface, workload/incident/failover/DR-drill/SLA/ compliance aggregates, DAG failover orchestration |
 
@@ -249,7 +251,7 @@ Three recurring orchestration models:
 
 **Rules:** immutable session state, frozen domain models, parallel independent steps, explicit state-transition guards.
 
-**What to standardise:** a shared `orchestrator` package providing a DAG runner, retry with jitter, timeout, circuit breaker and event bus. This is lifted almost unchanged from `mlops`, `barq`, `raas` and `clearvue-foundation`.
+**What to standardise:** a shared `orchestrator` package providing a DAG runner, retry with jitter, timeout, circuit breaker and event bus. The same design is evidenced in `mlops`, `barq`, `raas` and `clearvue-foundation`.
 
 ---
 
@@ -298,7 +300,7 @@ A closed loop that observes a signal, applies policy, decides, acts and records 
 - `mlops`: self-healing Observe -> Analyze -> Decide -> Act with drift remediation and alerting.
 - `clearvue-foundation`: spend evaluation, action decision, daily velocity guard.
 
-**What to standardise:** a generic loop package with pluggable observers, policy, evaluators, actors and evidence sink. This is the single most reusable runtime primitive in the portfolio.
+**What to standardise:** a generic loop package with pluggable observers, policy, evaluators, actors and evidence sink. This is the most consistently evidenced runtime primitive in the portfolio.
 
 ---
 
@@ -378,9 +380,9 @@ Read-only onboarding, multi-engine scanning, deterministic scoring, AI-generated
 **Evidence:**
 - `autoinfra` (GCP) and `autoinfra_aws` (AWS): Prowler, Steampipe, OPA, Postgres, Gemini/Bedrock, WeasyPrint; customer onboarding creates a read-only role.
 - `vuln-reduction-platform`: Orca inventory, baseline, guardrail, measured reduction.
-- `clearvue-foundation`: posture lifted from GFPR and unified with cost.
+- `clearvue-foundation`: posture derived from GFPR and unified with cost.
 
-**What to standardise:** a scanner interface (Prowler, Steampipe, OPA, native APIs), a unified Finding model, a control catalogue and a roadmap generator. `clearvue-foundation` already lifts and unifies GFPR findings, so start there.
+**What to standardise:** a scanner interface (Prowler, Steampipe, OPA, native APIs), a unified Finding model, a control catalogue and a roadmap generator. `clearvue-foundation` already derives and unifies GFPR findings; use it as design evidence.
 
 ---
 
@@ -554,22 +556,24 @@ Three principles:
 
 ### 5.2 Target module map
 
-| Platform module | Responsibility | Primary source repos | Reuse level |
+"Design influence" means how strongly the pattern should shape the greenfield build. It does not mean code reuse.
+
+| Platform module | Responsibility | Primary source repos | Design influence |
 |---|---|---|---|
-| **M0 Shared kernel** | DDD scaffolding, ports, in-memory adapters, config, DI, error model | `Meridian`, `cockpit`, `raas`, `punjab`, `barq` | Lift and standardise |
-| **M1 Foundation and posture** | Landing-zone review, IAM, network, DR, security, remediation roadmap | `autoinfra`, `autoinfra_aws`, `clearvue-foundation` | Lift, unify Finding model |
-| **M2 Assessment and TCO** | Estate ingestion, canonical model, 6R classification, TCO, roadmap | `agent-assess`, `infracc`, `anytoany` | Compose |
-| **M3 Code and IaC modernization** | Scan, plan, transform, validate, audit for AWS/Azure-to-GCP | `cloudshift_v2`, `refactor`, `refactor2`, `newrefactor`, `cloudshift` | Consolidate to one engine |
-| **M4 Architecture synthesis** | Pattern plus target cloud to diagram, plan and IaC | `drawio-gen`, `anytoany`, `tda-uk-accelerator` | Compose |
-| **M5 Landing zone and IaC** | Terraform module library, environments, plan/apply/drift | `tda-uk-accelerator`, `clearvue-foundation`, `msm`, `raas`, `punjab` | Lift modules |
-| **M6 Data platform** | Ingestion, lakehouse, reconciliation, schema generation, lineage | `barq`, `taa`, `temenos_ldm_accelerator`, `fhir-omop`, `msm` | Compose |
-| **M7 AI/ML platform** | MLOps, LLMOps gateway, model registry, drift, governance | `mlops`, `mlops-aws`, `llmops` | Lift |
-| **M8 Agentic control plane** | MCP registry, A2A gateway, agent hierarchy, co-pilot | `cockpit`, `byomcp`, `punjab`, `raas` | Lift kits |
-| **M9 FinOps** | Cost schema, graded remediation, budgets, attribution | `Meridian`, `clearvue-foundation`, `llmops` | Lift |
-| **M10 Resilience and sovereignty** | Failover, DR drills, residency, jurisdiction packs | `raas`, `tda-uk-accelerator`, `nelc`, `dpdp` | Lift |
-| **M11 Governance and compliance** | Control catalogue, consent ledger, audit, evidence | `dpdp`, `tda`, `nelc`, `feedback`, `vuln-reduction-platform` | Compose |
-| **M12 Delivery console** | Portfolio cockpit, migration factory, review and approval UI | `cockpit`, `infracc`, `coderev`, `feedback` | Compose |
-| **M13 AI accelerators** | Vertical agents: sales, marketing, contact centre, PPC, RoI | `sales`, `martech`/`nexus-agentic`, `atttick`, `mmopt2`, `mmopt3`, `aival2`, `prism`, `planetpayment` | Optional vertical packs |
+| **M0 Shared kernel** | DDD scaffolding, ports, in-memory adapters, config, DI, error model | `Meridian`, `cockpit`, `raas`, `punjab`, `barq` | Strong pattern |
+| **M1 Foundation and posture** | Landing-zone review, IAM, network, DR, security, remediation roadmap | `autoinfra`, `autoinfra_aws`, `clearvue-foundation` | Strong pattern; unify Finding model |
+| **M2 Assessment and TCO** | Estate ingestion, canonical model, 6R classification, TCO, roadmap | `agent-assess`, `infracc`, `anytoany` | Moderate pattern |
+| **M3 Code and IaC modernization** | Scan, plan, transform, validate, audit for AWS/Azure-to-GCP | `cloudshift_v2`, `refactor`, `refactor2`, `newrefactor`, `cloudshift` | Strong pattern; one new engine |
+| **M4 Architecture synthesis** | Pattern plus target cloud to diagram, plan and IaC | `drawio-gen`, `anytoany`, `tda-uk-accelerator` | Moderate pattern |
+| **M5 Landing zone and IaC** | Terraform module library, environments, plan/apply/drift | `tda-uk-accelerator`, `clearvue-foundation`, `msm`, `raas`, `punjab` | Strong pattern |
+| **M6 Data platform** | Ingestion, lakehouse, reconciliation, schema generation, lineage | `barq`, `taa`, `temenos_ldm_accelerator`, `fhir-omop`, `msm` | Moderate pattern |
+| **M7 AI/ML platform** | MLOps, LLMOps gateway, model registry, drift, governance | `mlops`, `mlops-aws`, `llmops` | Strong pattern |
+| **M8 Agentic control plane** | MCP registry, A2A gateway, agent hierarchy, co-pilot | `cockpit`, `byomcp`, `punjab`, `raas` | Strong pattern |
+| **M9 FinOps** | Cost schema, graded remediation, budgets, attribution | `Meridian`, `clearvue-foundation`, `llmops` | Strong pattern |
+| **M10 Resilience and sovereignty** | Failover, DR drills, residency, jurisdiction packs | `raas`, `tda-uk-accelerator`, `nelc`, `dpdp` | Strong pattern |
+| **M11 Governance and compliance** | Control catalogue, consent ledger, audit, evidence | `dpdp`, `tda`, `nelc`, `feedback`, `vuln-reduction-platform` | Moderate pattern |
+| **M12 Delivery console** | Portfolio cockpit, migration factory, review and approval UI | `cockpit`, `infracc`, `coderev`, `feedback` | Moderate pattern |
+| **M13 AI accelerators** | Vertical agents: sales, marketing, contact centre, PPC, RoI | `sales`, `martech`/`nexus-agentic`, `atttick`, `mmopt2`, `mmopt3`, `aival2`, `prism`, `planetpayment` | Optional |
 
 ### 5.3 Shared kernel (M0) contents
 
@@ -634,23 +638,25 @@ Drawn from `cloudshift` (134 patterns), `infracc`, `mlops-aws`, `Meridian` and `
 
 ### 5.6 Recommended build sequence
 
-**Phase 0 - Consolidation (2-3 weeks).**
-Create the monorepo or multi-package repo, lift the shared kernel from `Meridian`, `punjab`, `raas` and `barq`, stand up the conformance harness, and freeze the mapping registry schema.
+This sequence describes design dependencies, not reusable increments. It does not set dates; the re-baselined outlook is in the technical specification section 16.2.
 
-**Phase 1 - Assess and prove (4-6 weeks).**
-Ship M1 (posture) and M2 (assessment/TCO) first. These are read-only, low-risk, and immediately demoable. Combine `autoinfra`/`autoinfra_aws` with `agent-assess` and `infracc`. Produce one evidence report that covers posture, cost and migration readiness.
+**Phase 0 - Foundation.**
+Create the monorepo, implement the shared kernel, contracts and conformance harness from scratch, and freeze the mapping registry schema. No code is imported.
 
-**Phase 2 - Plan and design (4-6 weeks).**
-Add M4 (architecture synthesis) and the planning half of M3. Use `drawio-gen` plus `anytoany`'s canonical model so the diagram, the plan and the Terraform come from one source.
+**Phase 1 - Assess and prove.**
+Ship M1 (posture) and M2 (assessment/TCO) first. These are read-only, low-risk and immediately demoable. The reference evidence for the Finding model, canonical estate model and 6R flow comes from `autoinfra`/`autoinfra_aws`, `agent-assess` and `infracc`. Produce one evidence report that covers posture, cost and migration readiness.
 
-**Phase 3 - Modernize (6-10 weeks).**
-Consolidate `cloudshift_v2`, `refactor`, `refactor2` and `newrefactor` into one transformation engine. Ship M5 landing-zone modules from `tda-uk-accelerator`.
+**Phase 2 - Plan and design.**
+Add M4 (architecture synthesis) and the planning half of M3. Use the `drawio-gen` and `anytoany` canonical-model lessons so the diagram, the plan and the Terraform come from one source.
 
-**Phase 4 - Operate (6-8 weeks).**
+**Phase 3 - Modernize.**
+Build one clean-room transformation engine in Rust (ADR-015). The four source engines are used only to enumerate behaviours and edge cases. Build M5 landing-zone modules from CAIRN's own Terraform baseline.
+
+**Phase 4 - Operate.**
 Add M7 (MLOps/LLMOps), M8 (agentic control plane), M9 (FinOps) and M10 (resilience). These give the platform a post-migration operating story.
 
-**Phase 5 - Vertical packs (ongoing).**
-Package `martech`/`nexus-agentic`, `sales`, `atttick`, `mmopt2`, `mmopt3`, `aival2`, `prism` and `planetpayment` as optional accelerators, each on the shared kernel.
+**Phase 5 - Vertical packs.**
+Package the vertical lessons from `martech`/`nexus-agentic`, `sales`, `atttick`, `mmopt2`, `mmopt3`, `aival2`, `prism` and `planetpayment` as optional accelerators, each on the shared kernel.
 
 ### 5.7 What "all architecture platforms in this repo" means in practice
 
@@ -689,23 +695,23 @@ All 43 repositories in `asmeyatsky-work` were cloned and inspected. Every reposi
 - Several repos are POCs or demos rather than production systems. The catalogue describes what each repo claims and contains, not an independent production audit.
 - Counts of "repositories using MCP" and similar are based on documentation mentions and may overstate runtime usage in prototype repos.
 
-### 6.3 Decisions needed from you
+### 6.3 Decisions and their status
 
 1. **Repository shape.** One monorepo with packages per module, or a small number of repos (kernel, assessment, modernization, operations, vertical packs)? The portfolio's current fragmentation suggests a monorepo or at least a shared kernel package.
 2. **Target cloud priority.** GCP-first with AWS/Azure parity (the portfolio's bias), or provider-neutral from day one? `Meridian` proves neutrality is feasible; it costs roughly 2-3x the adapter work.
 3. **Product boundary.** Is the new platform an internal delivery accelerator for Searce-style engagements, or a commercial multi-tenant SaaS? The answer changes M12 and the security/tenancy scope.
 4. **AI provider policy.** Gemini-only for depth, or multi-provider via `ModelPort` from day one? `llmops` and `Meridian` already implement the multi-provider seam.
 5. **Evidence standard.** Do clients require signed, verifiable evidence (audit chain, attestation) or is a rendered PDF report sufficient? This determines whether M11 includes the ledger from `dpdp` and the audit-before-write guard from `tda`.
-6. **Consolidation appetite.** Are you willing to retire three of the four code transformers (`refactor`, `refactor2`, `newrefactor`) in favour of one engine derived from `cloudshift_v2`? Keeping all four will slow the platform down.
-7. **Timeline and team size.** The Phase 0-5 sequence assumes a small platform team; the order is chosen so each phase is independently demoable.
+6. **Transformation engine provenance.** Resolved by the greenfield decision: one engine is built clean-room in Rust (ADR-015, ADR-017). The four source engines are reference behaviour only; none is reused.
+7. **Timeline and team size.** The Phase 0-5 sequence is directional. See the technical specification section 16.2 for the re-baselined outlook (R1 at 4-6 months, R4 at 9-14 months, R5 undated).
 
-### 6.4 Highest-leverage reuse (if you only do five things)
+### 6.4 Highest-leverage patterns to reimplement (if you only do five things)
 
-1. **Lift `Meridian`'s ports-and-adapters model** as the kernel's provider seam.
-2. **Lift `punjab`'s conformance harness and MCP-per-BC discipline** as the quality bar.
-3. **Lift `tda-uk-accelerator`'s evidence and audit-before-write model** as the trust layer.
-4. **Consolidate the transformation engines** into one `cloudshift_v2`-derived pipeline.
-5. **Unify `autoinfra` + `autoinfra_aws` + `clearvue-foundation`** into a single posture-and-cost assessment module.
+1. **Reimplement `Meridian`'s ports-and-adapters model** as the kernel's provider seam.
+2. **Reimplement `punjab`'s conformance harness and MCP-per-BC discipline** as the quality bar.
+3. **Reimplement `tda-uk-accelerator`'s evidence and audit-before-write model** as the trust layer.
+4. **Build one clean-room transformation engine**, using the source engines only to enumerate behaviours (ADR-015).
+5. **Unify the posture-and-cost lessons from `autoinfra`, `autoinfra_aws` and `clearvue-foundation`** into one assessment module.
 
 ---
 

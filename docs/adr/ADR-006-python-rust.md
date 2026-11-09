@@ -7,7 +7,7 @@
 
 ## Context
 
-The source portfolio is dominated by Python 3.12 for platform and service logic, with Rust used where deterministic parsing and transformation performance matter. CAIRN must reuse that strength without turning every module into a polyglot project.
+The reference portfolio is dominated by Python 3.12 for platform and service logic, with Rust used where deterministic parsing and transformation performance matter. CAIRN is greenfield (ADR-017), so the choice rests on team skills and component fit, not on reusing portfolio code. It should still avoid turning every module into a polyglot project.
 
 ## Decision
 
@@ -20,7 +20,7 @@ The source portfolio is dominated by Python 3.12 for platform and service logic,
 
 **Positive**
 
-- Leverages the strongest existing skills and code in the portfolio.
+- Leverages the strongest existing team skills while keeping new code in one language by default.
 - Deterministic transformation is fast and isolated from the Python runtime.
 - Clear performance boundary for the one genuinely compute-heavy component.
 
@@ -37,7 +37,7 @@ The source portfolio is dominated by Python 3.12 for platform and service logic,
 ## Alternatives considered
 
 1. **All Python.** Simpler toolchain, but transformation performance and parsing robustness suffer.
-2. **All Rust or all Go.** Consistent performance story but a rewrite of reusable Python assets and a hiring mismatch.
+2. **All Rust or all Go.** Consistent performance story but a poor match for team skills and slower delivery.
 3. **TypeScript services.** Fits the console but not the domain and data workloads.
 
 ## If rejected

@@ -1,6 +1,6 @@
 # CAIRN Technical Implementation Specification
 
-**Version:** 0.1 (draft for architecture and engineering review)
+**Version:** 0.2 (greenfield re-baseline; draft for architecture and engineering review)
 **Prepared:** 9 November 2026
 **Source documents:** `Cloud_Modernization_Platform_PRD.docx` v1.0; `CLOUD-ARCHITECTURE-PATTERNS.md`
 **Product stake in the ground:** shared kernel first; **CAIRN Assess** and **CAIRN Modernize** are the first customer-facing products; one canonical estate model and one mapping registry drive assessment, design, migration planning and generated infrastructure.
@@ -12,6 +12,7 @@
 | Item | Value |
 |---|---|
 | Status | Draft, pending product-owner confirmation of the open decisions in section 19 |
+| Revision | 0.2, 9 November 2026: greenfield decision, no code reuse (ADR-017), sections 16-19 re-baselined |
 | Audience | Platform engineering, architecture, security, product, delivery |
 | Traceability | Requirements reference PRD IDs (FR-xxx, NFR-xxx) |
 | Change rule | Any change to a contract in sections 7-13 requires an ADR and a version bump |
@@ -33,10 +34,13 @@ This is the implementation-level bridge between the PRD and code. It fixes the t
 
 - It is not a final OpenAPI file, Terraform plan or migration script. Those are generated from this specification during R0.
 - It does not silently settle the PRD's open product decisions. Where a default is needed to make the document actionable, it is marked **Proposed default - pending confirmation** and linked to an ADR.
+- It does not assume code reuse. CAIRN is greenfield: the 43 reference repositories are design evidence only (ADR-017, section 17).
 
 ---
 
 ## 1. Scope and traceability
+
+This specification assumes a greenfield build. No source code, assets or configuration from the 43 reference repositories is reused; they are design evidence only (ADR-017). Any statement in earlier documents that implies lifting code is superseded.
 
 ### 1.1 Release scope this specification enables
 
@@ -71,7 +75,7 @@ This is the implementation-level bridge between the PRD and code. It fixes the t
 
 ## 2. Architecture decisions adopted for this specification
 
-These are **proposed** ADRs. Each is written so it can be accepted, amended or rejected before code starts. Full records, including context, consequences, alternatives and the decision log, live in `docs/adr/`.
+These are the architecture decisions. ADR-017 is **accepted** as a product constraint; the rest are **proposed** and can be accepted, amended or rejected before code starts. Full records, including context, consequences, alternatives and the decision log, live in `docs/adr/`.
 
 | ADR | Decision | Rationale | Consequence if rejected |
 |---|---|---|---|
@@ -80,7 +84,7 @@ These are **proposed** ADRs. Each is written so it can be accepted, amended or r
 | ADR-003 | One canonical estate model, versioned | Single source for assessment, design, plan and IaC | Duplicate models and inconsistent outputs |
 | ADR-004 | One mapping registry, immutable releases | Prevents fabricated or divergent service mappings | Approximate mappings become invisible |
 | ADR-005 | GCP-first adapters with provider-neutral contracts | Controls first-release cost; keeps portability | Slower multi-cloud parity |
-| ADR-006 | Python 3.12 for domain/application, Rust only for transformation hot path | Matches source portfolio strengths | Rewrite cost or performance risk |
+| ADR-006 | Python 3.12 for domain/application, Rust only for transformation hot path | Best fit for team skills and component needs | Rewrite cost or performance risk |
 | ADR-007 | PostgreSQL for OLTP and registry metadata; BigQuery for analytics | Clear source-of-truth boundaries | Duplicate truth or poor analytics |
 | ADR-008 | Evidence is signed JSON plus human-readable report; audit-before-effect | Trust differentiator; PRD FR-084/FR-092 | Weaker audit story; retrofitting is costly |
 | ADR-009 | Approval is bound to an immutable plan revision | Prevents "approve once, apply anything" | Compliance failure |
@@ -89,8 +93,9 @@ These are **proposed** ADRs. Each is written so it can be accepted, amended or r
 | ADR-012 | TenantId is a domain concept and database RLS backstop | Defense in depth for isolation | Cross-tenant exposure risk |
 | ADR-013 | SaaS multi-tenant control plane first; customer-deployed option deferred | Lowest first-release operational surface | Identity, tenancy, billing and support redesign later |
 | ADR-014 | One model provider as MVP default behind ModelPort; additional providers are adapters | Controls cost and parity testing scope | Slower provider choice for customers |
-| ADR-015 | Consolidate transformation on the `cloudshift_v2` Rust core; retire `refactor`, `refactor2`, `newrefactor` | Removes three competing engines and divergent behaviour | Parallel maintenance and drift |
+| ADR-015 | Build one transformation engine clean-room in Rust; reference engines are behaviour evidence only | Removes divergent engines without inheriting code or licence risk | Multiple engines or implicit reuse |
 | ADR-016 | One launch jurisdiction pack first, versioned like a mapping release | Bounds residency and control scope at launch | Additional packs delay later releases |
+| ADR-017 | Greenfield clean-room implementation; no code reuse from the reference repositories | Removes licence and provenance ambiguity; forces clean contracts | Reuse assumption returns and contaminates provenance |
 
 ---
 
@@ -1678,7 +1683,7 @@ Sizing: S (1-2 days), M (3-5 days), L (1-2 weeks), XL (2-4 weeks). Order is the 
 | R0-15 | Create `api`, `worker`, `console` skeletons with health/readiness | M | R0-02 | Local compose runs; health endpoints pass |
 | R0-16 | Create Terraform module skeletons and dev environment | L | R0-01 | `terraform plan` clean in dev; no long-lived secrets |
 | R0-17 | Create CI/CD pipelines: lint, test, conformance, security, build, sign | L | R0-07 | Pipeline green; SBOM and signature artefacts produced |
-| R0-18 | Review and accept ADR-001..016; record outcomes in `docs/adr/README.md` | S | - | Blocking set accepted or amended; decision log current |
+| R0-18 | Review and accept ADR-001..017; record outcomes in `docs/adr/README.md` and create the reference register | S | - | Blocking set accepted or amended; ADR-017 acknowledged as a constraint; decision log current |
 
 ### R1 - CAIRN Assess (exit: read-only assessment plus evidence)
 
@@ -1756,7 +1761,7 @@ Sizing: S (1-2 days), M (3-5 days), L (1-2 weeks), XL (2-4 weeks). Order is the 
 | R5-05 | Implement resilience and sovereignty module | XL | R2-01 | Failover rules, residency sweeps, evidence |
 | R5-06 | Implement vertical accelerator packs | XL | R0-02 | Each pack conforms to kernel and contracts |
 
-### Critical path
+### 16.1 Critical path
 
 ```
 R0-01 -> R0-02 -> R0-04 -> R0-06 -> R0-07
@@ -1769,39 +1774,63 @@ R0-01 -> R0-02 -> R0-04 -> R0-06 -> R0-07
 
 Do not start R1 provider work before R0-13 (adapter contracts) and R0-04 (canonical model) are stable. Do not start R2 design generation before R2-01 (registry service) and R1-06 (canonical normalization) are stable.
 
+### 16.2 Re-baselined delivery outlook
+
+The earlier 22-33 week figure assumed code reuse. It is withdrawn. The outlook below is for a focused 5-7 person team, GCP-only, one jurisdiction pack, with ADRs closing in days rather than weeks. It is a planning outlook, not a delivery commitment.
+
+| Milestone | Outlook | Notes |
+|---|---|---|
+| R0 exit | 4-6 weeks | Includes a 2-day ADR time-box and greenfield scaffolding |
+| Pilot-able R1 | 4-6 months from start | Read-only assessment, real evidence, one customer walkthrough |
+| R4, first mutation-capable release | 9-14 months from start | Adds approval, sandbox, apply, security review and execution evidence |
+| R5 | Undated | Scope intentionally open |
+
+At least nine XL stories sit on the critical path and set the floor independently of reuse. R2 and R3 fall between the R1 and R4 milestones; do not commit dates for them until R1 is proven with a real customer.
+
 ---
 
-## 17. Extraction and consolidation plan
+## 17. Reference use and clean-room policy
 
-### 17.1 Lift, adapt or rewrite
+### 17.1 How the 43 repositories are used
 
-| Capability | Source | Decision | Work |
+CAIRN is greenfield (ADR-017). The reference repositories are evidence for how problems were solved, not a source of code. Nothing is lifted, vendored or copied.
+
+| Capability | Reference evidence | What CAIRN takes (design lesson) | CAIRN implementation |
 |---|---|---|---|
-| Hex/DDD scaffolding | `Meridian`, `punjab`, `barq` | Lift and normalise | Extract common primitives; remove repo-specific assumptions |
-| Provider ports | `Meridian`, `mlops-aws`, `raas` | Lift concepts | Define one contract suite; rewrite adapters to it |
-| MCP kit | `punjab`, `byomcp`, `raas` | Lift and harden | One transport/auth/audit implementation |
-| Evidence and ledger | `tda-uk-accelerator`, `dpdp`, `feedback` | Lift concepts | Implement once in kernel; do not lift three |
-| Posture | `autoinfra`, `autoinfra_aws`, `clearvue-foundation` | Compose and unify | One Finding model; scanner adapters |
-| Assessment and 6R | `agent-assess`, `infracc`, `anytoany` | Compose | One canonical model; 6R classifier; TCO |
-| Mapping registry | `cloudshift`, `drawio-gen`, `infracc` | Lift data, rewrite service | One versioned service; seed from pattern catalogues |
-| Design and diagrams | `drawio-gen` | Lift pipeline | Adapt to target model and registry service |
-| Transformation | `cloudshift_v2` | Lift Rust core | Add manifest/validation; retire competing engines |
-| FinOps | `clearvue-foundation`, `Meridian` | Compose | Gradient remediation; read-only in R1 |
-| Loop kit | `Meridian`, `llmops`, `mlops` | Lift concepts | Generic runtime with policy and evidence |
-| Observability | `llmops`, `punjab`, `raas` | Lift | One OTel/RED/AI-call standard |
-| Console | `infracc`, `cockpit` | Rewrite focused | Assessment-first IA; do not port full cockpit |
+| Hex/DDD scaffolding | `Meridian`, `punjab`, `barq` | Four-layer separation and explicit ports, enforced in CI | New `kernel/hex` and `contracts`, `import-linter` |
+| Provider ports | `Meridian`, `mlops-aws`, `raas` | One contract per provider capability; a fake adapter for tests | New `provider-core` protocols; GCP adapter first |
+| MCP kit | `punjab`, `byomcp`, `raas` | One server per bounded context; gateway auth and audit | New `kits/mcp`, `apps/mcp-gateway` |
+| Evidence and ledger | `tda-uk-accelerator`, `dpdp`, `feedback` | Audit-before-effect; signed artefacts; offline verification | New `kernel/evidence` |
+| Posture | `autoinfra`, `autoinfra_aws`, `clearvue-foundation` | One Finding model; scanner adapters | New `modules/posture` |
+| Assessment and 6R | `agent-assess`, `infracc`, `anytoany` | Canonical estate model; explicit coverage and confidence | New `modules/estate` |
+| Mapping registry | `cloudshift`, `drawio-gen`, `infracc` | Equivalence semantics; immutable releases | New `modules/mappings` |
+| Design and diagrams | `drawio-gen` | One model drives diagram, plan and IaC | New `modules/design` |
+| Transformation | `cloudshift_v2` (reference only) | Parse, detect, diff and validate as separate deterministic stages | New `transform-core` in Rust (ADR-015) |
+| FinOps | `clearvue-foundation`, `Meridian` | Graded remediation; attribution and unallocated spend | New `modules/finops` |
+| Loop kit | `Meridian`, `llmops`, `mlops` | Observe/Decide/Act with policy and evidence | New `kits/loop` |
+| Observability | `llmops`, `punjab`, `raas` | OTel plus RED plus per-AI-call cost log | New `kernel/observability` |
+| Console | `infracc`, `cockpit` | Assessment-first information architecture | New `apps/console` |
 
-### 17.2 What not to lift
+### 17.2 Prohibited reuse
 
-- Repo-specific domain assumptions and customer names.
-- Duplicate transformation engines (`refactor`, `refactor2`, `newrefactor`).
-- Any code that treats missing data as zero or pass.
-- Any AI path where the model authorizes an irreversible action.
-- Prototype frontends that do not meet accessibility or tenancy standards.
+- No source code, tests, schemas, Terraform, prompts, diagrams or configuration copied from the reference repositories.
+- No vendoring, no git submodules, and no build-time or run-time dependency on a reference repository.
+- No licence obligation is inherited, because no artefact is reused.
+- Team members may read the repositories as evidence but must not paste from them.
 
-### 17.3 Due diligence before lifting
+### 17.3 Clean-room controls
 
-For each source repo: license, dependency and vulnerability review; test coverage; secret scan; data-handling assumptions; maintainer intent. Record the outcome in `docs/specs/extraction-register.md`.
+- Every story that cites a reference repository records what was learned, not what was copied, in `docs/specs/reference-register.md`.
+- Code review rejects unexplained similarity to a reference repository.
+- If a third-party asset is ever considered, its licence is reviewed before use; that is an exception, not a default.
+- The pattern catalogue (`CLOUD-ARCHITECTURE-PATTERNS.md`) is the primary reference artefact.
+
+### 17.4 Why greenfield
+
+- The repositories carry unresolved licence, provenance and quality questions; the source analysis already flags empty, frontend-only and POC repositories.
+- Their interfaces are shaped by prototype assumptions that conflict with the kernel, tenancy and evidence contracts.
+- Clean-room implementation produces one contract set, one test suite and no hidden coupling.
+- The cost is schedule, not uncertainty: the build is larger, but the deliverable is legible.
 
 ---
 
@@ -1818,7 +1847,11 @@ For each source repo: license, dependency and vulnerability review; test coverag
 | Overbuilding the console | Slow delivery | Assessment-first IA; four archetypes remain separate |
 | Adapter multiplication | Schedule expansion | GCP-first; shared contract suite; AWS/Azure follow |
 | Transformation risk | Customer impact | Preview-only in R3; sandbox; approval in R4 |
-| Team size unknown | Unrealistic plan | Validate phase estimates against named team and pilot |
+| Greenfield build cost | Higher effort than a lift/adapt plan | Scope discipline: GCP-only, one jurisdiction pack, assessment first |
+| Reuse assumptions in earlier estimates | Schedule optimism | Re-baselined outlook in section 16.2; treat dates as discovery until R1 is proven |
+| Reference contamination | IP or licence ambiguity | Clean-room controls in section 17.3; reference register; review checklist |
+| ADR review drift | R0 delay | Two-day time-box; accept or reject the blocking set |
+| Team size unknown | Unrealistic plan | Validate estimates against a named team and pilot |
 
 ---
 
@@ -1831,8 +1864,9 @@ For each source repo: license, dependency and vulnerability review; test coverag
 | Product boundary | SaaS multi-tenant control plane; customer-deployed deferred | Identity, tenancy, billing, support | ADR-013 |
 | AI provider policy | ModelPort; one default in MVP | Provider lock-in or parity cost | ADR-014 |
 | Evidence standard | Signed JSON plus report | Audit differentiation | ADR-008 |
-| Transformation consolidation | Around `cloudshift_v2` | Duplicate engines | ADR-015 |
-| Timeline and team | Validate estimates | Release commitments | - |
+| Code provenance | Greenfield clean-room; no reuse | Licence and provenance ambiguity | ADR-017 |
+| Transformation engine | One clean-room Rust engine; reference repos are behaviour evidence only | Conflicting engines or implicit reuse | ADR-015 |
+| Timeline and team | R1 at 4-6 months; R4 at 9-14 months; R5 undated | Release commitments | - |
 | Launch jurisdiction | One pack, versioned | Residency, controls, legal review | ADR-016 |
 
 ---
@@ -1885,6 +1919,8 @@ R0 + R1 + the MVP of R2 is done when:
 | R4 | 7 | Approval, plan/apply/drift, audit-before-effect | Governed execution with evidence |
 | R5 | 6 | FinOps, LLMOps/MLOps, MCP/A2A, resilience, packs | Operational loops with governed remediation |
 | **Total** | **69** | | |
+
+Sizes are greenfield build sizes. The earlier reuse-dependent timeline is withdrawn; see section 16.2.
 
 ## Appendix C - Glossary additions
 
