@@ -11,7 +11,7 @@ This directory holds the architecture decisions for CAIRN. Each ADR is a short, 
 | Rejected | Considered and declined. The ADR stays to preserve the reasoning. |
 | Superseded | Replaced by a later ADR, which is named in the header. |
 
-No ADR is Accepted yet. Everything below is Proposed as of 2026-11-09.
+ADR-017 is Accepted as a product constraint. All other ADRs are Proposed as of 2026-11-09.
 
 ## Decision log
 
@@ -31,10 +31,13 @@ No ADR is Accepted yet. Everything below is Proposed as of 2026-11-09.
 | [ADR-012](ADR-012-tenant-isolation.md) | TenantId is a domain concept, with database RLS as a backstop | Proposed | 2026-11-09 | No |
 | [ADR-013](ADR-013-saas-first.md) | SaaS multi-tenant control plane first, customer-deployed deferred | Proposed | 2026-11-09 | Yes |
 | [ADR-014](ADR-014-model-port.md) | One MVP model provider behind ModelPort; additional providers are adapters | Proposed | 2026-11-09 | Yes |
-| [ADR-015](ADR-015-transformation-consolidation.md) | Consolidate transformation on the cloudshift_v2 Rust core | Proposed | 2026-11-09 | No |
+| [ADR-015](ADR-015-clean-room-transform-engine.md) | Build one transformation engine clean-room in Rust | Proposed | 2026-11-09 | No |
 | [ADR-016](ADR-016-launch-jurisdiction.md) | One launch jurisdiction pack first, versioned like a mapping release | Proposed | 2026-11-09 | No |
+| [ADR-017](ADR-017-clean-room.md) | Greenfield clean-room implementation; no code reuse from reference repositories | Accepted | 2026-11-09 | Yes (constraint) |
 
 **Blocking set for R0 exit:** ADR-001, ADR-005, ADR-007, ADR-010, ADR-013, ADR-014. These change repository shape, adapter scope, data stores, the mutation boundary, the product boundary or the model dependency. Everything else can be amended during R0/R1 without rework.
+
+**Accepted constraint:** ADR-017 fixes the build as greenfield. It is not reopened by review; reversing it requires a new ADR and a rewrite of spec section 17, ADR-015 and the delivery outlook.
 
 ## How decisions change
 
