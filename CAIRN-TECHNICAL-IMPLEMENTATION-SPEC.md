@@ -1,6 +1,6 @@
 # CAIRN Technical Implementation Specification
 
-**Version:** 0.2 (greenfield re-baseline; draft for architecture and engineering review)
+**Version:** 0.3 (accepted decisions; solo, public, open-source baseline)
 **Prepared:** 9 November 2026
 **Source documents:** `Cloud_Modernization_Platform_PRD.docx` v1.0; `CLOUD-ARCHITECTURE-PATTERNS.md`
 **Product stake in the ground:** shared kernel first; **CAIRN Assess** and **CAIRN Modernize** are the first customer-facing products; one canonical estate model and one mapping registry drive assessment, design, migration planning and generated infrastructure.
@@ -11,8 +11,9 @@
 
 | Item | Value |
 |---|---|
-| Status | Draft, pending product-owner confirmation of the open decisions in section 19 |
+| Status | Draft for engineering review; all ADRs accepted 9 November 2026 |
 | Revision | 0.2, 9 November 2026: greenfield decision, no code reuse (ADR-017), sections 16-19 re-baselined |
+| Revision | 0.3, 9 November 2026: ADR-001..018 accepted; gated writes from R1; solo maintainer; public OSS |
 | Audience | Platform engineering, architecture, security, product, delivery |
 | Traceability | Requirements reference PRD IDs (FR-xxx, NFR-xxx) |
 | Change rule | Any change to a contract in sections 7-13 requires an ADR and a version bump |
@@ -33,7 +34,7 @@ This is the implementation-level bridge between the PRD and code. It fixes the t
 ### 0.2 What this document is not
 
 - It is not a final OpenAPI file, Terraform plan or migration script. Those are generated from this specification during R0.
-- It does not silently settle the PRD's open product decisions. Where a default is needed to make the document actionable, it is marked **Proposed default - pending confirmation** and linked to an ADR.
+- It does not reopen settled decisions silently. Section 19 records the accepted outcomes, and any change requires a superseding ADR.
 - It does not assume code reuse. CAIRN is greenfield: the 43 reference repositories are design evidence only (ADR-017, section 17).
 
 ---
@@ -47,10 +48,10 @@ This specification assumes a greenfield build. No source code, assets or configu
 | Release | Name | Customer outcome | Modules |
 |---|---|---|---|
 | R0 | Platform foundation | Deployable skeleton with architecture rules enforced in CI | M0 |
-| R1 | CAIRN Assess | A customer completes a read-only assessment and inspects evidence | M1, M2, M9 (read-only), M11 (baseline), M12 (assessment console) |
+| R1 | CAIRN Assess | A customer completes an assessment, inspects evidence, and can take one gated action | M1, M2, M9 (read-only), M11 (baseline), M12 (assessment console), plus the execution gate |
 | R2 | CAIRN Design | One canonical model produces diagram, plan and IaC preview | M4, M5 (plan-only), M2 (extended) |
 | R3 | CAIRN Modernize preview | Engineers review safe transformation proposals | M3 |
-| R4 | Controlled execution | Approved changes execute with evidence | M3, M5, M11 |
+| R4 | Execution at scale | Drift, rollback, remediation workflows and broader apply coverage | M3, M5, M11 |
 | R5 | CAIRN Operate | FinOps, AI governance, resilience and vertical packs | M7, M8, M9, M10, M13 |
 
 ### 1.2 Traceability matrix
@@ -65,7 +66,7 @@ This specification assumes a greenfield build. No source code, assets or configu
 | FR-050 to FR-056 mapping registry | 8, 9, 10 | R1 seed, R2 service |
 | FR-060 to FR-066 architecture synthesis | 8, 10, 12 | R2 |
 | FR-070 to FR-077 modernization | 6, 8, 10, 12 | R3/R4 |
-| FR-080 to FR-086 approval and execution | 12, 13 | R4 |
+| FR-080 to FR-086 approval and execution | 12, 13 | R1 gate, R4 at scale |
 | FR-090 to FR-096 evidence and provenance | 8, 9, 13 | R0 baseline, R1 full |
 | FR-100 to FR-107 AI and agentic | 6, 11, 13 | R0 kernel, R5 control plane |
 | FR-110 to FR-116 console | 10, 14 | R1/R2 |
@@ -75,27 +76,28 @@ This specification assumes a greenfield build. No source code, assets or configu
 
 ## 2. Architecture decisions adopted for this specification
 
-These are the architecture decisions. ADR-017 is **accepted** as a product constraint; the rest are **proposed** and can be accepted, amended or rejected before code starts. Full records, including context, consequences, alternatives and the decision log, live in `docs/adr/`.
+These architecture decisions are **accepted** as of 9 November 2026. Full records, including context, consequences, alternatives and the decision log, live in `docs/adr/`.
 
 | ADR | Decision | Rationale | Consequence if rejected |
 |---|---|---|---|
-| ADR-001 | Monorepo with independently deployable apps | Shared kernel changes and cross-module conformance are the main integration risk | Package registry and versioning overhead |
+| ADR-001 | Monorepo with independently deployable apps, public at `solara-associates/cairn` | Shared kernel changes and cross-module conformance are the main integration risk | Package registry and versioning overhead |
 | ADR-002 | Clean/Hexagonal plus DDD, enforced by `import-linter` | Proven across the source portfolio | Boundaries drift; reintroduces fragmentation |
-| ADR-003 | One canonical estate model, versioned | Single source for assessment, design, plan and IaC | Duplicate models and inconsistent outputs |
-| ADR-004 | One mapping registry, immutable releases | Prevents fabricated or divergent service mappings | Approximate mappings become invisible |
+| ADR-003 | One canonical estate model, versioned; full model defined up front | Single source for assessment, design, plan and IaC | Duplicate models and inconsistent outputs |
+| ADR-004 | One mapping registry, immutable releases; Allan Smeyatsky approves | Prevents fabricated or divergent service mappings | Approximate mappings become invisible |
 | ADR-005 | GCP-first adapters with provider-neutral contracts | Controls first-release cost; keeps portability | Slower multi-cloud parity |
-| ADR-006 | Python 3.12 for domain/application, Rust only for transformation hot path | Best fit for team skills and component needs | Rewrite cost or performance risk |
-| ADR-007 | PostgreSQL for OLTP and registry metadata; BigQuery for analytics | Clear source-of-truth boundaries | Duplicate truth or poor analytics |
-| ADR-008 | Evidence is signed JSON plus human-readable report; audit-before-effect | Trust differentiator; PRD FR-084/FR-092 | Weaker audit story; retrofitting is costly |
+| ADR-006 | Python 3.12 for domain/application, Rust for transformation and measured hot paths, from R0 | Best fit for team skills and component needs | Rewrite cost or performance risk |
+| ADR-007 | Cloud SQL PostgreSQL (europe-west2) for OLTP; BigQuery for analytics | Clear source-of-truth boundaries | Duplicate truth or poor analytics |
+| ADR-008 | Evidence is signed JSON plus human-readable report; audit-before-effect; CAIRN-held keys | Trust differentiator; PRD FR-084/FR-092 | Weaker audit story; retrofitting is costly |
 | ADR-009 | Approval is bound to an immutable plan revision | Prevents "approve once, apply anything" | Compliance failure |
-| ADR-010 | Read-only MVP; no customer environment mutation before R4 | Safe pilot and evaluation | Premature operational risk |
-| ADR-011 | MCP per bounded context; A2A bridge for agent hosts | Matches source portfolio; host interoperability | Ad-hoc integrations |
+| ADR-010 | Gated writes from the first release; no un-gated mutation | Remediation value early, with one audited gate | Unreviewed apply path or deferred value |
+| ADR-011 | MCP per bounded context; A2A bridge for agent hosts, internal until R5 | Matches source portfolio; host interoperability | Ad-hoc integrations |
 | ADR-012 | TenantId is a domain concept and database RLS backstop | Defense in depth for isolation | Cross-tenant exposure risk |
-| ADR-013 | SaaS multi-tenant control plane first; customer-deployed option deferred | Lowest first-release operational surface | Identity, tenancy, billing and support redesign later |
-| ADR-014 | One model provider as MVP default behind ModelPort; additional providers are adapters | Controls cost and parity testing scope | Slower provider choice for customers |
-| ADR-015 | Build one transformation engine clean-room in Rust; reference engines are behaviour evidence only | Removes divergent engines without inheriting code or licence risk | Multiple engines or implicit reuse |
-| ADR-016 | One launch jurisdiction pack first, versioned like a mapping release | Bounds residency and control scope at launch | Additional packs delay later releases |
+| ADR-013 | SaaS-only multi-tenant product; no supported customer-deployed edition; mid-market first | Lowest first-release operational surface | Identity, tenancy, billing and support redesign later |
+| ADR-014 | Gemini-only provider behind ModelPort; no customer BYO key | Controls cost and parity testing scope | Provider lock-in or limited choice |
+| ADR-015 | Build one transformation engine clean-room in Rust; Terraform and Python first | Removes divergent engines without inheriting code or licence risk | Multiple engines or implicit reuse |
+| ADR-016 | United Kingdom launch jurisdiction pack, versioned like a mapping release | Bounds residency and control scope at launch | Additional packs delay later releases |
 | ADR-017 | Greenfield clean-room implementation; no code reuse from the reference repositories | Removes licence and provenance ambiguity; forces clean contracts | Reuse assumption returns and contaminates provenance |
+| ADR-018 | Open-source distribution under Apache-2.0 with professional services revenue | Adoption without a pilot customer; code is inspectable | Proprietary or open-core model |
 
 ---
 
@@ -139,7 +141,7 @@ These are the architecture decisions. ADR-017 is **accepted** as a product const
 
 ### 3.3 Why this shape
 
-- **Read-only assess and design are separate from execution.** The assessment plane builds no applier (pattern from `anytoany`), so a code defect cannot mutate a customer estate in R1/R2.
+- **Assess and design are separate from gated execution.** The assessment plane builds no applier, so a code defect cannot mutate a customer estate. Mutation exists from R1, but only in the isolated execution module and only through policy, approval and evidence (ADR-010).
 - **The canonical model and registry are services, not libraries copied into each module.** This is what makes CAIRN a platform.
 - **Async by default for anything touching a provider.** Long scans, ingestion and transformations run as resumable jobs; the API returns `202` with an operation resource.
 
@@ -1506,6 +1508,8 @@ Evidence rules:
 
 ## 13. Deployment topology
 
+The source is public under Apache-2.0 (ADR-018). The hosted SaaS in 13.1 is the only supported deployment. 13.2 is internal only; there is no supported customer-deployed edition (ADR-013).
+
 ### 13.1 Hosted SaaS (initial profile)
 
 ```
@@ -1540,14 +1544,14 @@ Observability
   Cloud Logging, Cloud Monitoring, Cloud Trace, OTel collector
 ```
 
-### 13.2 Portable Kubernetes profile (later)
+### 13.2 Internal portability profile (not a customer offering)
 
-Helm chart `infra/helm/cairn` with:
+Helm chart `infra/helm/cairn`, used for internal disaster recovery and portability testing only:
 - `api`, `worker`, `mcp-gateway`, `console` deployments.
 - PostgreSQL (CloudNativePG or managed), Redis, object storage (MinIO/S3-compatible), Kafka or Pub/Sub emulator where required.
 - Keycloak for identity, Vault or External Secrets for secrets.
 - Same contracts and migrations; provider adapters remain pluggable.
-- Air-gapped mode: local CLI/worker, signed artefact exchange, optional local model provider.
+- No air-gapped customer mode and no supported customer-deployed edition (ADR-013). The open-source licence permits unsupported self-hosting by third parties.
 
 ### 13.3 Terraform module library
 
@@ -1561,7 +1565,7 @@ Helm chart `infra/helm/cairn` with:
 | `cairn-observability` | Log sinks, metrics, dashboards, alerts, SLOs |
 | `cairn-guardrails` | Org policies, budgets, spend caps, Cloud Armor |
 | `cairn-evidence` | KMS keys, immutable bucket, audit sink |
-| `cairn-connections` | Customer onboarding roles for AWS/Azure/GCP read-only |
+| `cairn-connections` | Customer onboarding roles for GCP read-only; separate opt-in write roles where gated execution is enabled |
 
 Environments: `dev`, `staging`, `prod`, with isolated state, credentials and data.
 
@@ -1669,7 +1673,7 @@ Sizing: S (1-2 days), M (3-5 days), L (1-2 weeks), XL (2-4 weeks). Order is the 
 | R0-01 | Create monorepo, uv/Cargo/pnpm workspaces, Makefile | S | - | `make bootstrap` installs all workspaces; CI runs on empty packages |
 | R0-02 | Implement `kernel/hex` primitives, ports, DI, settings, errors | M | R0-01 | Unit tests; a sample module uses only public kernel APIs |
 | R0-03 | Implement `kernel/tenancy` and tenant context propagation | M | R0-02 | Context set from auth middleware; cross-tenant unit test fails closed |
-| R0-04 | Implement `contracts/estate` v0 schemas | L | R0-02 | Schemas validate golden fixtures; no SDK imports |
+| R0-04 | Implement the full `contracts/estate` v0 model, all entities | XL | R0-02 | All entities validate golden fixtures; no SDK imports |
 | R0-05 | Implement `contracts/events` and `contracts/api` | M | R0-02 | JSON schema tests; version field enforced |
 | R0-06 | Add `import-linter` contracts and CI job | S | R0-01 | Deliberate violation fails CI |
 | R0-07 | Build conformance harness and rule map v0 | M | R0-06 | `make conformance` reports pass/fail; self-test covers all mandatory rules |
@@ -1685,12 +1689,12 @@ Sizing: S (1-2 days), M (3-5 days), L (1-2 weeks), XL (2-4 weeks). Order is the 
 | R0-17 | Create CI/CD pipelines: lint, test, conformance, security, build, sign | L | R0-07 | Pipeline green; SBOM and signature artefacts produced |
 | R0-18 | Review and accept ADR-001..017; record outcomes in `docs/adr/README.md` and create the reference register | S | - | Blocking set accepted or amended; ADR-017 acknowledged as a constraint; decision log current |
 
-### R1 - CAIRN Assess (exit: read-only assessment plus evidence)
+### R1 - CAIRN Assess (exit: assessment, evidence and the gated execution path)
 
 | ID | Story | Size | Depends | Acceptance criteria |
 |---|---|---|---|---|
 | R1-01 | Implement project, membership and settings APIs | M | R0-09 | CRUD with RBAC; cross-tenant tests pass |
-| R1-02 | Implement provider connection create/validate/revoke for GCP | L | R0-13 | Read-only scope validated; secret never returned; revoke audited |
+| R1-02 | Implement provider connection create/validate/revoke for GCP | L | R0-13 | Read-only scope validated by default; write scope separate and opt-in; secret never returned; revoke audited |
 | R1-03 | Implement file ingestion adapters (CSV/JSON/RVTools/HVTools/BOM) | L | R0-13 | Golden fixture per format; parser version recorded |
 | R1-04 | Implement ingestion run state machine, checkpoints and errors | L | R1-03 | Resumable after failure; partial coverage recorded |
 | R1-05 | Implement GCP inventory adapter (read-only) | XL | R1-02 | Collects projects/regions/resources; rate limit and retry verified |
@@ -1709,6 +1713,8 @@ Sizing: S (1-2 days), M (3-5 days), L (1-2 weeks), XL (2-4 weeks). Order is the 
 | R1-18 | Build assessment console screens | XL | R1-01..R1-17 | Journey complete: project → ingest → assess → inspect → export |
 | R1-19 | Add cross-tenant, resilience and security tests for R1 | L | R1-01..R1-18 | Mandatory gates pass |
 | R1-20 | Pilot runbook, data-handling terms and SLO baseline | M | R1-18 | Pilot can be run without engineering intervention |
+| R1-21 | Implement approval service and state machine (pulled forward from R4) | L | R0-10 | Revision-bound; separation of duties; audit |
+| R1-22 | Implement execution record, idempotency and audit-before-effect (pulled forward from R4) | L | R1-21, R0-10 | Retry attaches to same execution; audit outage fails closed |
 
 ### R2 - CAIRN Design (exit: one model produces consistent design artefacts)
 
@@ -1738,23 +1744,23 @@ Sizing: S (1-2 days), M (3-5 days), L (1-2 weeks), XL (2-4 weeks). Order is the 
 | R3-07 | Build diff review and validation console | L | R3-04..R3-06 | Engineer can review, comment, request changes |
 | R3-08 | Add sandboxed execution (limits, no network by default) | L | R3-05 | Resource and time limits enforced; egress blocked |
 
-### R4 - Controlled execution (exit: approved changes execute with evidence)
+### R4 - Execution at scale (exit: drift, rollback and broader apply coverage)
+
+The approval service (R1-21) and audit-before-effect record (R1-22) moved to R1 under ADR-010.
 
 | ID | Story | Size | Depends | Acceptance criteria |
 |---|---|---|---|---|
-| R4-01 | Implement approval service and state machine | L | R0-10 | Revision-bound; separation of duties; audit |
-| R4-02 | Implement risk-tier policy engine | M | R4-01 | Role requirements per tier enforced |
-| R4-03 | Implement Terraform plan/apply/drift adapter | XL | R2-07 | Plan and apply tied to reviewed revision; drift detected |
-| R4-04 | Implement execution record, idempotency and audit-before-effect | L | R4-01, R0-10 | Retry attaches to same execution; audit outage fails closed |
+| R4-02 | Implement risk-tier policy engine | M | R1-21 | Role requirements per tier enforced |
+| R4-03 | Implement Terraform plan/apply/drift adapter | XL | R2-07, R1-22 | Plan and apply tied to reviewed revision; drift detected |
 | R4-05 | Implement rollback/recovery references and runbooks | M | R4-03 | Rollback path documented and tested |
-| R4-06 | Build approval and execution console | L | R4-01..R4-05 | Approver sees exact revision and evidence |
+| R4-06 | Build approval and execution console | L | R1-21, R1-22, R4-02..R4-05 | Approver sees exact revision and evidence |
 | R4-07 | Add execution security and failure-mode tests | L | R4-03..R4-06 | Partial failure, timeout, unauthorized apply all tested |
 
 ### R5 - CAIRN Operate (exit: governed operational loops)
 
 | ID | Story | Size | Depends | Acceptance criteria |
 |---|---|---|---|---|
-| R5-01 | Implement FinOps graded remediation and policy | L | R1-12, R4-04 | Alert/throttle/cap/stop/disable with approval |
+| R5-01 | Implement FinOps graded remediation and policy | L | R1-12, R1-22 | Alert/throttle/cap/stop/disable with approval |
 | R5-02 | Implement LLMOps gateway and AI control loop | XL | R0-12 | Security/reliability/cost/observability pillars |
 | R5-03 | Implement MLOps lifecycle module | XL | R0-13 | Registry, drift, self-healing with bounds |
 | R5-04 | Implement MCP gateway and A2A bridge | L | R0-13 | Registry, OAuth, agent cards, bridge tests |
@@ -1766,7 +1772,7 @@ Sizing: S (1-2 days), M (3-5 days), L (1-2 weeks), XL (2-4 weeks). Order is the 
 ```
 R0-01 -> R0-02 -> R0-04 -> R0-06 -> R0-07
                       \-> R0-11 -> R1-17
-       R0-08 -> R0-10 -> R4-01
+       R0-08 -> R0-10 -> R1-21 -> R1-22
        R0-13 -> R1-02 -> R1-05 -> R1-06 -> R1-15 -> R1-17 -> R1-18
        R0-14 -> R2-01 -> R2-04 -> R2-05/R2-07
        R2-01 -> R3-03 -> R3-04 -> R3-07
@@ -1776,16 +1782,16 @@ Do not start R1 provider work before R0-13 (adapter contracts) and R0-04 (canoni
 
 ### 16.2 Re-baselined delivery outlook
 
-The earlier 22-33 week figure assumed code reuse. It is withdrawn. The outlook below is for a focused 5-7 person team, GCP-only, one jurisdiction pack, with ADRs closing in days rather than weeks. It is a planning outlook, not a delivery commitment.
+The earlier 22-33 week figure assumed code reuse and a 5-7 person team. Both assumptions are withdrawn. The binding constraint is one maintainer (Allan), using agent assistance, on a public open-source repository, with no hard deadline beyond ASAP.
 
 | Milestone | Outlook | Notes |
 |---|---|---|
-| R0 exit | 4-6 weeks | Includes a 2-day ADR time-box and greenfield scaffolding |
-| Pilot-able R1 | 4-6 months from start | Read-only assessment, real evidence, one customer walkthrough |
-| R4, first mutation-capable release | 9-14 months from start | Adds approval, sandbox, apply, security review and execution evidence |
+| R0 exit | 8-12 weeks | Public repo, full model, Rust workspace, conformance, gated-write gate design |
+| Pilot-able R1 | 9-15 months solo; 6-10 months with sustained agent assistance | Assessment, evidence and one gated action; no customer date committed |
+| R4, execution at scale | 24-36 months solo; 15-24 months with assistance | Do not commit until R1 is proven |
 | R5 | Undated | Scope intentionally open |
 
-At least nine XL stories sit on the critical path and set the floor independently of reuse. R2 and R3 fall between the R1 and R4 milestones; do not commit dates for them until R1 is proven with a real customer.
+Fourteen stories are XL and at least nine sit on the critical path. Agent assistance reduces implementation effort, not review, security or support capacity. ASAP therefore means optimizing for the earliest credible R1 and adding maintainers when the critical path allows; it is not a date.
 
 ---
 
@@ -1838,36 +1844,42 @@ CAIRN is greenfield (ADR-017). The reference repositories are evidence for how p
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| Open decisions block architecture | Rework | Resolve ADR-001, 005, 007, 010, 013, 014 before R0 exit; defaults documented |
-| Canonical model scope creep | Delay | Start with assessment-critical entities; version extensions |
+| Scope creep after ADR acceptance | Delay | Freeze R1 scope; new scope requires a story and, if it changes a contract, an ADR |
+| Full-model scope | R0 and R1 delay | Build the full v0 model before adapters; mark unused entities and version extensions |
 | Mapping inaccuracy | Wrong design/TCO | Equivalence semantics, caveats, human review, evidence |
 | Provider API coverage gaps | Incomplete assessment | Coverage indicators, file-import fallback, retries |
 | Tenant isolation defect | Data exposure | Domain plus RLS plus adversarial tests on every path |
 | Evidence service outage | Unverifiable writes | Fail closed for governed writes; queue only before effect |
 | Overbuilding the console | Slow delivery | Assessment-first IA; four archetypes remain separate |
 | Adapter multiplication | Schedule expansion | GCP-first; shared contract suite; AWS/Azure follow |
-| Transformation risk | Customer impact | Preview-only in R3; sandbox; approval in R4 |
+| Transformation risk | Customer impact | Preview-only in R3; sandbox; gated approval from R1 |
+| Gated writes from R1 | Blast radius, security review | One gate, read-only default credentials, isolated applier, rollback and incident runbooks |
+| Open-source support load | Maintainer burnout | Public issue policy, SECURITY.md, no support promise without an engagement |
 | Greenfield build cost | Higher effort than a lift/adapt plan | Scope discipline: GCP-only, one jurisdiction pack, assessment first |
 | Reuse assumptions in earlier estimates | Schedule optimism | Re-baselined outlook in section 16.2; treat dates as discovery until R1 is proven |
 | Reference contamination | IP or licence ambiguity | Clean-room controls in section 17.3; reference register; review checklist |
-| ADR review drift | R0 delay | Two-day time-box; accept or reject the blocking set |
-| Team size unknown | Unrealistic plan | Validate estimates against a named team and pilot |
+| ADR review drift | R0 delay | All ADRs accepted 9 November 2026; changes need a superseding ADR |
+| Single maintainer | Unrealistic plan | Solo outlook in section 16.2; add maintainers on the critical path; agent assistance for implementation, not review |
 
 ---
 
-## 19. Open decisions and their implementation impact
+## 19. Accepted decisions and their implementation impact
 
-| Decision | Proposed default | Impact if unresolved | ADR |
-|---|---|---|---|
-| Repository shape | Monorepo | Package/versioning overhead | ADR-001 |
-| Target cloud priority | GCP-first, neutral contracts | Adapter scope | ADR-005 |
-| Product boundary | SaaS multi-tenant control plane; customer-deployed deferred | Identity, tenancy, billing, support | ADR-013 |
-| AI provider policy | ModelPort; one default in MVP | Provider lock-in or parity cost | ADR-014 |
-| Evidence standard | Signed JSON plus report | Audit differentiation | ADR-008 |
-| Code provenance | Greenfield clean-room; no reuse | Licence and provenance ambiguity | ADR-017 |
-| Transformation engine | One clean-room Rust engine; reference repos are behaviour evidence only | Conflicting engines or implicit reuse | ADR-015 |
-| Timeline and team | R1 at 4-6 months; R4 at 9-14 months; R5 undated | Release commitments | - |
-| Launch jurisdiction | One pack, versioned | Residency, controls, legal review | ADR-016 |
+| Decision | Outcome | ADR |
+|---|---|---|
+| Repository shape | Monorepo, public at `solara-associates/cairn` | ADR-001, ADR-018 |
+| Target cloud priority | GCP-first behind neutral contracts | ADR-005 |
+| Data stores | Cloud SQL PostgreSQL in `europe-west2`; BigQuery for analytics | ADR-007 |
+| Mutation boundary | Gated writes from R1; no un-gated path | ADR-010 |
+| Product boundary | SaaS-only multi-tenant; mid-market first; no supported customer-deployed edition | ADR-013 |
+| AI provider policy | Gemini only behind ModelPort; no customer BYO key | ADR-014 |
+| Evidence standard | Signed JSON plus report; audit-before-effect; CAIRN-held keys | ADR-008 |
+| Code provenance | Greenfield clean-room; no reuse | ADR-017 |
+| Transformation engine | One clean-room Rust engine; Terraform and Python first | ADR-015 |
+| Launch jurisdiction | United Kingdom pack | ADR-016 |
+| Licence | Apache-2.0 | ADR-018 |
+| Mapping approver | Allan Smeyatsky | ADR-004 |
+| Timeline and team | Solo maintainer; R0 8-12 weeks; R1 9-15 months; ASAP, no hard date | Section 16.2 |
 
 ---
 
@@ -1885,7 +1897,9 @@ R0 + R1 + the MVP of R2 is done when:
 8. An editable diagram and target-design summary generate from the same target model.
 9. A human-readable report and a signed evidence package are produced and independently verifiable.
 10. Tenant isolation, conformance, security and evidence tamper tests pass in CI.
-11. No customer environment mutation is possible.
+11. No mutation is possible without policy, approval and an evidence record; assessment and design services remain read-only.
+12. The repository is public under Apache-2.0 with a root README, SECURITY.md, CONTRIBUTING.md and no secrets in history.
+13. A gated write has been exercised end to end and rolled back in a test environment.
 
 ---
 
@@ -1912,15 +1926,15 @@ R0 + R1 + the MVP of R2 is done when:
 
 | Release | Stories | Focus | Exit |
 |---|---|---|---|
-| R0 | 18 | Kernel, contracts, conformance, deployment skeleton | Rules enforced in CI; one deployable |
-| R1 | 20 | Assessment, posture, cost, 6R, evidence, console | Read-only assessment end to end |
+| R0 | 18 | Kernel, full model, conformance, deployment skeleton | Rules enforced in CI; one deployable |
+| R1 | 22 | Assessment, posture, cost, 6R, evidence, console, approval and audit gate | Assessment end to end, one gated action |
 | R2 | 10 | Registry, patterns, target model, diagrams, plan preview | One model drives all design artefacts |
 | R3 | 8 | Repository scan, transformation, diff, validation | Reviewable modernization proposal |
-| R4 | 7 | Approval, plan/apply/drift, audit-before-effect | Governed execution with evidence |
+| R4 | 5 | Plan/apply/drift, rollback, execution at scale | Drift and rollback with evidence |
 | R5 | 6 | FinOps, LLMOps/MLOps, MCP/A2A, resilience, packs | Operational loops with governed remediation |
 | **Total** | **69** | | |
 
-Sizes are greenfield build sizes. The earlier reuse-dependent timeline is withdrawn; see section 16.2.
+Sizes are greenfield build sizes. The earlier reuse-dependent timeline is withdrawn; see section 16.2. R4 originally held seven stories; approval (R4-01) and audit-before-effect (R4-04) moved to R1 as R1-21 and R1-22 under ADR-010, so the total is unchanged.
 
 ## Appendix C - Glossary additions
 

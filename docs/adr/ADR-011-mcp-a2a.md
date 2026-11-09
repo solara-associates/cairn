@@ -1,8 +1,8 @@
 # ADR-011: MCP per bounded context, with an A2A bridge for agent hosts
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-11-09
-- **Deciders:** Architecture review (pending)
+- **Deciders:** Product owner (Allan Smeyatsky)
 - **Related:** Implementation spec §10, §11, ADR-002
 
 ## Context
