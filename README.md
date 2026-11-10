@@ -13,7 +13,7 @@ This repository is at the **specification stage**. It contains architecture, dec
 - **CAIRN Operate**: FinOps and operational loops.
 - **CAIRN Govern**: policy, approval and immutable evidence.
 
-The first release is a commercial multi-tenant SaaS on Google Cloud, aimed at the mid-market and launched with a United Kingdom jurisdiction pack. Gated writes start in R1: a change is applied only after policy, revision-bound approval and an audit-before-effect record. Assessment and design stay read-only.
+The first usable release is a commercial multi-tenant SaaS on Google Cloud, aimed at the mid-market and launched with a United Kingdom jurisdiction pack. It is read-only against customer environments: R1 does assessment, workspace decisions and evidence. Governed customer-environment writes start only in R4, through a kernel execution gate with policy, immutable revision approval, audit-before-effect, evidence and rollback.
 
 ## Documents
 
