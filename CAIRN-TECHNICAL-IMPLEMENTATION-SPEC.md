@@ -1,6 +1,6 @@
 # CAIRN Technical Implementation Specification
 
-**Version:** 0.3 (accepted decisions; solo, public, open-source baseline)
+**Version:** 0.4 (accepted decisions plus architecture-review amendments)
 **Prepared:** 9 November 2026
 **Source documents:** `Cloud_Modernization_Platform_PRD.docx` v1.0; `CLOUD-ARCHITECTURE-PATTERNS.md`
 **Product stake in the ground:** shared kernel first; **CAIRN Assess** and **CAIRN Modernize** are the first customer-facing products; one canonical estate model and one mapping registry drive assessment, design, migration planning and generated infrastructure.
@@ -13,7 +13,8 @@
 |---|---|
 | Status | Draft for engineering review; all ADRs accepted 9 November 2026 |
 | Revision | 0.2, 9 November 2026: greenfield decision, no code reuse (ADR-017), sections 16-19 re-baselined |
-| Revision | 0.3, 9 November 2026: ADR-001..018 accepted; gated writes from R1; solo maintainer; public OSS |
+| Revision | 0.3, 9 November 2026: accepted decisions baseline; solo maintainer, public repository, Apache-2.0, Gemini only, full model up front |
+| Revision | 0.4, 9 November 2026: architecture review; operation classes; no Class C before R4; immutable revisions; tenancy, idempotency and evidence amendments |
 | Audience | Platform engineering, architecture, security, product, delivery |
 | Traceability | Requirements reference PRD IDs (FR-xxx, NFR-xxx) |
 | Change rule | Any change to a contract in sections 7-13 requires an ADR and a version bump |
@@ -45,14 +46,16 @@ This specification assumes a greenfield build. No source code, assets or configu
 
 ### 1.1 Release scope this specification enables
 
-| Release | Name | Customer outcome | Modules |
+The PRD boundary is preserved: the first usable release must not mutate customer environments.
+
+| Release | Name | Exit capability | Customer environment mutation |
 |---|---|---|---|
-| R0 | Platform foundation | Deployable skeleton with architecture rules enforced in CI | M0 |
-| R1 | CAIRN Assess | A customer completes an assessment, inspects evidence, and can take one gated action | M1, M2, M9 (read-only), M11 (baseline), M12 (assessment console), plus the execution gate |
-| R2 | CAIRN Design | One canonical model produces diagram, plan and IaC preview | M4, M5 (plan-only), M2 (extended) |
-| R3 | CAIRN Modernize preview | Engineers review safe transformation proposals | M3 |
-| R4 | Execution at scale | Drift, rollback, remediation workflows and broader apply coverage | M3, M5, M11 |
-| R5 | CAIRN Operate | FinOps, AI governance, resilience and vertical packs | M7, M8, M9, M10, M13 |
+| R0 | Platform foundation | CI, conformance, contracts, deployable skeleton, tenancy/evidence foundations | None |
+| R1 | CAIRN Assess | Read-only assessment, workspace decisions, evidence, and deterministic execution-gate validation | None |
+| R2 | CAIRN Design | One canonical model produces diagram, mappings, plan and IaC preview | None |
+| R3 | CAIRN Modernize preparation | Transformation preparation, validation, preview and execution-package generation | None; no customer apply |
+| R4 | Class C execution | Provider adapters, approval-bound execution, rollback and independently verifiable evidence | Controlled Class C only, through the kernel execution gate |
+| R5 | CAIRN Operate | FinOps, AI governance, resilience and vertical packs | Controlled Class C where explicitly approved |
 
 ### 1.2 Traceability matrix
 
@@ -66,7 +69,7 @@ This specification assumes a greenfield build. No source code, assets or configu
 | FR-050 to FR-056 mapping registry | 8, 9, 10 | R1 seed, R2 service |
 | FR-060 to FR-066 architecture synthesis | 8, 10, 12 | R2 |
 | FR-070 to FR-077 modernization | 6, 8, 10, 12 | R3/R4 |
-| FR-080 to FR-086 approval and execution | 12, 13 | R1 gate, R4 at scale |
+| FR-080 to FR-086 approval and execution | 12, 13 | R1 deterministic gate validation; R4 live Class C execution |
 | FR-090 to FR-096 evidence and provenance | 8, 9, 13 | R0 baseline, R1 full |
 | FR-100 to FR-107 AI and agentic | 6, 11, 13 | R0 kernel, R5 control plane |
 | FR-110 to FR-116 console | 10, 14 | R1/R2 |
@@ -87,11 +90,11 @@ These architecture decisions are **accepted** as of 9 November 2026. Full record
 | ADR-005 | GCP-first adapters with provider-neutral contracts | Controls first-release cost; keeps portability | Slower multi-cloud parity |
 | ADR-006 | Python 3.12 for domain/application, Rust for transformation and measured hot paths, from R0 | Best fit for team skills and component needs | Rewrite cost or performance risk |
 | ADR-007 | Cloud SQL PostgreSQL (europe-west2) for OLTP; BigQuery for analytics | Clear source-of-truth boundaries | Duplicate truth or poor analytics |
-| ADR-008 | Evidence is signed JSON plus human-readable report; audit-before-effect; CAIRN-held keys | Trust differentiator; PRD FR-084/FR-092 | Weaker audit story; retrofitting is costly |
-| ADR-009 | Approval is bound to an immutable plan revision | Prevents "approve once, apply anything" | Compliance failure |
-| ADR-010 | Gated writes from the first release; no un-gated mutation | Remediation value early, with one audited gate | Unreviewed apply path or deferred value |
+| ADR-008 | Canonical signed JSON plus human-readable report; unique chain head; audit-before-effect; CAIRN-held keys | Trust differentiator; PRD FR-084/FR-092 | Weaker audit story; retrofitting is costly |
+| ADR-009 | Immutable revisions; approvals and executions are bound to exact revision rows | Prevents "approve once, apply anything" | Compliance failure |
+| ADR-010 | Operation classes; Class C customer mutations only through the kernel gate, and no Class C before R4 | Preserves PRD boundary and makes governance non-bypassable | Bypassable or premature mutation |
 | ADR-011 | MCP per bounded context; A2A bridge for agent hosts, internal until R5 | Matches source portfolio; host interoperability | Ad-hoc integrations |
-| ADR-012 | TenantId is a domain concept and database RLS backstop | Defense in depth for isolation | Cross-tenant exposure risk |
+| ADR-012 | Tenant isolation is a kernel contract, with forced database RLS and composite scope keys | Defense in depth for isolation | Cross-tenant exposure risk |
 | ADR-013 | SaaS-only multi-tenant product; no supported customer-deployed edition; mid-market first | Lowest first-release operational surface | Identity, tenancy, billing and support redesign later |
 | ADR-014 | Gemini-only provider behind ModelPort; no customer BYO key | Controls cost and parity testing scope | Provider lock-in or limited choice |
 | ADR-015 | Build one transformation engine clean-room in Rust; Terraform and Python first | Removes divergent engines without inheriting code or licence risk | Multiple engines or implicit reuse |
@@ -141,7 +144,7 @@ These architecture decisions are **accepted** as of 9 November 2026. Full record
 
 ### 3.3 Why this shape
 
-- **Assess and design are separate from gated execution.** The assessment plane builds no applier, so a code defect cannot mutate a customer estate. Mutation exists from R1, but only in the isolated execution module and only through policy, approval and evidence (ADR-010).
+- **Assess and design are separate from execution.** The assessment and design planes build no applier and hold no execution credentials, so a code defect cannot mutate a customer estate. Class C mutation exists only from R4, in the isolated execution module, and only through the kernel gate with policy, immutable revision approval and evidence (ADR-010).
 - **The canonical model and registry are services, not libraries copied into each module.** This is what makes CAIRN a platform.
 - **Async by default for anything touching a provider.** Long scans, ingestion and transformations run as resumable jobs; the API returns `202` with an operation resource.
 
@@ -184,6 +187,7 @@ cairn/
 │   │   ├── evidence/
 │   │   ├── observability/
 │   │   ├── security/
+│   │   ├── execution-gate/          # operation classification and Class C gate
 │   │   ├── conformance/
 │   │   └── testing/
 │   ├── contracts/
@@ -218,6 +222,7 @@ cairn/
 │   │   ├── planning/
 │   │   ├── transformation/
 │   │   ├── approvals/
+│   │   ├── execution/               # R4 Class C orchestration
 │   │   ├── evidence-service/
 │   │   └── reporting/
 │   └── transform-core/             # Rust crates: parser, detector, patcher, validator
@@ -323,9 +328,15 @@ Each module repeats the module-isolation contract. Cross-module communication us
 # kernel/hex/primitives.py
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
 from typing import Generic, Protocol, TypeVar
 
 T = TypeVar("T")
+
+class OperationClass(str, Enum):
+    READ = "READ"                 # Class A
+    WORKSPACE_MUTATION = "WORKSPACE_MUTATION"  # Class B
+    GOVERNED_ENV_MUTATION = "GOVERNED_ENV_MUTATION"  # Class C
 
 @dataclass(frozen=True, slots=True)
 class TenantId:
@@ -345,6 +356,17 @@ class Fact(Generic[T]):
     confidence: float | None
     mapping_version: str | None
     provenance_ref: str
+
+@dataclass(frozen=True, slots=True)
+class CommandContext:
+    tenant_id: TenantId
+    project_id: ProjectId | None
+    actor_id: str
+    actor_roles: tuple[str, ...]
+    correlation_id: str
+    operation_class: OperationClass
+    idempotency_key: str | None = None
+    source: str = "api"         # console | api | mcp | agent | job
 
 class Port(Protocol):
     """Marker protocol for all outbound ports."""
@@ -373,12 +395,18 @@ class UnitOfWork(Protocol):
 | `RepositorySourcePort` | transformation | Git/upload, fake |
 | `TransformationPort` | transformation | Rust core, fake |
 | `ValidationPort` | transformation | test/static runner, fake |
+| `RevisionRepository` | approvals/planning/design | Postgres append-only, fake |
 | `ApprovalRepository` | approvals | Postgres, fake |
+| `ExecutionGatePort` | execution | Kernel gate + deterministic test adapter in R1; no production provider adapter before R4 |
+| `ProviderExecutionPort` | execution | **None before R4**; production adapters only in R4 behind `ExecutionGatePort` |
 | `EvidenceStore` | evidence-service | Postgres + GCS + KMS, fake |
 | `AuditSink` | kernel/security | Postgres append-only, fake |
-| `ModelPort` | adapters/model | Vertex, fake (later Bedrock/Azure) |
+| `IdempotencyStore` | kernel/security | Postgres, fake |
+| `ModelPort` | adapters/model | Gemini, fake |
 | `EventPublisher` | kernel | Pub/Sub, in-memory |
 | `Clock`, `IdGenerator` | kernel | system, fixed test |
+
+Before R4, `modules/execution` and any production `ProviderExecutionPort` adapter are absent from the deployable. The deterministic test adapter lives in test code, is selected only by the test harness, and cannot be enabled by runtime configuration.
 
 ### 5.3 Conformance harness rule map (v0)
 
@@ -386,14 +414,16 @@ class UnitOfWork(Protocol):
 |---|---|---|
 | R-ARCH-01 | `importlinter` all contracts kept | CI fail |
 | R-ARCH-02 | Domain imports no SDK/framework | CI fail |
-| R-TENANT-01 | Every repository query filters `tenant_id` | Unit + adversarial test |
-| R-TENANT-02 | Every table has RLS policy | Migration test |
-| R-EVID-01 | Governed writes append audit before effect | Integration test |
-| R-EVID-02 | Evidence tamper is detected | Tamper test |
+| R-TENANT-01 | Every repository query enforces tenant context | Unit + adversarial test |
+| R-TENANT-02 | Every tenant-owned and project-owned table has the required forced RLS policies and is classified | Migration test |
+| R-AUDIT-01 | Class B/C mutations append audit trail; Class C appends before external effect | Integration test |
+| R-EVID-01 | Evidence tamper/fork is detected | Tamper/fork test |
 | R-AI-01 | Model output schema-validated | Eval test |
 | R-AI-02 | Model cannot approve/execute | Policy test |
 | R-MAP-01 | Approximate/unavailable never rendered as exact | Resolver test |
-| R-IDEM-01 | Mutating use cases require idempotency key | Contract test |
+| R-REV-01 | Approvals/executions bind to immutable revision rows and exact hashes | DB constraint + integration test |
+| R-GATE-01 | No Class C path outside `ExecutionGatePort`; no production provider adapter before R4 | Static + integration test |
+| R-IDEM-01 | Class B and Class C mutations require tenant/operation/key scoped idempotency, replay/conflict handling and expiry | Contract test |
 | R-COV-01 | Coverage floor per critical package | CI fail |
 | R-SEC-01 | No critical/high findings; high needs risk acceptance | CI gate |
 | R-SEC-02 | SBOM and image signature present | CI gate |
@@ -649,23 +679,38 @@ entries:
 
 ## 8. Data architecture
 
-### 8.1 Source-of-truth boundaries
+### 8.1 Tenancy classification
+
+Every persisted, emitted and stored entity is classified before implementation.
+
+| Class | Meaning | Examples |
+|---|---|---|
+| Global | Not tenant-owned; CAIRN-operated control data | published global mapping releases, control catalogue metadata, platform config |
+| Tenant-owned | Scoped to one tenant; not project-specific | tenant, app_user, tenant-wide role grants, tenant settings, tenant mapping proposals, ledger entries with optional project |
+| Project-owned | Scoped to one tenant and one project | projects, connections, ingestion, estate facts, findings, costs, designs, plans, approvals, executions, evidence, artifacts, model telemetry |
+
+The same classification applies to APIs, MCP tools/resources, events, Pub/Sub attributes, object-storage paths, worker jobs and service identities. Tenant/project scope comes from authenticated server-side context and is never accepted from untrusted request parameters.
+
+### 8.2 Source-of-truth boundaries
 
 | Data class | Store | Reason |
 |---|---|---|
 | Tenants, users, projects, connections metadata | PostgreSQL | Transactional, audited, relational |
-| Canonical estate facts, findings, costs summary | PostgreSQL | OLTP plus tenant RLS |
+| Canonical estate facts, findings, costs summary | PostgreSQL | OLTP plus tenant/project isolation |
 | Raw observations, high-volume facts | GCS raw + BigQuery raw | Volume, replay, analytics |
 | Cost line items | BigQuery | Scale and query patterns |
-| Mapping registry metadata and releases | PostgreSQL; published YAML export in GCS | Immutable releases, review workflow |
-| Jobs, approvals, evidence index | PostgreSQL | Transactional state machines |
+| Global published mappings | PostgreSQL + published export in GCS | Immutable global releases |
+| Tenant mapping proposals | PostgreSQL | Tenant-scoped review; no global publish authority |
+| Revisions, approvals, executions, idempotency, outbox, jobs, evidence index | PostgreSQL | Transactional state machines, dispatch and audit ordering |
 | Evidence packages | GCS immutable + PostgreSQL index | Tamper-evident storage |
 | Cache (mapping resolution, sessions) | Redis/Memorystore | Latency |
 | Agent/session state | PostgreSQL | Avoid duplicate truth; Firestore only if realtime UI requires |
 
-### 8.2 PostgreSQL schema (core DDL)
+### 8.3 PostgreSQL schema (core DDL)
 
-All tables carry `tenant_id` and are protected by RLS. `app.tenant_id` is set per transaction from the authenticated principal.
+Tenant-owned and project-owned tables carry `tenant_id`; project-owned tables also carry `project_id`. Every tenant-owned and project-owned table uses `ENABLE ROW LEVEL SECURITY` and `FORCE ROW LEVEL SECURITY`. `app.tenant_id` and, where applicable, `app.project_id` are set per transaction from authenticated server-side context only.
+
+The DDL is normative for shape and constraints. Migrations must add composite foreign keys, uniqueness constraints, and a test that enumerates every tenant-owned and project-owned table for RLS coverage.
 
 ```sql
 -- Extensions
@@ -687,16 +732,8 @@ CREATE TABLE app_user (
   email            text,
   status           text NOT NULL DEFAULT 'ACTIVE',
   created_at       timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (tenant_id, subject)
-);
-
-CREATE TABLE role_grant (
-  grant_id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id        uuid NOT NULL,
-  user_id          uuid NOT NULL REFERENCES app_user(user_id),
-  project_id       uuid,
-  role             text NOT NULL CHECK (role IN ('TENANT_ADMIN','PROJECT_OWNER','ARCHITECT','ENGINEER','REVIEWER','AUDITOR','VIEWER')),
-  created_at       timestamptz NOT NULL DEFAULT now()
+  UNIQUE (tenant_id, subject),
+  UNIQUE (tenant_id, user_id)
 );
 
 CREATE TABLE project (
@@ -711,27 +748,42 @@ CREATE TABLE project (
   assessment_end   date,
   selected_modules text[] NOT NULL DEFAULT '{}',
   retention_days   integer,
-  created_at       timestamptz NOT NULL DEFAULT now()
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (tenant_id, project_id)
+);
+
+CREATE TABLE role_grant (
+  grant_id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id        uuid NOT NULL REFERENCES tenant(tenant_id),
+  user_id          uuid NOT NULL,
+  project_id       uuid,
+  role             text NOT NULL CHECK (role IN ('TENANT_ADMIN','PROJECT_OWNER','ARCHITECT','ENGINEER','REVIEWER','AUDITOR','VIEWER')),
+  granted_by       uuid,
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  FOREIGN KEY (tenant_id, user_id) REFERENCES app_user(tenant_id, user_id),
+  FOREIGN KEY (tenant_id, project_id) REFERENCES project(tenant_id, project_id),
+  UNIQUE NULLS NOT DISTINCT (tenant_id, user_id, project_id)
 );
 
 -- Connections and ingestion
 CREATE TABLE provider_connection (
   connection_id    uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id        uuid NOT NULL,
-  project_id       uuid NOT NULL REFERENCES project(project_id),
+  project_id       uuid NOT NULL,
   provider         text NOT NULL CHECK (provider IN ('gcp','aws','azure')),
   account_ref      text NOT NULL,
   auth_ref         text NOT NULL,          -- secret reference only, never plaintext
   scopes           text[] NOT NULL DEFAULT '{}',
   status           text NOT NULL DEFAULT 'PENDING',
   last_validated_at timestamptz,
-  created_at       timestamptz NOT NULL DEFAULT now()
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  FOREIGN KEY (tenant_id, project_id) REFERENCES project(tenant_id, project_id)
 );
 
 CREATE TABLE ingestion_run (
   run_id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id        uuid NOT NULL,
-  project_id       uuid NOT NULL REFERENCES project(project_id),
+  project_id       uuid NOT NULL,
   source_kind      text NOT NULL,          -- INVENTORY | BILLING | ESTATE_EXPORT | SECURITY
   source_system    text NOT NULL,
   parser_version   text NOT NULL,
@@ -741,14 +793,16 @@ CREATE TABLE ingestion_run (
   finished_at      timestamptz,
   coverage         jsonb NOT NULL DEFAULT '{}',
   error_summary    jsonb,
-  created_at       timestamptz NOT NULL DEFAULT now()
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (tenant_id, project_id, run_id),
+  FOREIGN KEY (tenant_id, project_id) REFERENCES project(tenant_id, project_id)
 );
 
 CREATE TABLE source_observation (
   observation_id   uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id        uuid NOT NULL,
   project_id       uuid NOT NULL,
-  run_id           uuid NOT NULL REFERENCES ingestion_run(run_id),
+  run_id           uuid NOT NULL,
   source_system    text NOT NULL,
   source_id        text NOT NULL,
   source_version   text,
@@ -757,7 +811,9 @@ CREATE TABLE source_observation (
   raw_ref          text NOT NULL,
   payload_hash     text NOT NULL,
   status           text NOT NULL,
-  created_at       timestamptz NOT NULL DEFAULT now()
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  FOREIGN KEY (tenant_id, project_id) REFERENCES project(tenant_id, project_id),
+  FOREIGN KEY (tenant_id, project_id, run_id) REFERENCES ingestion_run(tenant_id, project_id, run_id)
 );
 
 -- Canonical estate
@@ -893,12 +949,13 @@ CREATE TABLE tco_scenario (
   created_at       timestamptz NOT NULL DEFAULT now()
 );
 
--- Mapping registry
+-- Mapping registry (global published data; tenant-owned proposals are separate)
 CREATE TABLE mapping_release (
   mapping_version  text PRIMARY KEY,
-  status           text NOT NULL DEFAULT 'DRAFT',
+  scope            text NOT NULL DEFAULT 'GLOBAL' CHECK (scope = 'GLOBAL'),
+  status           text NOT NULL DEFAULT 'DRAFT' CHECK (status IN ('DRAFT','PUBLISHED','RETIRED')),
   released_at      timestamptz,
-  released_by      uuid,
+  released_by      text NOT NULL,          -- platform-controlled identity
   content_hash     text NOT NULL,
   notes            text
 );
@@ -916,6 +973,19 @@ CREATE TABLE service_mapping (
   evidence         text,
   effective_from   date,
   effective_to     date
+);
+
+CREATE TABLE mapping_proposal (
+  proposal_id      uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id        uuid NOT NULL REFERENCES tenant(tenant_id),
+  project_id       uuid,
+  target_release   text REFERENCES mapping_release(mapping_version),
+  proposed_by      uuid NOT NULL,
+  status           text NOT NULL DEFAULT 'DRAFT' CHECK (status IN ('DRAFT','SUBMITTED','ACCEPTED','REJECTED')),
+  content          jsonb NOT NULL,
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  FOREIGN KEY (tenant_id, project_id) REFERENCES project(tenant_id, project_id),
+  FOREIGN KEY (tenant_id, proposed_by) REFERENCES app_user(tenant_id, user_id)
 );
 
 -- Disposition and planning
@@ -943,19 +1013,42 @@ CREATE TABLE migration_wave (
   status           text NOT NULL DEFAULT 'DRAFT'
 );
 
-CREATE TABLE migration_plan (
-  plan_id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id        uuid NOT NULL,
+-- Immutable revision-bearing subjects
+CREATE TABLE subject_revision (
+  revision_id      uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id        uuid NOT NULL REFERENCES tenant(tenant_id),
   project_id       uuid NOT NULL,
-  revision         integer NOT NULL,
-  revision_hash    text NOT NULL,
-  status           text NOT NULL DEFAULT 'DRAFT',
-  mapping_version  text NOT NULL,
-  model_version    text NOT NULL,
-  content          jsonb NOT NULL,
+  subject_kind     text NOT NULL CHECK (subject_kind IN ('MIGRATION_PLAN','TARGET_DESIGN','TRANSFORMATION_PACKAGE','REMEDIATION_PACKAGE')),
+  subject_id       uuid NOT NULL,
+  revision_number  integer NOT NULL CHECK (revision_number > 0),
+  content_hash     text NOT NULL,
+  content_ref      text NOT NULL,
+  mapping_version  text,
+  model_version    text,
+  pattern_version  text,
+  policy_version   text,
   created_by       uuid,
   created_at       timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (plan_id, revision)
+  UNIQUE (tenant_id, subject_kind, subject_id, revision_number),
+  UNIQUE (tenant_id, revision_id, content_hash),
+  UNIQUE (tenant_id, project_id, revision_id, content_hash),
+  UNIQUE (tenant_id, revision_id),
+  UNIQUE (tenant_id, project_id, revision_id),
+  FOREIGN KEY (tenant_id, project_id) REFERENCES project(tenant_id, project_id),
+  FOREIGN KEY (tenant_id, created_by) REFERENCES app_user(tenant_id, user_id)
+);
+
+CREATE TABLE migration_plan (
+  plan_id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id        uuid NOT NULL REFERENCES tenant(tenant_id),
+  project_id       uuid NOT NULL,
+  status           text NOT NULL DEFAULT 'DRAFT',
+  current_revision_id uuid,
+  created_by       uuid,
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (tenant_id, plan_id),
+  FOREIGN KEY (tenant_id, project_id) REFERENCES project(tenant_id, project_id),
+  FOREIGN KEY (tenant_id, project_id, current_revision_id) REFERENCES subject_revision(tenant_id, project_id, revision_id)
 );
 
 -- Design artefacts
@@ -998,68 +1091,148 @@ CREATE TABLE transformation_run (
   created_at       timestamptz NOT NULL DEFAULT now()
 );
 
--- Approvals and execution
+-- Approvals and execution (Class C gate; no production Class C execution before R4)
 CREATE TABLE approval (
   approval_id      uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id        uuid NOT NULL,
+  tenant_id        uuid NOT NULL REFERENCES tenant(tenant_id),
   project_id       uuid NOT NULL,
+  operation_class  text NOT NULL CHECK (operation_class IN ('WORKSPACE_MUTATION','GOVERNED_ENV_MUTATION')),
   action_kind      text NOT NULL,
+  subject_kind     text NOT NULL,
   subject_id       uuid NOT NULL,
-  subject_revision_hash text NOT NULL,
+  revision_id      uuid NOT NULL,
+  revision_hash    text NOT NULL,
   risk_tier        text NOT NULL,
-  state            text NOT NULL CHECK (state IN ('DRAFT','PENDING_APPROVAL','APPROVED','REJECTED','EXECUTING','COMPLETE','FAILED','ROLLED_BACK')),
+  state            text NOT NULL CHECK (state IN ('DRAFT','PENDING_APPROVAL','APPROVED','REJECTED','CANCELLED','CONSUMED','EXPIRED')),
   required_roles   text[] NOT NULL DEFAULT '{}',
+  requested_by     uuid,
   decided_by       uuid,
   decided_at       timestamptz,
   reason           text,
-  created_at       timestamptz NOT NULL DEFAULT now()
+  evidence_ref     text,
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (tenant_id, approval_id),
+  UNIQUE (tenant_id, project_id, approval_id, revision_id, revision_hash),
+  FOREIGN KEY (tenant_id, project_id) REFERENCES project(tenant_id, project_id),
+  FOREIGN KEY (tenant_id, requested_by) REFERENCES app_user(tenant_id, user_id),
+  FOREIGN KEY (tenant_id, decided_by) REFERENCES app_user(tenant_id, user_id),
+  FOREIGN KEY (tenant_id, project_id, revision_id, revision_hash)
+    REFERENCES subject_revision(tenant_id, project_id, revision_id, content_hash)
+);
+
+CREATE TABLE idempotency_record (
+  idempotency_id   uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id        uuid NOT NULL REFERENCES tenant(tenant_id),
+  project_id       uuid,
+  operation        text NOT NULL,
+  operation_class  text NOT NULL CHECK (operation_class IN ('WORKSPACE_MUTATION','GOVERNED_ENV_MUTATION')),
+  idempotency_key  text NOT NULL,
+  request_hash     text NOT NULL,
+  actor_id         text NOT NULL,
+  status           text NOT NULL CHECK (status IN ('IN_PROGRESS','COMPLETED','FAILED','CONFLICT')),
+  result_ref       text,
+  response_code    integer,
+  error_code       text,
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  expires_at       timestamptz NOT NULL,
+  UNIQUE (tenant_id, operation, idempotency_key),
+  UNIQUE (tenant_id, idempotency_id),
+  UNIQUE (tenant_id, project_id, idempotency_id),
+  FOREIGN KEY (tenant_id, project_id) REFERENCES project(tenant_id, project_id)
 );
 
 CREATE TABLE execution_record (
   execution_id     uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id        uuid NOT NULL,
+  tenant_id        uuid NOT NULL REFERENCES tenant(tenant_id),
   project_id       uuid NOT NULL,
-  approval_id      uuid NOT NULL REFERENCES approval(approval_id),
-  idempotency_key  text NOT NULL UNIQUE,
-  status           text NOT NULL,
+  approval_id      uuid NOT NULL,
+  revision_id      uuid NOT NULL,
+  approved_hash    text NOT NULL,
+  idempotency_id   uuid NOT NULL,
+  status           text NOT NULL CHECK (status IN ('PROPOSED','AUTHORIZED','EXECUTING','SUCCEEDED','FAILED','ROLLED_BACK','CANCELLED')),
+  target_adapter   text NOT NULL,          -- deterministic-test only before R4
   target_refs      jsonb NOT NULL DEFAULT '{}',
   before_state     jsonb,
   after_state      jsonb,
   logs_ref         text,
   rollback_ref     text,
+  audit_intent_ref text,
+  evidence_ref     text,
   started_at       timestamptz,
-  finished_at      timestamptz
+  finished_at      timestamptz,
+  UNIQUE (tenant_id, execution_id, approval_id, revision_id),
+  FOREIGN KEY (tenant_id, project_id) REFERENCES project(tenant_id, project_id),
+  FOREIGN KEY (tenant_id, project_id, approval_id, revision_id, approved_hash)
+    REFERENCES approval(tenant_id, project_id, approval_id, revision_id, revision_hash),
+  FOREIGN KEY (tenant_id, project_id, revision_id, approved_hash)
+    REFERENCES subject_revision(tenant_id, project_id, revision_id, content_hash),
+  FOREIGN KEY (tenant_id, project_id, idempotency_id) REFERENCES idempotency_record(tenant_id, project_id, idempotency_id)
 );
+
+CREATE TABLE outbox_event (
+  outbox_id        uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id        uuid NOT NULL REFERENCES tenant(tenant_id),
+  project_id       uuid,
+  aggregate_kind   text NOT NULL,
+  aggregate_id     uuid NOT NULL,
+  event_type       text NOT NULL,
+  event_version    integer NOT NULL,
+  payload          jsonb NOT NULL,
+  headers          jsonb NOT NULL DEFAULT '{}',
+  status           text NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING','PUBLISHED','FAILED')),
+  attempts         integer NOT NULL DEFAULT 0,
+  available_at     timestamptz NOT NULL DEFAULT now(),
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  published_at     timestamptz,
+  UNIQUE (tenant_id, outbox_id),
+  FOREIGN KEY (tenant_id, project_id) REFERENCES project(tenant_id, project_id)
+);
+
+CREATE INDEX outbox_dispatch ON outbox_event (status, available_at);
 
 -- Evidence
 CREATE TABLE evidence_package (
   package_id       uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id        uuid NOT NULL,
+  tenant_id        uuid NOT NULL REFERENCES tenant(tenant_id),
   project_id       uuid NOT NULL,
   subject_kind     text NOT NULL,
   subject_id       uuid NOT NULL,
   schema_version   text NOT NULL,
+  canonicalization text NOT NULL DEFAULT 'RFC8785',
   payload_ref      text NOT NULL,
   payload_hash     text NOT NULL,
   previous_hash    text,
+  chain_head       boolean NOT NULL DEFAULT true,
   signature_ref    text NOT NULL,
+  signature_alg    text NOT NULL DEFAULT 'EC_SIGN_P256_SHA256',
   signer_key_id    text NOT NULL,
   status           text NOT NULL DEFAULT 'SEALED',
-  created_at       timestamptz NOT NULL DEFAULT now()
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (tenant_id, package_id),
+  FOREIGN KEY (tenant_id, project_id) REFERENCES project(tenant_id, project_id)
 );
+
+CREATE UNIQUE INDEX evidence_single_chain_head
+  ON evidence_package (tenant_id, subject_kind, subject_id)
+  WHERE chain_head;
 
 CREATE TABLE ledger_entry (
   entry_id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id        uuid NOT NULL,
-  package_id       uuid REFERENCES evidence_package(package_id),
+  tenant_id        uuid NOT NULL REFERENCES tenant(tenant_id),
+  project_id       uuid,
+  package_id       uuid,
   sequence         bigint NOT NULL,
   entry_hash       text NOT NULL,
   previous_hash    text,
   actor            text NOT NULL,
   action           text NOT NULL,
+  operation_class  text NOT NULL CHECK (operation_class IN ('READ','WORKSPACE_MUTATION','GOVERNED_ENV_MUTATION')),
   payload          jsonb NOT NULL,
   created_at       timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (tenant_id, sequence)
+  UNIQUE (tenant_id, sequence),
+  UNIQUE (tenant_id, project_id, sequence),
+  FOREIGN KEY (tenant_id, project_id) REFERENCES project(tenant_id, project_id),
+  FOREIGN KEY (tenant_id, package_id) REFERENCES evidence_package(tenant_id, package_id)
 );
 
 -- AI telemetry
@@ -1082,19 +1255,29 @@ CREATE TABLE model_call (
 );
 ```
 
-### 8.3 RLS pattern
+### 8.4 RLS pattern
 
 ```sql
 ALTER TABLE workload ENABLE ROW LEVEL SECURITY;
+ALTER TABLE workload FORCE ROW LEVEL SECURITY;
 
 CREATE POLICY tenant_isolation ON workload
-  USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
-  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
+  USING (tenant_id = nullif(current_setting('app.tenant_id', true), '')::uuid)
+  WITH CHECK (tenant_id = nullif(current_setting('app.tenant_id', true), '')::uuid);
+
+CREATE POLICY project_isolation ON workload
+  USING (project_id = nullif(current_setting('app.project_id', true), '')::uuid)
+  WITH CHECK (project_id = nullif(current_setting('app.project_id', true), '')::uuid);
 ```
 
-Every tenant-scoped table gets the same policy. Migrations must add a test that enumerates tables and fails if a tenant table lacks RLS.
+- Tenant context is set with `set_config('app.tenant_id', ..., true)` inside the transaction, from the authenticated principal.
+- Project context is set only after the tenant-scoped project lookup succeeds.
+- Table owners and application roles must not have `BYPASSRLS`. Migration and break-glass roles are separate, audited and never used by application requests.
+- The outbox relay is a separate platform identity. It processes one tenant context per batch and never joins tenant business tables. Any cross-tenant dispatch view exposes outbox identifiers and routing metadata only, and every access is audited.
+- Every tenant-owned table gets the tenant policy. Every project-owned table gets both policies. A missing project context denies project rows rather than widening access. The migration test enumerates tables from the tenancy classification and fails if a table is missing RLS, forced RLS, or the required policies.
+- Cross-tenant and cross-project tests run for every repository, API, MCP resource, background job and evidence path.
 
-### 8.4 BigQuery layout
+### 8.5 BigQuery layout
 
 | Dataset | Tables | Partition | Cluster |
 |---|---|---|---|
@@ -1104,7 +1287,7 @@ Every tenant-scoped table gets the same policy. Migrations must add a test that 
 
 Raw is immutable and replayable. Curated is derived and versioned by `model_version`. Consumption is optimized for console and reports.
 
-### 8.5 Retention and deletion
+### 8.6 Retention and deletion
 
 | Data | Default retention | Mechanism |
 |---|---|---|
@@ -1129,7 +1312,7 @@ Raw is immutable and replayable. Curated is derived and versioned by `model_vers
 | Content type | `application/json`; problem details `application/problem+json` |
 | Errors | RFC 7807 with `type`, `title`, `status`, `detail`, `instance`, `trace_id`, `code` |
 | Pagination | Cursor-based: `?limit=&cursor=`; response `{items, next_cursor}` |
-| Idempotency | `Idempotency-Key` required on mutating operations |
+| Idempotency | `Idempotency-Key` required on externally invoked Class B/C operations; scoped to tenant, operation and key. Same key and request hash replays the stored result; same key with a different payload returns `409 IDEMPOTENCY_CONFLICT` |
 | Async | `202 Accepted` plus `Location: /v1/operations/{id}`; operation has `state`, `progress`, `result_ref` |
 | Versioning | Additive within `/v1`; breaking changes require `/v2` |
 | Concurrency | `ETag`/`If-Match` on mutable resources (plans, mappings, approvals) |
@@ -1138,55 +1321,60 @@ Raw is immutable and replayable. Curated is derived and versioned by `model_vers
 
 ### 9.2 Endpoint surface (v1)
 
-| Method | Path | Purpose | Scope | Release |
-|---|---|---|---|---|
-| GET | `/v1/me` | Current principal and roles | authenticated | R0 |
-| POST | `/v1/projects` | Create project/engagement | PROJECT_OWNER | R1 |
-| GET | `/v1/projects` | List projects | VIEWER+ | R1 |
-| GET | `/v1/projects/{id}` | Project detail | VIEWER+ | R1 |
-| PATCH | `/v1/projects/{id}` | Update scope/settings | PROJECT_OWNER | R1 |
-| GET | `/v1/projects/{id}/members` | List members | PROJECT_OWNER | R1 |
-| POST | `/v1/projects/{id}/members` | Grant role | TENANT_ADMIN | R1 |
-| POST | `/v1/projects/{id}/connections` | Create provider connection | PROJECT_OWNER | R1 |
-| POST | `/v1/projects/{id}/connections/{cid}:validate` | Validate connection | PROJECT_OWNER | R1 |
-| DELETE | `/v1/projects/{id}/connections/{cid}` | Revoke connection | PROJECT_OWNER | R1 |
-| POST | `/v1/projects/{id}/ingestions` | Start ingestion (file or provider) | ENGINEER+ | R1 |
-| GET | `/v1/ingestions/{run_id}` | Run status and coverage | VIEWER+ | R1 |
-| GET | `/v1/ingestions/{run_id}/errors` | Validation errors | VIEWER+ | R1 |
-| POST | `/v1/projects/{id}/assessments` | Start assessment | ARCHITECT+ | R1 |
-| GET | `/v1/assessments/{assessment_id}` | Summary and status | VIEWER+ | R1 |
-| GET | `/v1/projects/{id}/workloads` | List canonical workloads | VIEWER+ | R1 |
-| GET | `/v1/workloads/{id}` | Workload with facts and provenance | VIEWER+ | R1 |
-| PATCH | `/v1/workloads/{id}` | Confirm/correct metadata | ARCHITECT+ | R1 |
-| GET | `/v1/projects/{id}/findings` | Posture findings | VIEWER+ | R1 |
-| POST | `/v1/findings/{id}/exceptions` | Accept exception | REVIEWER+ | R1 |
-| GET | `/v1/projects/{id}/cost/baseline` | Cost baseline and coverage | VIEWER+ | R1 |
-| POST | `/v1/projects/{id}/cost/scenarios` | Create TCO scenario | ARCHITECT+ | R1 |
-| GET | `/v1/projects/{id}/cost/scenarios/{sid}` | Scenario result | VIEWER+ | R1 |
-| GET | `/v1/projects/{id}/dispositions` | 6R recommendations | VIEWER+ | R1 |
-| POST | `/v1/workloads/{id}/dispositions` | Accept/amend/reject | ARCHITECT+ | R1 |
-| GET | `/v1/mappings` | List mapping releases | VIEWER+ | R1 |
-| GET | `/v1/mappings/{version}` | Release metadata | VIEWER+ | R1 |
-| POST | `/v1/mappings/resolve` | Resolve source to target | VIEWER+ | R2 |
-| POST | `/v1/mappings/{version}:publish` | Publish release | TENANT_ADMIN | R2 |
-| POST | `/v1/projects/{id}/designs` | Generate target design | ARCHITECT+ | R2 |
-| GET | `/v1/designs/{design_id}` | Design and resolved services | VIEWER+ | R2 |
-| GET | `/v1/designs/{design_id}/diagram` | Diagram artefact | VIEWER+ | R2 |
-| POST | `/v1/projects/{id}/plans` | Generate migration plan | ARCHITECT+ | R2 |
-| GET | `/v1/plans/{plan_id}/revisions/{rev}` | Plan revision | VIEWER+ | R2 |
-| POST | `/v1/plans/{plan_id}/approvals` | Submit for approval | PROJECT_OWNER | R4 |
-| GET | `/v1/approvals/{id}` | Approval state | VIEWER+ | R4 |
-| POST | `/v1/approvals/{id}:decide` | Approve/reject | REVIEWER | R4 |
-| POST | `/v1/projects/{id}/transformations` | Scan and produce preview | ENGINEER+ | R3 |
-| GET | `/v1/transformations/{run_id}` | Run summary | VIEWER+ | R3 |
-| GET | `/v1/transformations/{run_id}/diff` | Unified diff artefact | VIEWER+ | R3 |
-| POST | `/v1/transformations/{run_id}:validate` | Run validation | ENGINEER+ | R3 |
-| GET | `/v1/evidence/{package_id}` | Evidence metadata | VIEWER+ | R1 |
-| GET | `/v1/evidence/{package_id}/download` | Signed package | VIEWER+ | R1 |
-| POST | `/v1/evidence/{package_id}:verify` | Independent verification | VIEWER+ | R1 |
-| GET | `/v1/operations/{id}` | Async operation status | VIEWER+ | R0 |
-| GET | `/healthz` | Liveness | public | R0 |
-| GET | `/readyz` | Readiness incl. DB/queue | internal | R0 |
+Class A = read, Class B = CAIRN workspace mutation, Class C = governed customer-environment mutation. No endpoint is unclassified, and no Class C endpoint is available before R4.
+
+| Method | Path | Purpose | Scope | Class | Release |
+|---|---|---|---|---|---|
+| GET | `/v1/me` | Current principal and roles | authenticated | A | R0 |
+| POST | `/v1/projects` | Create project/engagement | PROJECT_OWNER | B | R1 |
+| GET | `/v1/projects` | List projects | VIEWER+ | A | R1 |
+| GET | `/v1/projects/{id}` | Project detail | VIEWER+ | A | R1 |
+| PATCH | `/v1/projects/{id}` | Update scope/settings | PROJECT_OWNER | B | R1 |
+| GET | `/v1/projects/{id}/members` | List members | PROJECT_OWNER | A | R1 |
+| POST | `/v1/projects/{id}/members` | Grant role | TENANT_ADMIN | B | R1 |
+| POST | `/v1/projects/{id}/connections` | Create provider connection | PROJECT_OWNER | B | R1 |
+| POST | `/v1/projects/{id}/connections/{cid}:validate` | Validate connection | PROJECT_OWNER | B | R1 |
+| DELETE | `/v1/projects/{id}/connections/{cid}` | Revoke connection | PROJECT_OWNER | B | R1 |
+| POST | `/v1/projects/{id}/ingestions` | Start ingestion (file or provider) | ENGINEER+ | B | R1 |
+| GET | `/v1/ingestions/{run_id}` | Run status and coverage | VIEWER+ | A | R1 |
+| GET | `/v1/ingestions/{run_id}/errors` | Validation errors | VIEWER+ | A | R1 |
+| POST | `/v1/projects/{id}/assessments` | Start assessment | ARCHITECT+ | B | R1 |
+| GET | `/v1/assessments/{assessment_id}` | Summary and status | VIEWER+ | A | R1 |
+| GET | `/v1/projects/{id}/workloads` | List canonical workloads | VIEWER+ | A | R1 |
+| GET | `/v1/workloads/{id}` | Workload with facts and provenance | VIEWER+ | A | R1 |
+| PATCH | `/v1/workloads/{id}` | Confirm/correct metadata | ARCHITECT+ | B | R1 |
+| GET | `/v1/projects/{id}/findings` | Posture findings | VIEWER+ | A | R1 |
+| POST | `/v1/findings/{id}/exceptions` | Accept exception | REVIEWER+ | B | R1 |
+| GET | `/v1/projects/{id}/cost/baseline` | Cost baseline and coverage | VIEWER+ | A | R1 |
+| POST | `/v1/projects/{id}/cost/scenarios` | Create TCO scenario | ARCHITECT+ | B | R1 |
+| GET | `/v1/projects/{id}/cost/scenarios/{sid}` | Scenario result | VIEWER+ | A | R1 |
+| GET | `/v1/projects/{id}/dispositions` | 6R recommendations | VIEWER+ | A | R1 |
+| POST | `/v1/workloads/{id}/dispositions` | Accept/amend/reject | ARCHITECT+ | B | R1 |
+| GET | `/v1/mappings` | List mapping releases | VIEWER+ | A | R1 |
+| GET | `/v1/mappings/{version}` | Release metadata | VIEWER+ | A | R1 |
+| POST | `/v1/mappings/resolve` | Resolve source to target (read-only) | VIEWER+ | A | R2 |
+| POST | `/v1/mappings/proposals` | Propose a mapping change (tenant-scoped) | ARCHITECT+ | B | R2 |
+| POST | `/v1/mappings/{version}:publish` | Publish global release | PLATFORM_OPERATOR (internal) | B | R2 |
+| POST | `/v1/projects/{id}/designs` | Generate target design | ARCHITECT+ | B | R2 |
+| GET | `/v1/designs/{design_id}` | Design and resolved services | VIEWER+ | A | R2 |
+| GET | `/v1/designs/{design_id}/diagram` | Diagram artefact | VIEWER+ | A | R2 |
+| POST | `/v1/projects/{id}/plans` | Generate migration plan | ARCHITECT+ | B | R2 |
+| GET | `/v1/plans/{plan_id}/revisions/{rev}` | Plan revision | VIEWER+ | A | R2 |
+| POST | `/v1/plans/{plan_id}/approvals` | Submit for approval | PROJECT_OWNER | B | R4 |
+| GET | `/v1/approvals/{id}` | Approval state | VIEWER+ | A | R4 |
+| POST | `/v1/approvals/{id}:decide` | Approve/reject | REVIEWER | B | R4 |
+| POST | `/v1/executions` | Request Class C execution of an approved revision | PROJECT_OWNER | C | R4 |
+| GET | `/v1/executions/{id}` | Execution state and evidence | VIEWER+ | A | R4 |
+| POST | `/v1/projects/{id}/transformations` | Scan and produce preview | ENGINEER+ | B | R3 |
+| GET | `/v1/transformations/{run_id}` | Run summary | VIEWER+ | A | R3 |
+| GET | `/v1/transformations/{run_id}/diff` | Unified diff artefact | VIEWER+ | A | R3 |
+| POST | `/v1/transformations/{run_id}:validate` | Run validation | ENGINEER+ | B | R3 |
+| GET | `/v1/evidence/{package_id}` | Evidence metadata | VIEWER+ | A | R1 |
+| GET | `/v1/evidence/{package_id}/download` | Signed package | VIEWER+ | A | R1 |
+| POST | `/v1/evidence/{package_id}:verify` | Independent verification (read-only) | VIEWER+ | A | R1 |
+| GET | `/v1/operations/{id}` | Async operation status | VIEWER+ | A | R0 |
+| GET | `/healthz` | Liveness | public | A | R0 |
+| GET | `/readyz` | Readiness incl. DB/queue | internal | A | R0 |
 
 ### 9.3 Representative contracts
 
@@ -1300,16 +1488,18 @@ Canonical codes include `UNAUTHENTICATED`, `FORBIDDEN`, `TENANT_SCOPE_VIOLATION`
 
 ### 10.1 MCP servers (one per bounded context)
 
-| Server | Concept | Tools (writes) | Resources (reads) | Release |
+| Server | Concept | Tools (Class B writes) | Resources (Class A reads) | Release |
 |---|---|---|---|---|
 | `estate-mcp` | Estate | `confirm_workload`, `record_disposition` | `estate://projects/{id}/workloads`, `estate://workloads/{id}` | R1 |
-| `posture-mcp` | Posture | `accept_exception`, `request_remediation` | `posture://projects/{id}/findings`, `posture://controls/{id}` | R1 |
+| `posture-mcp` | Posture | `accept_exception`, `request_remediation` (request only) | `posture://projects/{id}/findings`, `posture://controls/{id}` | R1 |
 | `cost-mcp` | FinOps | `create_scenario` | `cost://projects/{id}/baseline`, `cost://scenarios/{id}` | R1 |
 | `mapping-mcp` | Registry | `propose_mapping` | `mapping://releases/{version}`, `mapping://resolve?...` | R2 |
 | `design-mcp` | Design | `generate_design` | `design://projects/{id}/current`, `design://designs/{id}` | R2 |
 | `plan-mcp` | Planning | `create_plan`, `submit_for_approval` | `plan://projects/{id}/plans`, `plan://plans/{id}/revisions/{rev}` | R2 |
 | `transform-mcp` | Modernize | `start_preview`, `validate_preview` | `transform://runs/{id}`, `transform://runs/{id}/diff` | R3 |
-| `evidence-mcp` | Evidence | `seal_package` | `evidence://packages/{id}`, `evidence://verify/{id}` | R1 |
+| `evidence-mcp` | Evidence | `seal_package` (internal evidence only) | `evidence://packages/{id}`, `evidence://verify/{id}` | R1 |
+
+No MCP server exposes a Class C tool before R4. When Class C tools are introduced, they call the kernel execution gate and carry the same approval, evidence and rollback obligations as the API.
 
 ### 10.2 MCP rules
 
@@ -1351,6 +1541,7 @@ The A2A bridge accepts `POST /v1/message:send`, routes to one MCP server by decl
   "event_version": 1,
   "tenant_id": "t-...",
   "project_id": "p-...",
+  "operation_class": "WORKSPACE_MUTATION",
   "occurred_at": "2026-11-09T10:00:00Z",
   "correlation_id": "4bf92f3577b34da6",
   "causation_id": "op-123",
@@ -1376,6 +1567,13 @@ The A2A bridge accepts `POST /v1/message:send`, routes to one MCP server by decl
 | `cairn.evidence` | `evidence.sealed.v1`, `evidence.verified.v1` | governance, reporting |
 | `cairn.ai` | `model.call.completed.v1` | observability, cost attribution |
 
+Event rules:
+- State changes and their outbox rows commit in the same database transaction. A dispatcher publishes asynchronously; no external provider call happens inside that transaction.
+- Consumers are idempotent by `event_id` and verify tenant/project scope from the envelope.
+- Event types are versioned (`.v1`). Additive fields are compatible; removal, rename or semantic change requires a new version and a migration window.
+- Failed deliveries retry with backoff, then move to a dead-letter subscription with alerting and a replay runbook.
+- Execution events exist in the contract from R0, but no producer or consumer may perform a Class C effect before R4.
+
 ### 11.3 Workflow state machines
 
 **Ingestion run**
@@ -1394,18 +1592,27 @@ QUEUED -> COLLECTING -> NORMALIZING -> SCORING -> GENERATING_REPORT -> COMPLETED
         \-> FAILED
 ```
 
-**Plan and approval**
+**Plan, approval and execution**
 
 ```
-DRAFT -> SUBMITTED -> PENDING_APPROVAL -> APPROVED -> EXECUTING -> COMPLETE
-                                     \-> REJECTED              \-> FAILED -> ROLLED_BACK
+Plan/design revision:  DRAFT -> IMMUTABLE
+Approval:              DRAFT -> PENDING_APPROVAL -> APPROVED -> CONSUMED
+                                             \-> REJECTED
+                                             \-> CANCELLED
+                       APPROVED -> EXPIRED
+Execution (Class C):   PROPOSED -> AUTHORIZED -> EXECUTING -> SUCCEEDED
+                                  \-> CANCELLED      \-> FAILED
+                                                     \-> ROLLED_BACK
 ```
+
+A revision is immutable once created. A new revision requires a new approval. Execution refuses to start unless the approval is `APPROVED`, the revision and hash match, and separation-of-duties policy passes.
 
 Rules:
 - Every transition is persisted with actor, timestamp, reason and correlation ID.
-- Approval is bound to `subject_revision_hash`; a new revision resets approval.
-- Execution requires an `Idempotency-Key`; retries attach to the same execution record.
-- Governed writes append to the ledger before the effect; if the ledger is unavailable, the write fails closed.
+- Approvals and executions bind to immutable revision rows and exact content hashes (ADR-009).
+- A new revision invalidates prior approvals for execution purposes and requires re-approval.
+- Class C execution requires an `Idempotency-Key` scoped to `(tenant_id, operation, key)`; retries replay the recorded outcome or return a conflict.
+- Class C appends the intent and authorization to the ledger before the external effect; if the ledger is unavailable, execution fails closed. A database transaction cannot make an external side effect atomic, so R4 must explicitly handle the distributed boundary (outbox, execution state, reconciliation and rollback).
 
 ### 11.4 Job execution model
 
@@ -1427,22 +1634,23 @@ Rules:
 
 | Role | Capabilities |
 |---|---|
-| TENANT_ADMIN | Manage tenant, users, roles, connections, mapping publication |
+| TENANT_ADMIN | Manage tenant, users, roles, connections; propose mappings; no global registry publication |
 | PROJECT_OWNER | Create/manage project, members, submit approvals |
-| ARCHITECT | Run assessments, edit workloads, generate designs/plans |
-| ENGINEER | Create ingestions/transformations, view | 
+| ARCHITECT | Run assessments, edit workloads, generate designs/plans, propose mappings |
+| ENGINEER | Create ingestions/transformations; view |
 | REVIEWER | Approve/reject, accept exceptions (separation of duties) |
 | AUDITOR | Read evidence, audit, provenance; no mutation |
 | VIEWER | Read-only project access |
+| PLATFORM_OPERATOR (internal) | Publish global mapping releases and operate the platform; not a tenant role and not reachable from tenant APIs |
 
-Authorization is enforced in the application layer with domain policy objects, and in persistence with RLS. The UI is not a security boundary.
+Authorization is enforced in the application layer with domain policy objects, and in persistence with RLS. Every command carries an operation class; Class C commands are rejected unless they originate inside the kernel execution gate. The UI, MCP, A2A and provider adapters are not security boundaries.
 
 ### 12.2 Tenant isolation tests
 
 Mandatory for every new repository and query:
 - Cross-tenant read returns 404/403, not data.
 - Cross-tenant write is rejected before persistence.
-- RLS is enabled and forced on every tenant table.
+- RLS is enabled and forced on every tenant-owned and project-owned table, with the required policies.
 - Background jobs carry tenant context explicitly and re-assert it at each persistence boundary.
 
 ### 12.3 Secrets and provider onboarding
@@ -1489,11 +1697,14 @@ Evidence package schema (signed JSON):
 ```
 
 Evidence rules:
-- Hash chain links each package to the previous package for the subject.
-- Signing keys live in Cloud KMS; rotation and custody are documented.
-- Verification is independent of CAIRN: hash, signature and chain.
+- Payloads are canonicalized (RFC 8785) before hashing; the canonicalization version is recorded.
+- The signature covers schema version, tenant/project, subject, payload hash, previous hash, input versions, creation time, algorithm and signer key id.
+- The chain head is unique per subject. A fork, gap or second head fails verification.
+- Signing keys live in Cloud KMS; rotation, custody, revocation and verification-key publication are documented.
+- Verification is independent of CAIRN: hash, signature and chain, using published verifier material.
 - Absence of evidence is `UNVERIFIED`, never `PASS`.
-- Governed writes require a successful ledger append before the effect.
+- Class C writes require a successful ledger append before the external effect. If the ledger is unavailable, execution fails closed.
+- Because an external provider effect and a database commit cannot be atomic, R4 defines reconciliation and rollback for the distributed boundary.
 
 ### 12.6 Supply chain and runtime
 
@@ -1502,6 +1713,7 @@ Evidence rules:
 - Signature verification at deploy time (policy admission for Kubernetes).
 - Network egress allowlist per service; no public ingress except the console/API and explicit webhooks.
 - Sandboxed transformation execution with CPU, memory, time and network limits.
+- Ingestion parsers enforce file-size, row-count, nesting-depth and decompression limits; reject path traversal and untrusted archives; record parser version.
 - HMAC verification, timestamp/nonce and replay protection for webhooks.
 
 ---
@@ -1565,7 +1777,7 @@ Helm chart `infra/helm/cairn`, used for internal disaster recovery and portabili
 | `cairn-observability` | Log sinks, metrics, dashboards, alerts, SLOs |
 | `cairn-guardrails` | Org policies, budgets, spend caps, Cloud Armor |
 | `cairn-evidence` | KMS keys, immutable bucket, audit sink |
-| `cairn-connections` | Customer onboarding roles for GCP read-only; separate opt-in write roles where gated execution is enabled |
+| `cairn-connections` | Customer onboarding roles for GCP read-only; separate execution roles only in R4+ after the gate is proven |
 
 Environments: `dev`, `staging`, `prod`, with isolated state, credentials and data.
 
@@ -1592,6 +1804,14 @@ Promotion is by immutable signed image digest. Plan and apply are tied to the sa
 | prod | Customer data | Prod accounts, WIF, break-glass | Restricted, audited |
 
 No production data in non-production environments. De-identification is mandatory for any copied dataset.
+
+### 13.6 Operational readiness (R0)
+
+- Backups: automated Cloud SQL backups and BigQuery/GCS retention; restore tested before customer data.
+- Incident response: severity levels, on-call expectations for a solo maintainer, customer notification path and evidence preservation.
+- Key rotation: KMS signing-key rotation, published verification keys, overlap window and re-signing rules.
+- Tenant deletion: suspend, export, delete and certify path covering PostgreSQL, BigQuery, GCS, evidence and backups.
+- UK residency matrix: data, backups, keys, logs and support access, mapped to `europe-west2` and approved before customer onboarding.
 
 ---
 
@@ -1649,7 +1869,7 @@ No production data in non-production environments. De-identification is mandator
 3. No critical security findings; high findings have documented risk acceptance and owner.
 4. Tenant isolation tests pass for every repository and query path.
 5. Every mutating use case has idempotency, authorization, audit and failure-mode tests.
-6. Evidence tamper tests detect altered payloads and broken chains.
+6. Evidence tamper and fork tests detect altered payloads, broken chains and duplicate chain heads.
 7. AI eval set passes; schema-invalid model output is rejected.
 8. Every generated diagram/plan records registry and pattern versions and exposes unresolved mappings.
 
@@ -1665,6 +1885,24 @@ No production data in non-production environments. De-identification is mandator
 ## 16. Ordered engineering backlog
 
 Sizing: S (1-2 days), M (3-5 days), L (1-2 weeks), XL (2-4 weeks). Order is the recommended build order; dependencies are explicit.
+
+### 16.0 R0 architecture acceptance gate (mandatory)
+
+R0 does not exit until all gates pass with linked evidence.
+
+- [ ] ADR-008, ADR-009, ADR-010 and ADR-012 amended and accepted.
+- [ ] All API and MCP operations classified as Class A, B or C.
+- [ ] No unapproved Class C path and no production execution adapter exist.
+- [ ] R1 read-only boundary and deterministic test adapter are documented.
+- [ ] Immutable revision, approval and execution schema is implemented with constraints.
+- [ ] Idempotency and transactional outbox contracts are defined.
+- [ ] Complete tenancy matrix is approved for tables, APIs, MCP, events, storage, evidence and workers.
+- [ ] RLS forced with cross-tenant and cross-project tests for every classified table.
+- [ ] Evidence canonicalization, signing, chain-head and offline verification contracts are defined.
+- [ ] CI security baseline is established: secret scan, dependency/container scan, SBOM, image signing.
+- [ ] UK data, backup, key and support-access residency matrix is approved.
+- [ ] Backup/restore, incident response, key rotation and tenant deletion runbooks are approved and tested where possible.
+- [ ] Read-plane and execution-plane identity, credential and network isolation is demonstrated.
 
 ### R0 - Platform foundation (exit: deployable skeleton, rules in CI)
 
@@ -1687,14 +1925,16 @@ Sizing: S (1-2 days), M (3-5 days), L (1-2 weeks), XL (2-4 weeks). Order is the 
 | R0-15 | Create `api`, `worker`, `console` skeletons with health/readiness | M | R0-02 | Local compose runs; health endpoints pass |
 | R0-16 | Create Terraform module skeletons and dev environment | L | R0-01 | `terraform plan` clean in dev; no long-lived secrets |
 | R0-17 | Create CI/CD pipelines: lint, test, conformance, security, build, sign | L | R0-07 | Pipeline green; SBOM and signature artefacts produced |
-| R0-18 | Review and accept ADR-001..017; record outcomes in `docs/adr/README.md` and create the reference register | S | - | Blocking set accepted or amended; ADR-017 acknowledged as a constraint; decision log current |
+| R0-18 | Review and accept ADR-001..018 and the architecture-review amendments; record outcomes in `docs/adr/README.md` and maintain the reference register | S | - | All ADRs accepted or amended; ADR-017 acknowledged as a constraint; decision log current |
+| R0-19 | Publish the operation classification and tenancy matrix for every API, MCP tool, resource, event, table, bucket and worker | M | R0-03, R0-05 | Every operation and entity has Class A/B/C or Global/Tenant/Project; review approved; encoded in contracts |
+| R0-20 | Hold the R0 architecture acceptance review against section 16.0 | S | R0-19 | All 13 gates pass with evidence; failures have owners and dates |
 
-### R1 - CAIRN Assess (exit: assessment, evidence and the gated execution path)
+### R1 - CAIRN Assess (exit: read-only assessment, workspace decisions, evidence and gate validation)
 
 | ID | Story | Size | Depends | Acceptance criteria |
 |---|---|---|---|---|
 | R1-01 | Implement project, membership and settings APIs | M | R0-09 | CRUD with RBAC; cross-tenant tests pass |
-| R1-02 | Implement provider connection create/validate/revoke for GCP | L | R0-13 | Read-only scope validated by default; write scope separate and opt-in; secret never returned; revoke audited |
+| R1-02 | Implement provider connection create/validate/revoke for GCP | L | R0-13 | Read-only scope only; no execution credentials or write scope before R4; secret never returned; revoke audited |
 | R1-03 | Implement file ingestion adapters (CSV/JSON/RVTools/HVTools/BOM) | L | R0-13 | Golden fixture per format; parser version recorded |
 | R1-04 | Implement ingestion run state machine, checkpoints and errors | L | R1-03 | Resumable after failure; partial coverage recorded |
 | R1-05 | Implement GCP inventory adapter (read-only) | XL | R1-02 | Collects projects/regions/resources; rate limit and retry verified |
@@ -1713,8 +1953,8 @@ Sizing: S (1-2 days), M (3-5 days), L (1-2 weeks), XL (2-4 weeks). Order is the 
 | R1-18 | Build assessment console screens | XL | R1-01..R1-17 | Journey complete: project → ingest → assess → inspect → export |
 | R1-19 | Add cross-tenant, resilience and security tests for R1 | L | R1-01..R1-18 | Mandatory gates pass |
 | R1-20 | Pilot runbook, data-handling terms and SLO baseline | M | R1-18 | Pilot can be run without engineering intervention |
-| R1-21 | Implement approval service and state machine (pulled forward from R4) | L | R0-10 | Revision-bound; separation of duties; audit |
-| R1-22 | Implement execution record, idempotency and audit-before-effect (pulled forward from R4) | L | R1-21, R0-10 | Retry attaches to same execution; audit outage fails closed |
+| R1-21 | Implement immutable revision, approval and execution state machines | L | R0-10 | DB-bound revision hash; separation of duties; invalid transitions rejected |
+| R1-22 | Implement kernel execution gate with deterministic test adapter and scoped idempotency | L | R1-21, R0-10 | Full gate lifecycle proven; test adapter cannot be replaced by production adapter; no execution credentials reachable |
 
 ### R2 - CAIRN Design (exit: one model produces consistent design artefacts)
 
@@ -1744,23 +1984,24 @@ Sizing: S (1-2 days), M (3-5 days), L (1-2 weeks), XL (2-4 weeks). Order is the 
 | R3-07 | Build diff review and validation console | L | R3-04..R3-06 | Engineer can review, comment, request changes |
 | R3-08 | Add sandboxed execution (limits, no network by default) | L | R3-05 | Resource and time limits enforced; egress blocked |
 
-### R4 - Execution at scale (exit: drift, rollback and broader apply coverage)
+### R4 - Class C execution (exit: controlled customer-environment writes with evidence)
 
-The approval service (R1-21) and audit-before-effect record (R1-22) moved to R1 under ADR-010.
+R1 delivered the revision/approval model and a deterministic gate harness (R1-21/R1-22). R4 adds production provider execution, rollback and drift. No production Class C adapter may exist before R4.
 
 | ID | Story | Size | Depends | Acceptance criteria |
 |---|---|---|---|---|
-| R4-02 | Implement risk-tier policy engine | M | R1-21 | Role requirements per tier enforced |
-| R4-03 | Implement Terraform plan/apply/drift adapter | XL | R2-07, R1-22 | Plan and apply tied to reviewed revision; drift detected |
-| R4-05 | Implement rollback/recovery references and runbooks | M | R4-03 | Rollback path documented and tested |
-| R4-06 | Build approval and execution console | L | R1-21, R1-22, R4-02..R4-05 | Approver sees exact revision and evidence |
-| R4-07 | Add execution security and failure-mode tests | L | R4-03..R4-06 | Partial failure, timeout, unauthorized apply all tested |
+| R4-01 | Implement risk-tier policy engine | M | R1-21 | Role requirements per tier enforced |
+| R4-02 | Implement GCP production provider execution adapter behind the kernel gate | XL | R1-22, R4-01 | No bypass path; scoped short-lived credentials; adapter cannot be called directly |
+| R4-03 | Implement Terraform plan/apply/drift on top of the provider adapter | XL | R2-07, R4-02 | Plan and apply tied to approved revision; drift detected |
+| R4-04 | Implement rollback/recovery references, reconciliation and runbooks | L | R4-03 | Rollback and reconciliation documented, tested and evidenced |
+| R4-05 | Build approval and execution console | L | R1-21, R1-22, R4-01..R4-04 | Approver sees exact revision, diffs and evidence |
+| R4-06 | Add execution security, distributed-boundary and failure-mode tests | L | R4-02..R4-05 | Partial failure, timeout, unauthorized apply, audit outage and reconciliation all tested |
 
 ### R5 - CAIRN Operate (exit: governed operational loops)
 
 | ID | Story | Size | Depends | Acceptance criteria |
 |---|---|---|---|---|
-| R5-01 | Implement FinOps graded remediation and policy | L | R1-12, R1-22 | Alert/throttle/cap/stop/disable with approval |
+| R5-01 | Implement FinOps graded remediation and policy | L | R1-12, R4-02, R4-04 | Alert/throttle/cap/stop/disable with Class C approval and rollback |
 | R5-02 | Implement LLMOps gateway and AI control loop | XL | R0-12 | Security/reliability/cost/observability pillars |
 | R5-03 | Implement MLOps lifecycle module | XL | R0-13 | Registry, drift, self-healing with bounds |
 | R5-04 | Implement MCP gateway and A2A bridge | L | R0-13 | Registry, OAuth, agent cards, bridge tests |
@@ -1776,9 +2017,10 @@ R0-01 -> R0-02 -> R0-04 -> R0-06 -> R0-07
        R0-13 -> R1-02 -> R1-05 -> R1-06 -> R1-15 -> R1-17 -> R1-18
        R0-14 -> R2-01 -> R2-04 -> R2-05/R2-07
        R2-01 -> R3-03 -> R3-04 -> R3-07
+       R1-22 -> R4-01 -> R4-02 -> R4-03 -> R4-04 -> R4-06
 ```
 
-Do not start R1 provider work before R0-13 (adapter contracts) and R0-04 (canonical model) are stable. Do not start R2 design generation before R2-01 (registry service) and R1-06 (canonical normalization) are stable.
+Do not start R1 provider work before R0-13 (adapter contracts) and R0-04 (canonical model) are stable. Do not start R2 design generation before R2-01 (registry service) and R1-06 (canonical normalization) are stable. Do not start R4 until R1 has proven the gate and the no-mutation boundary.
 
 ### 16.2 Re-baselined delivery outlook
 
@@ -1786,12 +2028,12 @@ The earlier 22-33 week figure assumed code reuse and a 5-7 person team. Both ass
 
 | Milestone | Outlook | Notes |
 |---|---|---|
-| R0 exit | 8-12 weeks | Public repo, full model, Rust workspace, conformance, gated-write gate design |
-| Pilot-able R1 | 9-15 months solo; 6-10 months with sustained agent assistance | Assessment, evidence and one gated action; no customer date committed |
-| R4, execution at scale | 24-36 months solo; 15-24 months with assistance | Do not commit until R1 is proven |
+| R0 exit | 8-12 weeks | Public repo, full model, Rust workspace, conformance, architecture acceptance gate |
+| Pilot-able R1 | 9-15 months solo; 6-10 months with sustained agent assistance | Read-only assessment, workspace decisions, evidence and gate validation; no customer date committed |
+| R4, Class C execution | 24-36 months solo; 15-24 months with assistance | Controlled Class C writes; do not commit until R1 is proven |
 | R5 | Undated | Scope intentionally open |
 
-Fourteen stories are XL and at least nine sit on the critical path. Agent assistance reduces implementation effort, not review, security or support capacity. ASAP therefore means optimizing for the earliest credible R1 and adding maintainers when the critical path allows; it is not a date.
+Sixteen stories are XL and at least ten sit on the critical path. Agent assistance reduces implementation effort, not review, security or support capacity. ASAP therefore means optimizing for the earliest credible R1 and adding maintainers when the critical path allows; it is not a date.
 
 ---
 
@@ -1849,11 +2091,11 @@ CAIRN is greenfield (ADR-017). The reference repositories are evidence for how p
 | Mapping inaccuracy | Wrong design/TCO | Equivalence semantics, caveats, human review, evidence |
 | Provider API coverage gaps | Incomplete assessment | Coverage indicators, file-import fallback, retries |
 | Tenant isolation defect | Data exposure | Domain plus RLS plus adversarial tests on every path |
-| Evidence service outage | Unverifiable writes | Fail closed for governed writes; queue only before effect |
+| Evidence service outage | Unverifiable Class C writes | Fail closed; queue only before effect |
 | Overbuilding the console | Slow delivery | Assessment-first IA; four archetypes remain separate |
 | Adapter multiplication | Schedule expansion | GCP-first; shared contract suite; AWS/Azure follow |
-| Transformation risk | Customer impact | Preview-only in R3; sandbox; gated approval from R1 |
-| Gated writes from R1 | Blast radius, security review | One gate, read-only default credentials, isolated applier, rollback and incident runbooks |
+| Transformation risk | Customer impact | Preview-only in R3; sandbox; approval-bound Class C execution only in R4 |
+| Premature Class C exposure | Blast radius, security review | No Class C before R4; kernel gate; read-only default credentials; isolated applier; rollback and incident runbooks |
 | Open-source support load | Maintainer burnout | Public issue policy, SECURITY.md, no support promise without an engagement |
 | Greenfield build cost | Higher effort than a lift/adapt plan | Scope discipline: GCP-only, one jurisdiction pack, assessment first |
 | Reuse assumptions in earlier estimates | Schedule optimism | Re-baselined outlook in section 16.2; treat dates as discovery until R1 is proven |
@@ -1870,10 +2112,13 @@ CAIRN is greenfield (ADR-017). The reference repositories are evidence for how p
 | Repository shape | Monorepo, public at `solara-associates/cairn` | ADR-001, ADR-018 |
 | Target cloud priority | GCP-first behind neutral contracts | ADR-005 |
 | Data stores | Cloud SQL PostgreSQL in `europe-west2`; BigQuery for analytics | ADR-007 |
-| Mutation boundary | Gated writes from R1; no un-gated path | ADR-010 |
+| Mutation boundary | Class A/B/C; no Class C before R4; kernel gate for all Class C | ADR-010 |
+| Approval binding | Immutable revision rows; approval and execution bind to exact revision and hash | ADR-009 |
+| Tenancy | Every entity classified; forced RLS; composite tenant/project keys; global mappings platform-published | ADR-012 |
+| Idempotency | Tenant/operation/key scope; replay returns original result; payload mismatch conflicts | ADR-009, ADR-010 |
 | Product boundary | SaaS-only multi-tenant; mid-market first; no supported customer-deployed edition | ADR-013 |
 | AI provider policy | Gemini only behind ModelPort; no customer BYO key | ADR-014 |
-| Evidence standard | Signed JSON plus report; audit-before-effect; CAIRN-held keys | ADR-008 |
+| Evidence standard | Canonical signed JSON plus report; unique chain head; audit-before-effect; CAIRN-held keys | ADR-008 |
 | Code provenance | Greenfield clean-room; no reuse | ADR-017 |
 | Transformation engine | One clean-room Rust engine; Terraform and Python first | ADR-015 |
 | Launch jurisdiction | United Kingdom pack | ADR-016 |
@@ -1897,9 +2142,10 @@ R0 + R1 + the MVP of R2 is done when:
 8. An editable diagram and target-design summary generate from the same target model.
 9. A human-readable report and a signed evidence package are produced and independently verifiable.
 10. Tenant isolation, conformance, security and evidence tamper tests pass in CI.
-11. No mutation is possible without policy, approval and an evidence record; assessment and design services remain read-only.
+11. No Class C operation is reachable; Class B mutations are authorized, tenant-scoped, idempotent and audited; assessment and design services remain read-only.
 12. The repository is public under Apache-2.0 with a root README, SECURITY.md, CONTRIBUTING.md and no secrets in history.
-13. A gated write has been exercised end to end and rolled back in a test environment.
+13. The full execution-gate lifecycle has been demonstrated against a deterministic test adapter that cannot be substituted with a production adapter.
+14. No production provider execution adapter, execution credential or Class C endpoint exists.
 
 ---
 
@@ -1916,7 +2162,8 @@ R0 + R1 + the MVP of R2 is done when:
 | Design | `modules/design` | worker, api |
 | Planning | `modules/planning` | worker, api |
 | Modernize | `modules/transformation`, `transform-core` | worker, cli |
-| Approvals | `modules/approvals` | api |
+| Approvals | `modules/approvals`, `kernel/execution-gate` | api |
+| Execution (R4) | `modules/execution`, `adapters/provider-*` | worker |
 | Evidence | `modules/evidence-service`, `kernel/evidence` | api, worker |
 | Reporting | `modules/reporting` | worker |
 | Console | `apps/console` | console |
@@ -1926,15 +2173,15 @@ R0 + R1 + the MVP of R2 is done when:
 
 | Release | Stories | Focus | Exit |
 |---|---|---|---|
-| R0 | 18 | Kernel, full model, conformance, deployment skeleton | Rules enforced in CI; one deployable |
-| R1 | 22 | Assessment, posture, cost, 6R, evidence, console, approval and audit gate | Assessment end to end, one gated action |
+| R0 | 20 | Kernel, full model, conformance, tenancy matrix, deployment skeleton | Architecture acceptance gate passes; rules enforced in CI |
+| R1 | 22 | Read-only assessment, workspace decisions, evidence, gate validation | Assessment end to end; no customer-environment mutation |
 | R2 | 10 | Registry, patterns, target model, diagrams, plan preview | One model drives all design artefacts |
-| R3 | 8 | Repository scan, transformation, diff, validation | Reviewable modernization proposal |
-| R4 | 5 | Plan/apply/drift, rollback, execution at scale | Drift and rollback with evidence |
+| R3 | 8 | Repository scan, transformation, diff, validation, execution package | Reviewable modernization proposal; no customer apply |
+| R4 | 6 | Provider execution adapter, plan/apply/drift, rollback, console | Controlled Class C writes with evidence |
 | R5 | 6 | FinOps, LLMOps/MLOps, MCP/A2A, resilience, packs | Operational loops with governed remediation |
-| **Total** | **69** | | |
+| **Total** | **72** | | |
 
-Sizes are greenfield build sizes. The earlier reuse-dependent timeline is withdrawn; see section 16.2. R4 originally held seven stories; approval (R4-01) and audit-before-effect (R4-04) moved to R1 as R1-21 and R1-22 under ADR-010, so the total is unchanged.
+Sizes are greenfield build sizes. The earlier reuse-dependent timeline is withdrawn; see section 16.2. The revision/approval model and deterministic gate harness are in R1; production Class C execution remains in R4 under ADR-010.
 
 ## Appendix C - Glossary additions
 
@@ -1944,6 +2191,8 @@ Sizes are greenfield build sizes. The earlier reuse-dependent timeline is withdr
 | Mapping release | Immutable, versioned set of service, region and jurisdiction mappings |
 | Plan revision | Immutable snapshot of a migration plan; approvals bind to its hash |
 | Evidence package | Signed JSON record of inputs, provenance, versions, decisions and outputs |
-| Governed write | Any action that mutates a customer environment; requires policy, authorization, audit-before-effect and idempotency |
+| Class A operation | Read-only operation; no persisted change to a customer or project decision |
+| Class B operation | CAIRN workspace mutation; requires authorization, tenancy, idempotency and audit, but does not mutate a customer environment |
+| Class C operation | Governed customer-environment mutation; requires the kernel execution gate, immutable revision approval, audit-before-effect, evidence and rollback handling |
 | Assessment plane | All read-only collection, normalization, assessment and design capability; structurally unable to apply changes |
-| Execution plane | Separately credentialed capability that applies approved changes |
+| Execution plane | Separately credentialed capability that applies approved changes; not provisioned before R4 |

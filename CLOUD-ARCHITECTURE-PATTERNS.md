@@ -644,7 +644,7 @@ This sequence describes design dependencies, not reusable increments. It does no
 Create the monorepo, implement the shared kernel, contracts and conformance harness from scratch, and freeze the mapping registry schema. No code is imported.
 
 **Phase 1 - Assess and prove.**
-Ship M1 (posture) and M2 (assessment/TCO) first. Assessment is read-only by design and immediately demoable. The gated execution path is built alongside it and starts in R1 (ADR-010), so a customer can act on a validated finding. The reference evidence for the Finding model, canonical estate model and 6R flow comes from `autoinfra`/`autoinfra_aws`, `agent-assess` and `infracc`. Produce one evidence report that covers posture, cost and migration readiness.
+Ship M1 (posture) and M2 (assessment/TCO) first. Assessment is read-only by design and immediately demoable. R1 also proves the revision, approval and kernel execution-gate lifecycle against a deterministic test adapter; customer-environment mutation remains impossible until R4 (ADR-010). The reference evidence for the Finding model, canonical estate model and 6R flow comes from `autoinfra`/`autoinfra_aws`, `agent-assess` and `infracc`. Produce one evidence report that covers posture, cost and migration readiness.
 
 **Phase 2 - Plan and design.**
 Add M4 (architecture synthesis) and the planning half of M3. Use the `drawio-gen` and `anytoany` canonical-model lessons so the diagram, the plan and the Terraform come from one source.
@@ -701,10 +701,13 @@ All 43 repositories in `asmeyatsky-work` were cloned and inspected. Every reposi
 2. **Target cloud priority.** Resolved: GCP-first behind provider-neutral contracts (ADR-005). `Meridian` remains the portability proof.
 3. **Product boundary.** Resolved: commercial multi-tenant SaaS, mid-market first, with no supported customer-deployed edition (ADR-013). Searce-style engagements are delivered as professional services on the same product.
 4. **AI provider policy.** Resolved: Gemini only behind `ModelPort`, no customer BYO key (ADR-014).
-5. **Evidence standard.** Resolved: signed JSON plus a human report, audit-before-effect, CAIRN-held keys (ADR-008). The `dpdp` ledger and `tda` audit-before-write guard are behaviour evidence.
+5. **Evidence standard.** Resolved: canonical signed JSON plus a human report, unique chain head, offline verification, audit-before-effect, CAIRN-held keys (ADR-008). The `dpdp` ledger and `tda` audit-before-write guard are behaviour evidence.
 6. **Transformation engine provenance.** Resolved: one engine built clean-room in Rust, Terraform and Python first (ADR-015, ADR-017). The four source engines are reference behaviour only; none is reused.
 7. **Timeline and team size.** Resolved: solo maintainer, ASAP with no hard date. See the technical specification section 16.2 for the re-baselined outlook (R0 8-12 weeks, R1 9-15 months, R4 24-36 months).
 8. **Licence.** Resolved: Apache-2.0 with professional services revenue and no open-core gate (ADR-018).
+9. **Operation boundary.** Resolved: Class A read, Class B CAIRN workspace mutation, Class C customer-environment mutation. No Class C before R4, and every Class C path goes through the kernel execution gate (ADR-010).
+10. **Approval binding.** Resolved: immutable revision rows, with approval and execution bound to the exact revision and hash (ADR-009).
+11. **Tenancy.** Resolved: every entity classified Global, Tenant-owned or Project-owned; forced RLS and composite scope keys (ADR-012).
 
 ### 6.4 Highest-leverage patterns to reimplement (if you only do five things)
 

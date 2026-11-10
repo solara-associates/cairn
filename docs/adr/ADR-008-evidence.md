@@ -1,21 +1,23 @@
 # ADR-008: Signed JSON evidence plus a human-readable report, with audit-before-effect
 
-- **Status:** Accepted
+- **Status:** Accepted (amended 9 November 2026 after architecture review)
 - **Date:** 2026-11-09
 - **Deciders:** Product owner (Allan Smeyatsky)
-- **Related:** Implementation spec §12, ADR-009, ADR-016
+- **Related:** Implementation spec §8, §12, ADR-009, ADR-016
 
 ## Context
 
-CAIRN's differentiator is that a customer, auditor or migration partner can verify what CAIRN observed, what it decided and why. Logs alone do not prove integrity, and a PDF alone is not machine-verifiable. Governed writes are only safe if the audit record exists before the effect.
+CAIRN's differentiator is that a customer, auditor or migration partner can verify what CAIRN observed, what it decided and why. Logs alone do not prove integrity, and a PDF alone is not machine-verifiable. Class C writes are only safe if the audit record exists before the effect.
 
 ## Decision
 
 - Produce an evidence package for every assessment, design and execution: inputs, provenance, model/mapping/pattern versions, decisions, outputs and timestamps.
-- The package is canonical JSON, hash-chained, signed with a KMS-held key, and verifiable offline with a published verifier.
+- The package is canonical JSON (RFC 8785), hash-chained, signed with a KMS-held key, and verifiable offline with a published verifier.
+- The signature covers schema version, tenant/project, subject, payload hash, previous hash, input versions, creation time and signer key id. Algorithm and key id are recorded for agility and rotation.
+- The chain head is explicit and unique per subject. A fork, gap or second head is a verification failure, not a warning.
 - Signing keys are CAIRN-held at launch. Customer-held keys are not offered until a later ADR.
 - Pair it with a human-readable report that references the package hash.
-- Governed writes record intent and authorization **before** the effect (audit-before-effect) and fail closed if the audit sink is unavailable.
+- Class C writes record intent and authorization **before** the effect (audit-before-effect) and fail closed if the audit sink is unavailable. A database transaction cannot make an external provider side effect atomic; R4 must define reconciliation and rollback across that distributed boundary.
 - Key rotation and verification keys are published; verification does not require CAIRN to be online.
 
 ## Consequences
@@ -28,7 +30,7 @@ CAIRN's differentiator is that a customer, auditor or migration partner can veri
 
 **Negative**
 
-- Added write latency for governed actions.
+- Added write latency for Class C actions.
 - Key management and rotation become operational requirements.
 - Evidence schema becomes a long-lived compatibility surface.
 
@@ -44,4 +46,4 @@ CAIRN's differentiator is that a customer, auditor or migration partner can veri
 
 ## If rejected
 
-The audit and trust story weakens, and retrofitting signing and audit-before-effect later is expensive across every governed write.
+The audit and trust story weakens, and retrofitting signing and audit-before-effect later is expensive across every Class C write.

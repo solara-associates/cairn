@@ -24,11 +24,11 @@ All ADRs are Accepted as of 2026-11-09. The product owner accepted the recommend
 | [ADR-005](ADR-005-gcp-first.md) | GCP-first adapters behind provider-neutral contracts | Accepted | 2026-11-09 |
 | [ADR-006](ADR-006-python-rust.md) | Python 3.12 for domain and application, Rust for transformation and measured hot paths, from R0 | Accepted | 2026-11-09 |
 | [ADR-007](ADR-007-postgres-bigquery.md) | Cloud SQL PostgreSQL (europe-west2) for OLTP, BigQuery for analytics | Accepted | 2026-11-09 |
-| [ADR-008](ADR-008-evidence.md) | Signed JSON evidence plus a human-readable report, with audit-before-effect and CAIRN-held keys | Accepted | 2026-11-09 |
-| [ADR-009](ADR-009-approval-binding.md) | Approval is bound to an immutable plan revision | Accepted | 2026-11-09 |
-| [ADR-010](ADR-010-gated-writes.md) | Gated writes from the first release; no un-gated mutation | Accepted | 2026-11-09 |
+| [ADR-008](ADR-008-evidence.md) | Canonical signed JSON evidence, chain-head integrity, audit-before-effect and CAIRN-held keys | Accepted (amended) | 2026-11-09 |
+| [ADR-009](ADR-009-approval-binding.md) | Immutable revisions; approvals and executions bind to exact revision rows | Accepted (amended) | 2026-11-09 |
+| [ADR-010](ADR-010-gated-writes.md) | Operation classes; no Class C customer mutation before R4; kernel execution gate | Accepted (amended) | 2026-11-09 |
 | [ADR-011](ADR-011-mcp-a2a.md) | MCP per bounded context, with an A2A bridge, internal until R5 | Accepted | 2026-11-09 |
-| [ADR-012](ADR-012-tenant-isolation.md) | TenantId is a domain concept, with database RLS as a backstop | Accepted | 2026-11-09 |
+| [ADR-012](ADR-012-tenant-isolation.md) | Tenant isolation as a kernel contract, with forced database RLS | Accepted (amended) | 2026-11-09 |
 | [ADR-013](ADR-013-saas-first.md) | SaaS-only multi-tenant product; no supported customer-deployed edition; mid-market first | Accepted | 2026-11-09 |
 | [ADR-014](ADR-014-model-port.md) | Gemini-only model provider behind ModelPort; no customer BYO key | Accepted | 2026-11-09 |
 | [ADR-015](ADR-015-clean-room-transform-engine.md) | Build one transformation engine clean-room in Rust; Terraform and Python first | Accepted | 2026-11-09 |
@@ -39,14 +39,23 @@ All ADRs are Accepted as of 2026-11-09. The product owner accepted the recommend
 ## Decisions that differ from the original proposal
 
 - **ADR-003:** the full estate model is defined up front, not an assessment-only slice.
-- **ADR-010:** gated writes start in R1, not R4. The approval and audit-before-effect path moves into R1.
+- **ADR-010:** corrected by the architecture review. No Class C customer-environment mutation before R4. R1 is read-only assessment plus Class B workspace decisions and deterministic gate validation.
 - **ADR-013:** SaaS only. There is no supported customer-deployed edition; the open-source licence permits unsupported self-hosting.
 - **ADR-006:** Rust starts in R0, not R3.
 - **ADR-014:** Gemini is the only provider at launch.
 
+## Architecture review amendments (9 November 2026)
+
+The R0 architecture and security review corrected contradictions before implementation started. These are deliberate pre-implementation corrections directed by the product owner, not silent edits; the normal supersession rule applies after R0 acceptance.
+
+- **ADR-009:** approvals and executions bind to immutable revision rows with database-enforced hashes and explicit state machines.
+- **ADR-010:** operations are classified as A/read, B/workspace or C/governed environment mutation. No Class C operation is possible before R4. The execution gate is a kernel capability that every interface must call.
+- **ADR-012:** tenancy is a kernel contract covering tables, APIs, MCP, events, storage, mappings and workers. RLS is forced, with composite tenant/project keys and explicit global-versus-tenant mapping authority.
+- **ADR-008:** evidence canonicalization, signature coverage, chain-head uniqueness and offline verification are explicit.
+
 ## How decisions change
 
-1. An accepted ADR is not edited except for status, typo fixes and link updates.
+1. An accepted ADR is not edited except for status, typo fixes and link updates. Pre-implementation corrections approved by the product owner are recorded in the decision log and the ADR status; after R0 acceptance this exception closes.
 2. A changed decision gets a new ADR that supersedes the old one; the old header gains `Superseded by ADR-0xx`.
 3. Any change to a contract in technical spec §7-§13 requires an ADR and a version bump, per spec §0.
 
