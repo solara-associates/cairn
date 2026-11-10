@@ -24,6 +24,6 @@ Out of scope:
 
 Never commit credentials, keys, tokens or customer data. Use environment injection or a secret manager. Evidence signing keys are held by CAIRN and are never stored in this repository. If a secret is exposed, rotate it first, then report the exposure.
 
-## Governed writes
+## Customer-environment writes (Class C)
 
-When the execution path exists, it must fail closed: no change without policy, revision-bound approval and an audit record written before the effect. Assessment and design services must remain structurally read-only. Any change to that boundary requires an ADR.
+The first usable release must not mutate customer environments. When the execution path exists in R4, it must fail closed: no Class C change without policy, revision-bound approval and an audit record written before the effect. Assessment and design services must remain structurally read-only and must not hold execution credentials. Any change to that boundary requires an ADR.

@@ -1,48 +1,96 @@
-# ADR-010: Gated writes from the first release; no un-gated mutation
+# ADR-010: Operation classes and governed customer-environment mutations
 
-- **Status:** Accepted
+- **Status:** Accepted (amended 9 November 2026 after architecture review)
 - **Date:** 2026-11-09
 - **Deciders:** Product owner (Allan Smeyatsky)
-- **Related:** Implementation spec §1, §3.3, §12, ADR-008, ADR-009
+- **Related:** Implementation spec §1, §3.3, §9, §10, §11, §12, §16, §20; ADR-008; ADR-009; ADR-012
 
 ## Context
 
-The earlier proposal kept CAIRN read-only until R4. The product owner has chosen gated writes from the start: customers should be able to act on a finding without waiting several releases, provided every mutation is authorized, evidenced and reversible. The risk is that an early apply path becomes an unreviewed default, so the gate has to exist before the first write, not after it.
+The PRD requires that the first usable release must not mutate customer environments. The initial amendment allowed gated writes from R1, which conflicted with that product boundary and created ambiguity about workspace mutations, MCP tools and API endpoints. The architecture review also found that a gate spread across interfaces would be bypassable.
 
 ## Decision
 
-- Mutation is permitted from R1, but only through the execution gate: policy check, approval bound to an immutable revision (ADR-009), audit-before-effect and an evidence record (ADR-008).
-- No un-gated write path exists in the codebase. A write that bypasses the gate is a defect, not a configuration option.
-- The assessment and design services remain read-only and contain no applier. The applier lives in the isolated execution module and is reached only through the gate.
-- Assessment credentials stay read-only by default. Write credentials are separate, opt-in per connection and scoped per action.
-- R4 is redefined as execution at scale: drift detection, rollback, remediation workflows and broader apply coverage, not the first introduction of mutation.
-- The approval service and audit-before-effect path (R4-01 and R4-04) are pulled forward into R1.
+### Operation classes
+
+Every operation in CAIRN is classified before implementation.
+
+| Class | Name | Effect | Examples |
+|---|---|---|---|
+| A | Read | Retrieves information; no persisted state change that alters customer or project decisions | read workload, finding, recommendation, mapping, evidence, assessment result |
+| B | Workspace mutation | Changes CAIRN project/assessment records; does not change customer infrastructure, IAM, configuration or deployed workloads | confirm workload classification, record disposition, accept/reject recommendation, accept exception, propose mapping, create/update plan or design, generate artefacts, create project/membership/settings |
+| C | Governed environment mutation | Changes a customer cloud environment or deployment target | change cloud config, modify IAM, apply remediation, execute migration, apply IaC, change workload deployment |
+
+### Class A rules
+
+- Authentication and authorization required.
+- Tenant and project isolation enforced (ADR-012).
+- Audit/read evidence where the operation returns sensitive or evidentiary data.
+
+### Class B rules
+
+- Authentication and authorization.
+- Tenant and project isolation.
+- Idempotency for externally invoked mutating operations.
+- Audit trail with actor attribution.
+- Provenance and evidence where the mutation affects an assessment, recommendation, plan or decision.
+- Optimistic concurrency (`ETag`/`If-Match`) for mutable records.
+
+Class B operations are **not** "gated writes" in the ADR-009 execution-gate sense. They do not require the customer-environment execution gate unless a specific operation is later reclassified as Class C.
+
+### Class C rules
+
+A Class C operation must pass all of the following before any external effect:
+
+1. Policy evaluation.
+2. Approval bound to an immutable revision (ADR-009).
+3. Separation-of-duties validation.
+4. Audit-before-effect.
+5. Execution authorization with scoped, short-lived credentials.
+6. Evidence capture.
+7. Outcome verification.
+8. Rollback handling where supported.
+
+No Class C operation may execute outside the shared execution gate, regardless of origin: UI, API, MCP, agent, job, provider adapter or internal tool. The execution gate is a kernel capability. Interfaces call the gate; they do not implement their own mutation path.
+
+### Release boundary
+
+- R0/R1/R2/R3: **no Class C operations against customer environments**. Assessment is read-only against customer sources (Class A collection with read-only provider credentials). Workspace decisions are Class B.
+- R4: Class C operations are introduced only with provider adapters, approval-bound execution, rollback and independently verifiable evidence.
+- R1 validates the execution-gate lifecycle against a **deterministic test adapter**. The test adapter cannot be substituted with a production provider adapter, and R1 components cannot obtain execution credentials.
+
+### Credential and network isolation
+
+- Assessment/read credentials are read-only and separate from any future execution credentials.
+- Execution credentials are not provisioned before R4 design/implementation and are never available to assessment, design or console components.
+- The applier and execution gate run in an isolated module/service identity with no inbound path from assessment workers except through audited control-plane contracts.
 
 ## Consequences
 
 **Positive**
 
-- Customers can remediate a validated finding in the first release.
-- One gate for every mutation keeps the audit story coherent.
-- The execution seam is designed once, early, instead of being retrofitted.
+- Preserves the PRD first-release boundary: no customer-environment mutation in the first usable release.
+- Removes ambiguity between workspace changes and environment changes.
+- Makes the execution gate a single kernel invariant that all interfaces must use.
+- Allows R1 to prove governance design without exposing customer estates to execution risk.
 
 **Negative**
 
-- Security review, blast-radius analysis and incident runbooks are required from R1.
-- Approval, evidence and rollback work moves onto the R1 critical path.
-- Write credential handling increases the attack surface and the test matrix.
-- A solo maintainer carries operational risk earlier than the read-only plan implied.
+- R1 cannot remediate findings in customer environments.
+- API and MCP contracts must be classified and reviewed before implementation.
+- The R4 execution design remains substantial and must not be under-scoped.
 
 **Neutral**
 
-- Read-only collection remains the default for assessment; gated execution is a separate capability that customers opt into.
+- Workspace mutations still carry audit, idempotency and tenancy obligations.
+- The deterministic test adapter is an architecture-validation asset, not a customer feature.
 
 ## Alternatives considered
 
-1. **Read-only until R4.** Safer and simpler, but defers the remediation value customers ask for.
-2. **Writes behind a feature flag without the gate.** Flags leak and recreate the un-reviewed apply path.
-3. **No execution ever.** Rejects the Modernize and Operate product direction.
+1. **Gated Class C writes from R1.** Rejected because it conflicts with the PRD and moves blast radius too early.
+2. **No execution path ever.** Rejected because it blocks the long-term product direction.
+3. **Per-interface gates.** Rejected because UI, MCP, API and agents would each reimplement governance.
 
 ## If rejected
 
-Reverting to read-only until R4 removes gated write value from R1 and invalidates the approval and evidence dependencies in R1.
+CAIRN would either mutate customer environments before the PRD allows it, or rely on inconsistent interface-level controls that cannot be proven safe.
