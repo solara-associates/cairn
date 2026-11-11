@@ -1,0 +1,17 @@
+{
+  "event_id": "evt-0002",
+  "event_type": "mapping.release.published.v1",
+  "event_version": 1,
+  "tenant_id": null,
+  "project_id": null,
+  "operation_class": "WORKSPACE_MUTATION",
+  "occurred_at": "2026-11-09T11:00:00Z",
+  "correlation_id": "4bf92f3577b34da7",
+  "causation_id": null,
+  "producer": "platform-operator",
+  "payload": {
+    "mapping_version": "2026.11.1",
+    "entry_count": 40
+  },
+  "evidence_ref": null
+}
