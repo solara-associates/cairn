@@ -1,13 +1,13 @@
 # ADR-010: Operation classes and governed customer-environment mutations
 
-- **Status:** Accepted (amended 9 November 2026 after architecture review)
+- **Status:** Accepted (amended 10 November 2026 after second architecture review)
 - **Date:** 2026-11-09
 - **Deciders:** Product owner (Allan Smeyatsky)
 - **Related:** Implementation spec §1, §3.3, §9, §10, §11, §12, §16, §20; ADR-008; ADR-009; ADR-012
 
 ## Context
 
-The PRD requires that the first usable release must not mutate customer environments. The initial amendment allowed gated writes from R1, which conflicted with that product boundary and created ambiguity about workspace mutations, MCP tools and API endpoints. The architecture review also found that a gate spread across interfaces would be bypassable.
+The PRD requires that the first usable release must not mutate customer environments. The initial amendment allowed gated writes from R1, which conflicted with that product boundary and created ambiguity about workspace mutations, MCP tools and API endpoints. That amendment is superseded: the decision below keeps all customer-environment writes in R4. The architecture review also found that a gate spread across interfaces would be bypassable.
 
 ## Decision
 
@@ -20,6 +20,20 @@ Every operation in CAIRN is classified before implementation.
 | A | Read | Retrieves information; no persisted state change that alters customer or project decisions | read workload, finding, recommendation, mapping, evidence, assessment result |
 | B | Workspace mutation | Changes CAIRN project/assessment records; does not change customer infrastructure, IAM, configuration or deployed workloads | confirm workload classification, record disposition, accept/reject recommendation, accept exception, propose mapping, create/update plan or design, generate artefacts, create project/membership/settings |
 | C | Governed environment mutation | Changes a customer cloud environment or deployment target | change cloud config, modify IAM, apply remediation, execute migration, apply IaC, change workload deployment |
+
+### Mutation classification
+
+Operation class answers "may this mutate a customer environment?". Mutation class answers "how recoverable is the effect, and what must be true before authorization?".
+
+| Mutation class | Operation class | Recovery precondition |
+|---|---|---|
+| `READ_ONLY` | A | None |
+| `INTERNAL_MUTATION` | B | No external recovery required |
+| `REVERSIBLE_EXTERNAL_MUTATION` | C | Rollback action identified and validated before authorization |
+| `COMPENSATABLE_EXTERNAL_MUTATION` | C | Compensating action and trigger identified and validated before authorization |
+| `IRREVERSIBLE_EXTERNAL_MUTATION` | C | Explicit risk acceptance, blast-radius declaration and preflight/dry-run where supported; no rollback promise |
+
+Every command declares both classes, and the kernel rejects a mismatch. The execution gate uses the mutation class to set approval tier, evidence obligations and recovery handling. The undo or compensating action is defined before execution, never after.
 
 ### Class A rules
 
@@ -49,15 +63,15 @@ A Class C operation must pass all of the following before any external effect:
 5. Execution authorization with scoped, short-lived credentials.
 6. Evidence capture.
 7. Outcome verification.
-8. Rollback handling where supported.
+8. Recovery handling that matches the mutation class: rollback for reversible, compensation for compensatable, and explicit risk acceptance for irreversible. An irreversible mutation cannot transition to `ROLLED_BACK`.
 
 No Class C operation may execute outside the shared execution gate, regardless of origin: UI, API, MCP, agent, job, provider adapter or internal tool. The execution gate is a kernel capability. Interfaces call the gate; they do not implement their own mutation path.
 
 ### Release boundary
 
 - R0/R1/R2/R3: **no Class C operations against customer environments**. Assessment is read-only against customer sources (Class A collection with read-only provider credentials). Workspace decisions are Class B.
-- R4: Class C operations are introduced only with provider adapters, approval-bound execution, rollback and independently verifiable evidence.
-- R1 validates the execution-gate lifecycle against a **deterministic test adapter**. The test adapter cannot be substituted with a production provider adapter, and R1 components cannot obtain execution credentials.
+- R4: Class C operations are introduced only with provider adapters, approval-bound execution, recovery handling and independently verifiable evidence.
+- R1 validates the execution-gate lifecycle against a **deterministic test adapter**. The test adapter cannot be substituted with a production provider adapter, and R1 components cannot obtain execution credentials. R1 does not move gated customer-environment writes forward.
 
 ### Credential and network isolation
 

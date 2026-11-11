@@ -1,7 +1,7 @@
 # CAIRN Technical Implementation Specification
 
-**Version:** 0.4 (accepted decisions plus architecture-review amendments)
-**Prepared:** 9 November 2026
+**Version:** 0.5 (recovery-aware mutation classification)
+**Prepared:** 9 November 2026; amended 10 November 2026
 **Source documents:** `Cloud_Modernization_Platform_PRD.docx` v1.0; `CLOUD-ARCHITECTURE-PATTERNS.md`
 **Product stake in the ground:** shared kernel first; **CAIRN Assess** and **CAIRN Modernize** are the first customer-facing products; one canonical estate model and one mapping registry drive assessment, design, migration planning and generated infrastructure.
 
@@ -11,10 +11,11 @@
 
 | Item | Value |
 |---|---|
-| Status | Draft for engineering review; all ADRs accepted 9 November 2026 |
+| Status | Draft for engineering review; all ADRs accepted 9 November 2026, amended 10 November 2026 |
 | Revision | 0.2, 9 November 2026: greenfield decision, no code reuse (ADR-017), sections 16-19 re-baselined |
 | Revision | 0.3, 9 November 2026: accepted decisions baseline; solo maintainer, public repository, Apache-2.0, Gemini only, full model up front |
 | Revision | 0.4, 9 November 2026: architecture review; operation classes; no Class C before R4; immutable revisions; tenancy, idempotency and evidence amendments |
+| Revision | 0.5, 10 November 2026: recovery-aware mutation classes; rollback and compensation preconditions; idempotency scope; application-role RLS conformance tests |
 | Audience | Platform engineering, architecture, security, product, delivery |
 | Traceability | Requirements reference PRD IDs (FR-xxx, NFR-xxx) |
 | Change rule | Any change to a contract in sections 7-13 requires an ADR and a version bump |
@@ -187,7 +188,7 @@ cairn/
 │   │   ├── evidence/
 │   │   ├── observability/
 │   │   ├── security/
-│   │   ├── execution-gate/          # operation classification and Class C gate
+│   │   ├── execution-gate/          # operation/mutation classification and Class C gate
 │   │   ├── conformance/
 │   │   └── testing/
 │   ├── contracts/
@@ -338,6 +339,21 @@ class OperationClass(str, Enum):
     WORKSPACE_MUTATION = "WORKSPACE_MUTATION"  # Class B
     GOVERNED_ENV_MUTATION = "GOVERNED_ENV_MUTATION"  # Class C
 
+class MutationClass(str, Enum):
+    READ_ONLY = "READ_ONLY"
+    INTERNAL_MUTATION = "INTERNAL_MUTATION"
+    REVERSIBLE_EXTERNAL_MUTATION = "REVERSIBLE_EXTERNAL_MUTATION"
+    COMPENSATABLE_EXTERNAL_MUTATION = "COMPENSATABLE_EXTERNAL_MUTATION"
+    IRREVERSIBLE_EXTERNAL_MUTATION = "IRREVERSIBLE_EXTERNAL_MUTATION"
+
+OPERATION_CLASS_BY_MUTATION = {
+    MutationClass.READ_ONLY: OperationClass.READ,
+    MutationClass.INTERNAL_MUTATION: OperationClass.WORKSPACE_MUTATION,
+    MutationClass.REVERSIBLE_EXTERNAL_MUTATION: OperationClass.GOVERNED_ENV_MUTATION,
+    MutationClass.COMPENSATABLE_EXTERNAL_MUTATION: OperationClass.GOVERNED_ENV_MUTATION,
+    MutationClass.IRREVERSIBLE_EXTERNAL_MUTATION: OperationClass.GOVERNED_ENV_MUTATION,
+}
+
 @dataclass(frozen=True, slots=True)
 class TenantId:
     value: str
@@ -365,6 +381,7 @@ class CommandContext:
     actor_roles: tuple[str, ...]
     correlation_id: str
     operation_class: OperationClass
+    mutation_class: MutationClass
     idempotency_key: str | None = None
     source: str = "api"         # console | api | mcp | agent | job
 
@@ -376,7 +393,26 @@ class UnitOfWork(Protocol):
     def rollback(self) -> None: ...
 ```
 
-### 5.2 Required port catalogue (v0)
+### 5.2 Mutation classification contract
+
+Every command declares exactly one operation class and one mutation class. The two must agree; the kernel rejects a mismatch at construction time.
+
+| Mutation class | Operation class | Gate requirement | Recovery precondition |
+|---|---|---|---|
+| `READ_ONLY` | A | None; normal authorization and sensitive-read audit | Not applicable |
+| `INTERNAL_MUTATION` | B | Authorization, tenancy, idempotency and audit | Not applicable; no customer-environment effect |
+| `REVERSIBLE_EXTERNAL_MUTATION` | C | Full gate, risk-tiered approval, audit-before-effect and evidence | Rollback action identified, scoped and validated **before** authorization |
+| `COMPENSATABLE_EXTERNAL_MUTATION` | C | Full gate plus higher risk tier and explicit compensation review | Compensating action and its trigger identified, scoped and validated **before** authorization |
+| `IRREVERSIBLE_EXTERNAL_MUTATION` | C | Full gate plus highest approval tier, explicit risk acceptance, blast-radius declaration and preflight/dry-run where supported | No rollback promise; execution is refused unless the residual risk is explicitly accepted before authorization |
+
+Rules:
+- Classification is part of the command contract, not an implementation detail. Changing it requires a new revision and approval.
+- The execution gate derives required approval roles, risk tier, evidence obligations and recovery handling from the mutation class.
+- The undo or compensating action is defined before execution, never after. A missing or invalid recovery reference blocks authorization.
+- `IRREVERSIBLE_EXTERNAL_MUTATION` must not be presented as reversible, and an execution in that class cannot transition to `ROLLED_BACK`.
+- The approval and execution records store the classification and recovery strategy. Execution must match the approved classification exactly.
+
+### 5.3 Required port catalogue (v0)
 
 | Port | Owner module | v0 adapters |
 |---|---|---|
@@ -408,14 +444,14 @@ class UnitOfWork(Protocol):
 
 Before R4, `modules/execution` and any production `ProviderExecutionPort` adapter are absent from the deployable. The deterministic test adapter lives in test code, is selected only by the test harness, and cannot be enabled by runtime configuration.
 
-### 5.3 Conformance harness rule map (v0)
+### 5.4 Conformance harness rule map (v0)
 
 | Rule | Check | Failure mode |
 |---|---|---|
 | R-ARCH-01 | `importlinter` all contracts kept | CI fail |
 | R-ARCH-02 | Domain imports no SDK/framework | CI fail |
 | R-TENANT-01 | Every repository query enforces tenant context | Unit + adversarial test |
-| R-TENANT-02 | Every tenant-owned and project-owned table has the required forced RLS policies and is classified | Migration test |
+| R-TENANT-02 | Every tenant-owned and project-owned table has forced RLS and required policies; app roles lack `BYPASSRLS`; tests run under the app role | Migration + role-level test |
 | R-AUDIT-01 | Class B/C mutations append audit trail; Class C appends before external effect | Integration test |
 | R-EVID-01 | Evidence tamper/fork is detected | Tamper/fork test |
 | R-AI-01 | Model output schema-validated | Eval test |
@@ -423,7 +459,8 @@ Before R4, `modules/execution` and any production `ProviderExecutionPort` adapte
 | R-MAP-01 | Approximate/unavailable never rendered as exact | Resolver test |
 | R-REV-01 | Approvals/executions bind to immutable revision rows and exact hashes | DB constraint + integration test |
 | R-GATE-01 | No Class C path outside `ExecutionGatePort`; no production provider adapter before R4 | Static + integration test |
-| R-IDEM-01 | Class B and Class C mutations require tenant/operation/key scoped idempotency, replay/conflict handling and expiry | Contract test |
+| R-MUT-01 | Every command declares a mutation class; operation and mutation classes agree; external classes have a validated recovery strategy before authorization | Contract + gate test |
+| R-IDEM-01 | Class B and Class C mutations require tenant/project/operation/key scoped idempotency, canonical request hashing, replay/conflict handling and expiry | Contract test |
 | R-COV-01 | Coverage floor per critical package | CI fail |
 | R-SEC-01 | No critical/high findings; high needs risk acceptance | CI gate |
 | R-SEC-02 | SBOM and image signature present | CI gate |
@@ -1091,12 +1128,16 @@ CREATE TABLE transformation_run (
   created_at       timestamptz NOT NULL DEFAULT now()
 );
 
--- Approvals and execution (Class C gate; no production Class C execution before R4)
+-- Approvals and execution (Class B approval; Class C execution gate; no production Class C execution before R4)
 CREATE TABLE approval (
   approval_id      uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id        uuid NOT NULL REFERENCES tenant(tenant_id),
   project_id       uuid NOT NULL,
   operation_class  text NOT NULL CHECK (operation_class IN ('WORKSPACE_MUTATION','GOVERNED_ENV_MUTATION')),
+  mutation_class   text NOT NULL CHECK (mutation_class IN ('INTERNAL_MUTATION','REVERSIBLE_EXTERNAL_MUTATION','COMPENSATABLE_EXTERNAL_MUTATION','IRREVERSIBLE_EXTERNAL_MUTATION')),
+  recovery_strategy text NOT NULL CHECK (recovery_strategy IN ('NOT_APPLICABLE','ROLLBACK','COMPENSATE','ACCEPT_IRREVERSIBLE')),
+  recovery_plan_ref text,
+  risk_acceptance_ref text,
   action_kind      text NOT NULL,
   subject_kind     text NOT NULL,
   subject_id       uuid NOT NULL,
@@ -1112,7 +1153,29 @@ CREATE TABLE approval (
   evidence_ref     text,
   created_at       timestamptz NOT NULL DEFAULT now(),
   UNIQUE (tenant_id, approval_id),
-  UNIQUE (tenant_id, project_id, approval_id, revision_id, revision_hash),
+  UNIQUE (tenant_id, project_id, approval_id, revision_id, revision_hash, mutation_class, recovery_strategy),
+  CHECK (
+    (mutation_class = 'INTERNAL_MUTATION'
+      AND operation_class = 'WORKSPACE_MUTATION'
+      AND recovery_strategy = 'NOT_APPLICABLE'
+      AND recovery_plan_ref IS NULL
+      AND risk_acceptance_ref IS NULL)
+    OR (mutation_class = 'REVERSIBLE_EXTERNAL_MUTATION'
+      AND operation_class = 'GOVERNED_ENV_MUTATION'
+      AND recovery_strategy = 'ROLLBACK'
+      AND recovery_plan_ref IS NOT NULL
+      AND risk_acceptance_ref IS NULL)
+    OR (mutation_class = 'COMPENSATABLE_EXTERNAL_MUTATION'
+      AND operation_class = 'GOVERNED_ENV_MUTATION'
+      AND recovery_strategy = 'COMPENSATE'
+      AND recovery_plan_ref IS NOT NULL
+      AND risk_acceptance_ref IS NULL)
+    OR (mutation_class = 'IRREVERSIBLE_EXTERNAL_MUTATION'
+      AND operation_class = 'GOVERNED_ENV_MUTATION'
+      AND recovery_strategy = 'ACCEPT_IRREVERSIBLE'
+      AND recovery_plan_ref IS NULL
+      AND risk_acceptance_ref IS NOT NULL)
+  ),
   FOREIGN KEY (tenant_id, project_id) REFERENCES project(tenant_id, project_id),
   FOREIGN KEY (tenant_id, requested_by) REFERENCES app_user(tenant_id, user_id),
   FOREIGN KEY (tenant_id, decided_by) REFERENCES app_user(tenant_id, user_id),
@@ -1126,6 +1189,7 @@ CREATE TABLE idempotency_record (
   project_id       uuid,
   operation        text NOT NULL,
   operation_class  text NOT NULL CHECK (operation_class IN ('WORKSPACE_MUTATION','GOVERNED_ENV_MUTATION')),
+  mutation_class   text NOT NULL CHECK (mutation_class IN ('INTERNAL_MUTATION','REVERSIBLE_EXTERNAL_MUTATION','COMPENSATABLE_EXTERNAL_MUTATION','IRREVERSIBLE_EXTERNAL_MUTATION')),
   idempotency_key  text NOT NULL,
   request_hash     text NOT NULL,
   actor_id         text NOT NULL,
@@ -1135,7 +1199,11 @@ CREATE TABLE idempotency_record (
   error_code       text,
   created_at       timestamptz NOT NULL DEFAULT now(),
   expires_at       timestamptz NOT NULL,
-  UNIQUE (tenant_id, operation, idempotency_key),
+  CHECK (
+    (operation_class = 'WORKSPACE_MUTATION' AND mutation_class = 'INTERNAL_MUTATION')
+    OR (operation_class = 'GOVERNED_ENV_MUTATION' AND mutation_class IN ('REVERSIBLE_EXTERNAL_MUTATION','COMPENSATABLE_EXTERNAL_MUTATION','IRREVERSIBLE_EXTERNAL_MUTATION'))
+  ),
+  UNIQUE NULLS NOT DISTINCT (tenant_id, project_id, operation, idempotency_key),
   UNIQUE (tenant_id, idempotency_id),
   UNIQUE (tenant_id, project_id, idempotency_id),
   FOREIGN KEY (tenant_id, project_id) REFERENCES project(tenant_id, project_id)
@@ -1148,6 +1216,8 @@ CREATE TABLE execution_record (
   approval_id      uuid NOT NULL,
   revision_id      uuid NOT NULL,
   approved_hash    text NOT NULL,
+  mutation_class   text NOT NULL CHECK (mutation_class IN ('INTERNAL_MUTATION','REVERSIBLE_EXTERNAL_MUTATION','COMPENSATABLE_EXTERNAL_MUTATION','IRREVERSIBLE_EXTERNAL_MUTATION')),
+  recovery_strategy text NOT NULL CHECK (recovery_strategy IN ('NOT_APPLICABLE','ROLLBACK','COMPENSATE','ACCEPT_IRREVERSIBLE')),
   idempotency_id   uuid NOT NULL,
   status           text NOT NULL CHECK (status IN ('PROPOSED','AUTHORIZED','EXECUTING','SUCCEEDED','FAILED','ROLLED_BACK','CANCELLED')),
   target_adapter   text NOT NULL,          -- deterministic-test only before R4
@@ -1155,15 +1225,17 @@ CREATE TABLE execution_record (
   before_state     jsonb,
   after_state      jsonb,
   logs_ref         text,
-  rollback_ref     text,
+  recovery_ref     text,
   audit_intent_ref text,
   evidence_ref     text,
   started_at       timestamptz,
   finished_at      timestamptz,
   UNIQUE (tenant_id, execution_id, approval_id, revision_id),
+  CHECK (mutation_class <> 'IRREVERSIBLE_EXTERNAL_MUTATION' OR status <> 'ROLLED_BACK'),
+  CHECK (mutation_class = 'IRREVERSIBLE_EXTERNAL_MUTATION' OR status <> 'ROLLED_BACK' OR recovery_ref IS NOT NULL),
   FOREIGN KEY (tenant_id, project_id) REFERENCES project(tenant_id, project_id),
-  FOREIGN KEY (tenant_id, project_id, approval_id, revision_id, approved_hash)
-    REFERENCES approval(tenant_id, project_id, approval_id, revision_id, revision_hash),
+  FOREIGN KEY (tenant_id, project_id, approval_id, revision_id, approved_hash, mutation_class, recovery_strategy)
+    REFERENCES approval(tenant_id, project_id, approval_id, revision_id, revision_hash, mutation_class, recovery_strategy),
   FOREIGN KEY (tenant_id, project_id, revision_id, approved_hash)
     REFERENCES subject_revision(tenant_id, project_id, revision_id, content_hash),
   FOREIGN KEY (tenant_id, project_id, idempotency_id) REFERENCES idempotency_record(tenant_id, project_id, idempotency_id)
@@ -1275,7 +1347,7 @@ CREATE POLICY project_isolation ON workload
 - Table owners and application roles must not have `BYPASSRLS`. Migration and break-glass roles are separate, audited and never used by application requests.
 - The outbox relay is a separate platform identity. It processes one tenant context per batch and never joins tenant business tables. Any cross-tenant dispatch view exposes outbox identifiers and routing metadata only, and every access is audited.
 - Every tenant-owned table gets the tenant policy. Every project-owned table gets both policies. A missing project context denies project rows rather than widening access. The migration test enumerates tables from the tenancy classification and fails if a table is missing RLS, forced RLS, or the required policies.
-- Cross-tenant and cross-project tests run for every repository, API, MCP resource, background job and evidence path.
+- Cross-tenant and cross-project tests run under the application database role for every repository, API, MCP resource, background job and evidence path. They fail if any application role has `BYPASSRLS` or if forced RLS is missing.
 
 ### 8.5 BigQuery layout
 
@@ -1312,12 +1384,16 @@ Raw is immutable and replayable. Curated is derived and versioned by `model_vers
 | Content type | `application/json`; problem details `application/problem+json` |
 | Errors | RFC 7807 with `type`, `title`, `status`, `detail`, `instance`, `trace_id`, `code` |
 | Pagination | Cursor-based: `?limit=&cursor=`; response `{items, next_cursor}` |
-| Idempotency | `Idempotency-Key` required on externally invoked Class B/C operations; scoped to tenant, operation and key. Same key and request hash replays the stored result; same key with a different payload returns `409 IDEMPOTENCY_CONFLICT` |
+| Idempotency | `Idempotency-Key` required on externally invoked Class B/C operations; scoped to tenant, project, operation and key. The canonical request hash covers method, path, query and body. Same key and hash replays the stored result; same key with a different hash returns `409 IDEMPOTENCY_CONFLICT` |
 | Async | `202 Accepted` plus `Location: /v1/operations/{id}`; operation has `state`, `progress`, `result_ref` |
 | Versioning | Additive within `/v1`; breaking changes require `/v2` |
 | Concurrency | `ETag`/`If-Match` on mutable resources (plans, mappings, approvals) |
 | Audit | Every mutation returns `x-cairn-audit-id` |
 | Evidence | Read operations expose `evidence_refs` where applicable |
+
+Idempotency records are created in the same database transaction as the state change and the outbox event. For Class C, the idempotency record and the `PROPOSED` execution record commit together before any external effect. The event is dispatched only after commit. A retry never attaches a different request to an existing execution.
+
+The scope is deliberately `(tenant_id, project_id, operation, idempotency_key)` rather than tenant plus key alone. Keys are endpoint-scoped: a tenant-global key would turn an unrelated operation's key reuse into a false conflict. The canonical request hash closes the retry-substitution risk within the scope. A retry with the same key and same hash returns the stored result. A retry with the same key and a different hash is rejected with `409 IDEMPOTENCY_CONFLICT` before any state change. The idempotency record is immutable after creation, and `execution_record` references it by `(tenant_id, project_id, idempotency_id)`, so a later request cannot attach a different command to an existing execution.
 
 ### 9.2 Endpoint surface (v1)
 
@@ -1480,7 +1556,7 @@ POST /v1/evidence/{package_id}:verify
 }
 ```
 
-Canonical codes include `UNAUTHENTICATED`, `FORBIDDEN`, `TENANT_SCOPE_VIOLATION`, `NOT_FOUND`, `VALIDATION_FAILED`, `IDEMPOTENCY_CONFLICT`, `REVISION_MISMATCH`, `MAPPING_UNAVAILABLE`, `EVIDENCE_VERIFICATION_FAILED`, `AUDIT_UNAVAILABLE`, `PROVIDER_UNAVAILABLE`, `COVERAGE_INCOMPLETE`.
+Canonical codes include `UNAUTHENTICATED`, `FORBIDDEN`, `TENANT_SCOPE_VIOLATION`, `NOT_FOUND`, `VALIDATION_FAILED`, `IDEMPOTENCY_CONFLICT`, `REVISION_MISMATCH`, `MUTATION_CLASS_MISMATCH`, `RECOVERY_PLAN_REQUIRED`, `RISK_ACCEPTANCE_REQUIRED`, `MAPPING_UNAVAILABLE`, `EVIDENCE_VERIFICATION_FAILED`, `AUDIT_UNAVAILABLE`, `PROVIDER_UNAVAILABLE`, `COVERAGE_INCOMPLETE`.
 
 ---
 
@@ -1499,7 +1575,7 @@ Canonical codes include `UNAUTHENTICATED`, `FORBIDDEN`, `TENANT_SCOPE_VIOLATION`
 | `transform-mcp` | Modernize | `start_preview`, `validate_preview` | `transform://runs/{id}`, `transform://runs/{id}/diff` | R3 |
 | `evidence-mcp` | Evidence | `seal_package` (internal evidence only) | `evidence://packages/{id}`, `evidence://verify/{id}` | R1 |
 
-No MCP server exposes a Class C tool before R4. When Class C tools are introduced, they call the kernel execution gate and carry the same approval, evidence and rollback obligations as the API.
+No MCP server exposes a Class C tool before R4. When Class C tools are introduced, they call the kernel execution gate and carry the same approval, evidence and recovery obligations as the API.
 
 ### 10.2 MCP rules
 
@@ -1611,7 +1687,7 @@ Rules:
 - Every transition is persisted with actor, timestamp, reason and correlation ID.
 - Approvals and executions bind to immutable revision rows and exact content hashes (ADR-009).
 - A new revision invalidates prior approvals for execution purposes and requires re-approval.
-- Class C execution requires an `Idempotency-Key` scoped to `(tenant_id, operation, key)`; retries replay the recorded outcome or return a conflict.
+- Class C execution requires an `Idempotency-Key` scoped to `(tenant_id, project_id, operation, key)` with a canonical request hash; retries replay the recorded outcome or return a conflict. The idempotency record, `PROPOSED` execution and outbox event commit in one transaction before any external effect.
 - Class C appends the intent and authorization to the ledger before the external effect; if the ledger is unavailable, execution fails closed. A database transaction cannot make an external side effect atomic, so R4 must explicitly handle the distributed boundary (outbox, execution state, reconciliation and rollback).
 
 ### 11.4 Job execution model
@@ -1643,14 +1719,16 @@ Rules:
 | VIEWER | Read-only project access |
 | PLATFORM_OPERATOR (internal) | Publish global mapping releases and operate the platform; not a tenant role and not reachable from tenant APIs |
 
-Authorization is enforced in the application layer with domain policy objects, and in persistence with RLS. Every command carries an operation class; Class C commands are rejected unless they originate inside the kernel execution gate. The UI, MCP, A2A and provider adapters are not security boundaries.
+Authorization is enforced in the application layer with domain policy objects, and in persistence with RLS. Every command carries an operation class and a mutation class; Class C commands are rejected unless they originate inside the kernel execution gate. The UI, MCP, A2A and provider adapters are not security boundaries.
 
 ### 12.2 Tenant isolation tests
 
 Mandatory for every new repository and query:
 - Cross-tenant read returns 404/403, not data.
 - Cross-tenant write is rejected before persistence.
-- RLS is enabled and forced on every tenant-owned and project-owned table, with the required policies.
+- RLS is enabled and forced on every tenant-owned and project-owned table, with the required policies. The migration test asserts `pg_class.relrowsecurity` and `pg_class.relforcerowsecurity` are true.
+- Tests run under the application database role, not the table owner, and assert `pg_roles.rolbypassrls` is false for every application role.
+- The same tests prove cross-tenant and cross-project reads and writes are denied under the application role.
 - Background jobs carry tenant context explicitly and re-assert it at each persistence boundary.
 
 ### 12.3 Secrets and provider onboarding
@@ -1891,13 +1969,13 @@ Sizing: S (1-2 days), M (3-5 days), L (1-2 weeks), XL (2-4 weeks). Order is the 
 R0 does not exit until all gates pass with linked evidence.
 
 - [ ] ADR-008, ADR-009, ADR-010 and ADR-012 amended and accepted.
-- [ ] All API and MCP operations classified as Class A, B or C.
+- [ ] All API and MCP operations classified as Class A, B or C, with a mutation class and recovery strategy.
 - [ ] No unapproved Class C path and no production execution adapter exist.
 - [ ] R1 read-only boundary and deterministic test adapter are documented.
 - [ ] Immutable revision, approval and execution schema is implemented with constraints.
-- [ ] Idempotency and transactional outbox contracts are defined.
+- [ ] Idempotency (tenant/project/operation/key scope, canonical request hash) and transactional outbox contracts are defined.
 - [ ] Complete tenancy matrix is approved for tables, APIs, MCP, events, storage, evidence and workers.
-- [ ] RLS forced with cross-tenant and cross-project tests for every classified table.
+- [ ] RLS forced with cross-tenant and cross-project tests for every classified table, run under the application role, with no application role holding `BYPASSRLS`.
 - [ ] Evidence canonicalization, signing, chain-head and offline verification contracts are defined.
 - [ ] CI security baseline is established: secret scan, dependency/container scan, SBOM, image signing.
 - [ ] UK data, backup, key and support-access residency matrix is approved.
@@ -1926,7 +2004,7 @@ R0 does not exit until all gates pass with linked evidence.
 | R0-16 | Create Terraform module skeletons and dev environment | L | R0-01 | `terraform plan` clean in dev; no long-lived secrets |
 | R0-17 | Create CI/CD pipelines: lint, test, conformance, security, build, sign | L | R0-07 | Pipeline green; SBOM and signature artefacts produced |
 | R0-18 | Review and accept ADR-001..018 and the architecture-review amendments; record outcomes in `docs/adr/README.md` and maintain the reference register | S | - | All ADRs accepted or amended; ADR-017 acknowledged as a constraint; decision log current |
-| R0-19 | Publish the operation classification and tenancy matrix for every API, MCP tool, resource, event, table, bucket and worker | M | R0-03, R0-05 | Every operation and entity has Class A/B/C or Global/Tenant/Project; review approved; encoded in contracts |
+| R0-19 | Publish the operation and mutation classification plus the tenancy matrix for every API, MCP tool, resource, event, table, bucket and worker | M | R0-03, R0-05 | Every operation has Class A/B/C and a mutation class; every entity is Global/Tenant/Project; recovery strategy is defined for external mutations; review approved; encoded in contracts |
 | R0-20 | Hold the R0 architecture acceptance review against section 16.0 | S | R0-19 | All 13 gates pass with evidence; failures have owners and dates |
 
 ### R1 - CAIRN Assess (exit: read-only assessment, workspace decisions, evidence and gate validation)
@@ -1953,8 +2031,8 @@ R0 does not exit until all gates pass with linked evidence.
 | R1-18 | Build assessment console screens | XL | R1-01..R1-17 | Journey complete: project → ingest → assess → inspect → export |
 | R1-19 | Add cross-tenant, resilience and security tests for R1 | L | R1-01..R1-18 | Mandatory gates pass |
 | R1-20 | Pilot runbook, data-handling terms and SLO baseline | M | R1-18 | Pilot can be run without engineering intervention |
-| R1-21 | Implement immutable revision, approval and execution state machines | L | R0-10 | DB-bound revision hash; separation of duties; invalid transitions rejected |
-| R1-22 | Implement kernel execution gate with deterministic test adapter and scoped idempotency | L | R1-21, R0-10 | Full gate lifecycle proven; test adapter cannot be replaced by production adapter; no execution credentials reachable |
+| R1-21 | Implement immutable revision, approval and execution state machines | L | R0-10 | DB-bound revision hash; mutation class and recovery precondition enforced; separation of duties; invalid transitions rejected |
+| R1-22 | Implement kernel execution gate with deterministic test adapter and scoped idempotency | L | R1-21, R0-10 | Full gate lifecycle proven for every external mutation class; recovery precondition blocks authorization when absent; test adapter cannot be replaced by production adapter; no execution credentials reachable |
 
 ### R2 - CAIRN Design (exit: one model produces consistent design artefacts)
 
@@ -1990,18 +2068,18 @@ R1 delivered the revision/approval model and a deterministic gate harness (R1-21
 
 | ID | Story | Size | Depends | Acceptance criteria |
 |---|---|---|---|---|
-| R4-01 | Implement risk-tier policy engine | M | R1-21 | Role requirements per tier enforced |
-| R4-02 | Implement GCP production provider execution adapter behind the kernel gate | XL | R1-22, R4-01 | No bypass path; scoped short-lived credentials; adapter cannot be called directly |
+| R4-01 | Implement risk-tier policy engine keyed by mutation class | M | R1-21 | Role requirements per tier and mutation class enforced; irreversible mutations require explicit risk acceptance |
+| R4-02 | Implement GCP production provider execution adapter behind the kernel gate | XL | R1-22, R4-01 | No bypass path; scoped short-lived credentials; adapter cannot be called directly; class and recovery match the approved revision |
 | R4-03 | Implement Terraform plan/apply/drift on top of the provider adapter | XL | R2-07, R4-02 | Plan and apply tied to approved revision; drift detected |
-| R4-04 | Implement rollback/recovery references, reconciliation and runbooks | L | R4-03 | Rollback and reconciliation documented, tested and evidenced |
-| R4-05 | Build approval and execution console | L | R1-21, R1-22, R4-01..R4-04 | Approver sees exact revision, diffs and evidence |
-| R4-06 | Add execution security, distributed-boundary and failure-mode tests | L | R4-02..R4-05 | Partial failure, timeout, unauthorized apply, audit outage and reconciliation all tested |
+| R4-04 | Implement rollback and compensation execution, reconciliation and runbooks | L | R4-03 | Reversible rollback and compensatable recovery tested and evidenced; irreversible path requires risk acceptance |
+| R4-05 | Build approval and execution console | L | R1-21, R1-22, R4-01..R4-04 | Approver sees exact revision, diffs, mutation class, recovery plan and evidence |
+| R4-06 | Add execution security, distributed-boundary and failure-mode tests | L | R4-02..R4-05 | Partial failure, timeout, unauthorized apply, audit outage, missing recovery plan, irreversible rollback attempt and reconciliation all tested |
 
 ### R5 - CAIRN Operate (exit: governed operational loops)
 
 | ID | Story | Size | Depends | Acceptance criteria |
 |---|---|---|---|---|
-| R5-01 | Implement FinOps graded remediation and policy | L | R1-12, R4-02, R4-04 | Alert/throttle/cap/stop/disable with Class C approval and rollback |
+| R5-01 | Implement FinOps graded remediation and policy | L | R1-12, R4-02, R4-04 | Alert/throttle/cap/stop/disable with Class C approval and recovery handling |
 | R5-02 | Implement LLMOps gateway and AI control loop | XL | R0-12 | Security/reliability/cost/observability pillars |
 | R5-03 | Implement MLOps lifecycle module | XL | R0-13 | Registry, drift, self-healing with bounds |
 | R5-04 | Implement MCP gateway and A2A bridge | L | R0-13 | Registry, OAuth, agent cards, bridge tests |
@@ -2095,7 +2173,7 @@ CAIRN is greenfield (ADR-017). The reference repositories are evidence for how p
 | Overbuilding the console | Slow delivery | Assessment-first IA; four archetypes remain separate |
 | Adapter multiplication | Schedule expansion | GCP-first; shared contract suite; AWS/Azure follow |
 | Transformation risk | Customer impact | Preview-only in R3; sandbox; approval-bound Class C execution only in R4 |
-| Premature Class C exposure | Blast radius, security review | No Class C before R4; kernel gate; read-only default credentials; isolated applier; rollback and incident runbooks |
+| Premature Class C exposure | Blast radius, security review | No Class C before R4; kernel gate; read-only default credentials; isolated applier; recovery and incident runbooks |
 | Open-source support load | Maintainer burnout | Public issue policy, SECURITY.md, no support promise without an engagement |
 | Greenfield build cost | Higher effort than a lift/adapt plan | Scope discipline: GCP-only, one jurisdiction pack, assessment first |
 | Reuse assumptions in earlier estimates | Schedule optimism | Re-baselined outlook in section 16.2; treat dates as discovery until R1 is proven |
@@ -2112,10 +2190,10 @@ CAIRN is greenfield (ADR-017). The reference repositories are evidence for how p
 | Repository shape | Monorepo, public at `solara-associates/cairn` | ADR-001, ADR-018 |
 | Target cloud priority | GCP-first behind neutral contracts | ADR-005 |
 | Data stores | Cloud SQL PostgreSQL in `europe-west2`; BigQuery for analytics | ADR-007 |
-| Mutation boundary | Class A/B/C; no Class C before R4; kernel gate for all Class C | ADR-010 |
-| Approval binding | Immutable revision rows; approval and execution bind to exact revision and hash | ADR-009 |
+| Mutation boundary | Class A/B/C plus recovery-oriented mutation classes; no Class C before R4; kernel gate for all Class C | ADR-010 |
+| Approval binding | Immutable revision rows; approval and execution bind to exact revision, hash, mutation class and recovery strategy | ADR-009 |
 | Tenancy | Every entity classified; forced RLS; composite tenant/project keys; global mappings platform-published | ADR-012 |
-| Idempotency | Tenant/operation/key scope; replay returns original result; payload mismatch conflicts | ADR-009, ADR-010 |
+| Idempotency | Tenant/project/operation/key scope; canonical request hash; replay returns original result; payload mismatch conflicts; record and outbox commit atomically | ADR-009, ADR-010 |
 | Product boundary | SaaS-only multi-tenant; mid-market first; no supported customer-deployed edition | ADR-013 |
 | AI provider policy | Gemini only behind ModelPort; no customer BYO key | ADR-014 |
 | Evidence standard | Canonical signed JSON plus report; unique chain head; audit-before-effect; CAIRN-held keys | ADR-008 |
@@ -2144,7 +2222,7 @@ R0 + R1 + the MVP of R2 is done when:
 10. Tenant isolation, conformance, security and evidence tamper tests pass in CI.
 11. No Class C operation is reachable; Class B mutations are authorized, tenant-scoped, idempotent and audited; assessment and design services remain read-only.
 12. The repository is public under Apache-2.0 with a root README, SECURITY.md, CONTRIBUTING.md and no secrets in history.
-13. The full execution-gate lifecycle has been demonstrated against a deterministic test adapter that cannot be substituted with a production adapter.
+13. The full execution-gate lifecycle has been demonstrated against a deterministic test adapter for every external mutation class, including recovery preconditions, and the adapter cannot be substituted with a production adapter.
 14. No production provider execution adapter, execution credential or Class C endpoint exists.
 
 ---
@@ -2193,6 +2271,10 @@ Sizes are greenfield build sizes. The earlier reuse-dependent timeline is withdr
 | Evidence package | Signed JSON record of inputs, provenance, versions, decisions and outputs |
 | Class A operation | Read-only operation; no persisted change to a customer or project decision |
 | Class B operation | CAIRN workspace mutation; requires authorization, tenancy, idempotency and audit, but does not mutate a customer environment |
-| Class C operation | Governed customer-environment mutation; requires the kernel execution gate, immutable revision approval, audit-before-effect, evidence and rollback handling |
+| Class C operation | Governed customer-environment mutation; requires the kernel execution gate, immutable revision approval, audit-before-effect, evidence and recovery handling |
+| Mutation class | Recovery-oriented classification of a command: read-only, internal, reversible external, compensatable external or irreversible external |
+| Reversible external mutation | A Class C change with a tested rollback action defined before authorization |
+| Compensatable external mutation | A Class C change with no direct undo but a defined compensating action and trigger validated before authorization |
+| Irreversible external mutation | A Class C change that cannot be rolled back; requires explicit risk acceptance, blast-radius declaration and preflight where supported |
 | Assessment plane | All read-only collection, normalization, assessment and design capability; structurally unable to apply changes |
 | Execution plane | Separately credentialed capability that applies approved changes; not provisioned before R4 |
