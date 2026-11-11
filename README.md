@@ -19,9 +19,9 @@ The first usable release is a commercial multi-tenant SaaS on Google Cloud, aime
 
 | Document | Purpose |
 |---|---|
-| [Technical implementation specification](CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md) | Contracts, schemas, deployment, backlog and delivery outlook |
+| [Technical implementation specification](CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md) | Contracts, schemas, deployment, backlog and delivery outlook; frozen R0 baseline (v0.6) |
 | [Architecture patterns](CLOUD-ARCHITECTURE-PATTERNS.md) | Design evidence from prior work; nothing is reused as code |
-| [Architecture decision records](docs/adr/README.md) | ADR-001 to ADR-018, all accepted 9 November 2026; ADR-009, ADR-010 and ADR-012 amended 10 November 2026 |
+| [Architecture decision records](docs/adr/README.md) | ADR-001 to ADR-018, all accepted 9 November 2026; ADR-009, ADR-010 and ADR-012 amended 10 and 11 November 2026 |
 | [Reference register](docs/specs/reference-register.md) | Clean-room evidence log |
 | `Cloud_Modernization_Platform_PRD.docx` | Product requirements baseline with revision notes |
 | `CAIRN_Architecture_Review_and_R0_Resolution.docx` | Architecture review that drove the pre-R0 corrections and release boundary |
@@ -29,6 +29,7 @@ The first usable release is a commercial multi-tenant SaaS on Google Cloud, aime
 ## Status
 
 - Decisions: accepted (ADR-001 to ADR-018).
+- Architecture: frozen R0 baseline, spec v0.6, 11 November 2026. R0 implementation may start.
 - Code: none.
 - Team: one maintainer.
 - Timeline: ASAP, with no committed date. The specification gives a solo outlook of R0 in 8 to 12 weeks and R1 in 9 to 15 months.
