@@ -1,0 +1,9 @@
+{
+  "type": "https://cairn.example/errors/tenant-scope",
+  "title": "Tenant scope violation",
+  "status": 403,
+  "detail": "The requested resource is not in the caller's tenant",
+  "instance": "/v1/workloads/abc",
+  "trace_id": "4bf92f3577b34da6",
+  "code": "TENANT_SCOPE_VIOLATION"
+}

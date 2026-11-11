@@ -2,7 +2,11 @@ import ast
 import sys
 from pathlib import Path
 
-ESTATE_PACKAGE = Path(__file__).parents[1] / "src" / "cairn_contracts" / "estate"
+import pytest
+
+CONTRACTS_SRC = Path(__file__).parents[1] / "src" / "cairn_contracts"
+
+CONTRACT_PACKAGES = ["estate", "events", "api"]
 
 
 def _imported_roots(tree: ast.Module) -> set[str]:
@@ -15,14 +19,16 @@ def _imported_roots(tree: ast.Module) -> set[str]:
     return roots
 
 
-def test_estate_contract_files_exist() -> None:
-    python_files = sorted(path.name for path in ESTATE_PACKAGE.glob("*.py"))
-    assert python_files, "estate contract package must contain Python sources"
+@pytest.mark.parametrize("package_name", CONTRACT_PACKAGES)
+def test_contract_package_files_exist(package_name: str) -> None:
+    python_files = sorted(path.name for path in (CONTRACTS_SRC / package_name).glob("*.py"))
+    assert python_files, f"contract package {package_name} must contain Python sources"
 
 
-def test_estate_imports_only_stdlib_and_pydantic() -> None:
+@pytest.mark.parametrize("package_name", CONTRACT_PACKAGES)
+def test_contract_imports_only_stdlib_and_pydantic(package_name: str) -> None:
     violations: dict[str, set[str]] = {}
-    for path in ESTATE_PACKAGE.glob("*.py"):
+    for path in (CONTRACTS_SRC / package_name).glob("*.py"):
         tree = ast.parse(path.read_text(encoding="utf-8"))
         roots = _imported_roots(tree)
         disallowed = {

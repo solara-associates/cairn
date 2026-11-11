@@ -1,0 +1,2 @@
+API_VERSION = "v1"
+BASE_PATH = "/v1"

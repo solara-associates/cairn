@@ -1,0 +1,17 @@
+{
+  "event_id": "evt-0001",
+  "event_type": "assessment.completed.v1",
+  "event_version": 1,
+  "tenant_id": "tenant-1",
+  "project_id": "project-1",
+  "operation_class": "WORKSPACE_MUTATION",
+  "occurred_at": "2026-11-09T10:00:00Z",
+  "correlation_id": "4bf92f3577b34da6",
+  "causation_id": "op-0123",
+  "producer": "assess-worker",
+  "payload": {
+    "assessment_id": "asmt-0001",
+    "workload_count": 42
+  },
+  "evidence_ref": "evidence://packages/pkg-0001"
+}
