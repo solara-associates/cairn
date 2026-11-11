@@ -26,4 +26,4 @@ Never commit credentials, keys, tokens or customer data. Use environment injecti
 
 ## Customer-environment writes (Class C)
 
-The first usable release must not mutate customer environments. When the execution path exists in R4, it must fail closed: no Class C change without policy, revision-bound approval and an audit record written before the effect. Assessment and design services must remain structurally read-only and must not hold execution credentials. Any change to that boundary requires an ADR.
+The first usable release must not mutate customer environments. When the execution path exists in R4, it must fail closed: no Class C change without policy, revision-bound approval, a validated rollback or compensation plan, and an audit record written before the effect. Irreversible changes additionally require explicit risk acceptance. Assessment and design services must remain structurally read-only and must not hold execution credentials. Any change to that boundary requires an ADR.
