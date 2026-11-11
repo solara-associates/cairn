@@ -705,7 +705,7 @@ All 43 repositories in `asmeyatsky-work` were cloned and inspected. Every reposi
 6. **Transformation engine provenance.** Resolved: one engine built clean-room in Rust, Terraform and Python first (ADR-015, ADR-017). The four source engines are reference behaviour only; none is reused.
 7. **Timeline and team size.** Resolved: solo maintainer, ASAP with no hard date. See the technical specification section 16.2 for the re-baselined outlook (R0 8-12 weeks, R1 9-15 months, R4 24-36 months).
 8. **Licence.** Resolved: Apache-2.0 with professional services revenue and no open-core gate (ADR-018).
-9. **Operation boundary.** Resolved: Class A read, Class B CAIRN workspace mutation, Class C customer-environment mutation, each with a recovery-oriented mutation class. No Class C before R4, and every Class C path goes through the kernel execution gate with a rollback, compensation or explicit risk-acceptance precondition (ADR-010).
+9. **Operation boundary.** Resolved: Class A read, Class B CAIRN workspace mutation, Class C customer-environment mutation, each with a recovery-oriented mutation class and, for external mutations, a formal compensation contract. No Class C before R4, and every Class C path goes through the kernel execution gate with a rollback, compensation or explicit risk-acceptance precondition (ADR-010).
 10. **Approval binding.** Resolved: immutable revision rows, with approval and execution bound to the exact revision, hash, mutation class and recovery strategy (ADR-009).
 11. **Tenancy.** Resolved: every entity classified Global, Tenant-owned or Project-owned; forced RLS, composite scope keys and application-role conformance tests without `BYPASSRLS` (ADR-012).
 

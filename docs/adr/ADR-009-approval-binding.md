@@ -1,6 +1,6 @@
 # ADR-009: Immutable revisions and approval-bound execution
 
-- **Status:** Accepted (amended 10 November 2026 after second architecture review)
+- **Status:** Accepted (amended 10 and 11 November 2026 after the second and third architecture reviews)
 - **Date:** 2026-11-09
 - **Deciders:** Product owner (Allan Smeyatsky)
 - **Related:** Implementation spec §8, §11, §12, §16; ADR-008; ADR-010
@@ -40,7 +40,7 @@ An approval record stores:
 - `revision_id` and `revision_hash`,
 - `risk_tier`, required roles, state,
 - `mutation_class` and `recovery_strategy` (ADR-010),
-- recovery plan reference for reversible or compensatable mutations, or explicit risk acceptance for irreversible mutations,
+- recovery plan reference for reversible or compensatable mutations, or explicit risk acceptance for irreversible mutations. The recovery plan is the immutable artifact that records the compensation contract: strategy, preconditions, authority, evidence and failure handling (ADR-010),
 - decision actor, timestamp, reason,
 - evidence references.
 
@@ -54,7 +54,8 @@ Database constraints must make the binding enforceable:
 ### Execution rules
 
 - Execution is permitted only when approval state is `APPROVED` and the referenced revision is current for that approval.
-- Before any Class C effect, the execution gate verifies: policy decision, approval state, revision hash match, mutation class, recovery precondition, separation of duties, credential scope and audit-before-effect success.
+- Before any Class C effect, the execution gate verifies: policy decision, approval state, revision hash match, mutation class, recovery precondition, compensation-contract completeness, separation of duties, credential scope and audit-before-effect success.
+- The idempotency record, `PROPOSED` execution and outbox event commit in one database transaction before any external effect. Outbox failure semantics — crash after commit before dispatch, duplicate delivery, consumer crash after effect before acknowledgement, dead-letter replay and replay tenant isolation — are conformance-tested by failure injection (R-OUTBOX-01), not assumed.
 - If the revision hash does not match, execution fails closed with `REVISION_MISMATCH` and no external effect.
 - Any new revision invalidates prior approvals for execution purposes and requires re-approval.
 
