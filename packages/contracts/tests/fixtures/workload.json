@@ -1,0 +1,27 @@
+{
+  "workload_id": "wl-0001",
+  "tenant_id": "tenant-1",
+  "project_id": "project-1",
+  "name": "billing-api",
+  "environment": "prod",
+  "owner": "payments-team",
+  "business_context": "Serves customer billing documents and totals",
+  "resource_ids": ["res-0001", "res-0002"],
+  "dependency_ids": ["dep-0001"],
+  "facts": {
+    "instance_count": {
+      "value": 2,
+      "status": "OBSERVED",
+      "source": "workload-derivation",
+      "observed_at": "2026-11-09T14:00:00Z",
+      "ingested_at": "2026-11-09T14:05:00Z",
+      "confidence": 1.0,
+      "mapping_version": null,
+      "provenance_ref": "provenance://run-0001/wl-0001/instance_count"
+    }
+  },
+  "disposition": null,
+  "disposition_confidence": null,
+  "model_version": "0",
+  "mapping_version": "2026.11.1"
+}

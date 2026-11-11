@@ -4,6 +4,9 @@ version = "0.1.0"
 description = "CAIRN canonical contracts"
 requires-python = ">=3.12"
 license = "Apache-2.0"
+dependencies = [
+    "pydantic>=2.9",
+]
 
 [build-system]
 requires = ["hatchling"]
