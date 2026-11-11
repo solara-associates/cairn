@@ -1,6 +1,6 @@
 # ADR-010: Operation classes and governed customer-environment mutations
 
-- **Status:** Accepted (amended 10 November 2026 after second architecture review)
+- **Status:** Accepted (amended 10 and 11 November 2026 after the second and third architecture reviews)
 - **Date:** 2026-11-09
 - **Deciders:** Product owner (Allan Smeyatsky)
 - **Related:** Implementation spec §1, §3.3, §9, §10, §11, §12, §16, §20; ADR-008; ADR-009; ADR-012
@@ -35,6 +35,23 @@ Operation class answers "may this mutate a customer environment?". Mutation clas
 
 Every command declares both classes, and the kernel rejects a mismatch. The execution gate uses the mutation class to set approval tier, evidence obligations and recovery handling. The undo or compensating action is defined before execution, never after.
 
+### Compensation contract
+
+Every external mutation declares a formal compensation contract before it can be proposed for approval. The contract is an immutable artifact bound to the revision and approval, and the execution gate validates it against the mutation class before authorization. A missing or incomplete element blocks authorization.
+
+| Element | Meaning |
+|---|---|
+| Strategy | `ROLLBACK`, `COMPENSATE` or `ACCEPT_IRREVERSIBLE`, matching the mutation class |
+| Preconditions | The rollback or compensating action, its scope, target state, trigger condition and validation checks; blast radius, preflight results and residual risk for irreversible mutations |
+| Authority | The approval tier required for the mutation, and the named roles that may trigger and execute recovery |
+| Evidence | What must be captured before, during and after the effect, including recovery outcome evidence |
+| Failure handling | What happens when recovery itself fails: incident escalation, reconciliation and recorded residual state; never a silent success |
+
+Rules:
+- Only the execution plane may execute a rollback or compensation, and only within the scope the approval names.
+- A rollback or compensation executes under the authority pre-delegated by the approved contract; deviation from the declared plan requires a new revision and approval.
+- Recovery failure is an incident with reconciliation; the execution is `FAILED`, never silently `SUCCEEDED`.
+
 ### Class A rules
 
 - Authentication and authorization required.
@@ -63,7 +80,7 @@ A Class C operation must pass all of the following before any external effect:
 5. Execution authorization with scoped, short-lived credentials.
 6. Evidence capture.
 7. Outcome verification.
-8. Recovery handling that matches the mutation class: rollback for reversible, compensation for compensatable, and explicit risk acceptance for irreversible. An irreversible mutation cannot transition to `ROLLED_BACK`.
+8. Recovery handling that matches the mutation class per its declared compensation contract: rollback for reversible, compensation for compensatable, and explicit risk acceptance for irreversible. An irreversible mutation cannot transition to `ROLLED_BACK`.
 
 No Class C operation may execute outside the shared execution gate, regardless of origin: UI, API, MCP, agent, job, provider adapter or internal tool. The execution gate is a kernel capability. Interfaces call the gate; they do not implement their own mutation path.
 

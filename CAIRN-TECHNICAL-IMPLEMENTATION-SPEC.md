@@ -1,7 +1,7 @@
 # CAIRN Technical Implementation Specification
 
-**Version:** 0.5 (recovery-aware mutation classification)
-**Prepared:** 9 November 2026; amended 10 November 2026
+**Version:** 0.6 (frozen R0 baseline: compensation contract, outbox failure semantics, adversarial RLS)
+**Prepared:** 9 November 2026; amended 10 and 11 November 2026
 **Source documents:** `Cloud_Modernization_Platform_PRD.docx` v1.0; `CLOUD-ARCHITECTURE-PATTERNS.md`
 **Product stake in the ground:** shared kernel first; **CAIRN Assess** and **CAIRN Modernize** are the first customer-facing products; one canonical estate model and one mapping registry drive assessment, design, migration planning and generated infrastructure.
 
@@ -11,11 +11,13 @@
 
 | Item | Value |
 |---|---|
-| Status | Draft for engineering review; all ADRs accepted 9 November 2026, amended 10 November 2026 |
+| Status | Draft for engineering review; all ADRs accepted 9 November 2026, amended 10 and 11 November 2026; frozen as the R0 architecture baseline 11 November 2026 |
 | Revision | 0.2, 9 November 2026: greenfield decision, no code reuse (ADR-017), sections 16-19 re-baselined |
 | Revision | 0.3, 9 November 2026: accepted decisions baseline; solo maintainer, public repository, Apache-2.0, Gemini only, full model up front |
 | Revision | 0.4, 9 November 2026: architecture review; operation classes; no Class C before R4; immutable revisions; tenancy, idempotency and evidence amendments |
 | Revision | 0.5, 10 November 2026: recovery-aware mutation classes; rollback and compensation preconditions; idempotency scope; application-role RLS conformance tests |
+| Revision | 0.6, 11 November 2026: formal compensation contract; outbox failure-mode semantics; adversarial RLS catalogue; R0 acceptance gate locked as a hard release condition |
+| Baseline | Frozen at v0.6 on 11 November 2026 as the R0 architecture baseline. Further changes require an ADR and a version bump; pre-implementation amendment rounds are closed |
 | Audience | Platform engineering, architecture, security, product, delivery |
 | Traceability | Requirements reference PRD IDs (FR-xxx, NFR-xxx) |
 | Change rule | Any change to a contract in sections 7-13 requires an ADR and a version bump |
@@ -393,7 +395,7 @@ class UnitOfWork(Protocol):
     def rollback(self) -> None: ...
 ```
 
-### 5.2 Mutation classification contract
+### 5.2 Mutation classification and compensation contract
 
 Every command declares exactly one operation class and one mutation class. The two must agree; the kernel rejects a mismatch at construction time.
 
@@ -412,7 +414,25 @@ Rules:
 - `IRREVERSIBLE_EXTERNAL_MUTATION` must not be presented as reversible, and an execution in that class cannot transition to `ROLLED_BACK`.
 - The approval and execution records store the classification and recovery strategy. Execution must match the approved classification exactly.
 
-### 5.3 Required port catalogue (v0)
+### 5.3 Compensation contract
+
+Every external mutation declares a formal compensation contract before it can be proposed for approval. The contract is an immutable artifact referenced by `recovery_plan_ref` (or `risk_acceptance_ref` for irreversible mutations) and is validated against the mutation class at proposal time. A missing or incomplete element blocks authorization.
+
+| Element | Reversible | Compensatable | Irreversible |
+|---|---|---|---|
+| Strategy | `ROLLBACK` | `COMPENSATE` | `ACCEPT_IRREVERSIBLE` |
+| Preconditions | Rollback action, scope, target state and post-rollback validation checks | Compensating action, trigger condition, scope and post-compensation validation checks | Blast-radius declaration, preflight/dry-run results where supported, residual-risk statement |
+| Authority | Approval tier for the mutation; rollback executes in the execution plane within the approved scope | Higher approval tier; the trigger authority and the execution authority are named roles | Highest approval tier; risk acceptance is signed by the accountable approver |
+| Evidence | Before/after state capture and rollback outcome evidence | Trigger evidence, before/after state capture and compensation outcome evidence | Preflight evidence, signed risk acceptance and execution outcome evidence |
+| Failure handling | Rollback failure escalates to an incident with reconciliation; the execution is `FAILED`, never silently `SUCCEEDED` | Compensation or trigger failure escalates to an incident; the original effect remains with recorded residual state | No recovery promise exists; failure escalates to an incident against the declared blast radius |
+
+Contract rules:
+- The contract is bound to the immutable revision and approval; changing it requires a new revision and re-approval.
+- Only the execution plane may execute a rollback or compensation, and only within the scope the approval names.
+- Recovery failure is an incident, never a silent success, and is reconciled against the recorded execution state.
+- A rollback or compensation executes under the authority pre-delegated by the approved contract. Any deviation from the declared plan requires a new revision and approval.
+
+### 5.4 Required port catalogue (v0)
 
 | Port | Owner module | v0 adapters |
 |---|---|---|
@@ -444,7 +464,7 @@ Rules:
 
 Before R4, `modules/execution` and any production `ProviderExecutionPort` adapter are absent from the deployable. The deterministic test adapter lives in test code, is selected only by the test harness, and cannot be enabled by runtime configuration.
 
-### 5.4 Conformance harness rule map (v0)
+### 5.5 Conformance harness rule map (v0)
 
 | Rule | Check | Failure mode |
 |---|---|---|
@@ -460,7 +480,10 @@ Before R4, `modules/execution` and any production `ProviderExecutionPort` adapte
 | R-REV-01 | Approvals/executions bind to immutable revision rows and exact hashes | DB constraint + integration test |
 | R-GATE-01 | No Class C path outside `ExecutionGatePort`; no production provider adapter before R4 | Static + integration test |
 | R-MUT-01 | Every command declares a mutation class; operation and mutation classes agree; external classes have a validated recovery strategy before authorization | Contract + gate test |
+| R-MUT-02 | Every external mutation has a complete compensation contract (strategy, preconditions, authority, evidence, failure handling) matching its mutation class; an incomplete contract blocks authorization | Contract + gate test |
 | R-IDEM-01 | Class B and Class C mutations require tenant/project/operation/key scoped idempotency, canonical request hashing, replay/conflict handling and expiry | Contract test |
+| R-OUTBOX-01 | Outbox failure semantics proven by failure injection: crash after commit before dispatch loses nothing; duplicate delivery is idempotent; consumer crash after effect before acknowledgement does not repeat the effect; dead-letter replay preserves ordering and runbook; replay cannot cross tenant scope | Failure-injection test |
+| R-TENANT-03 | Adversarial RLS under the application role: missing tenant context fails closed; pooled connections cannot leak tenant context; tenant-context change attempts are rejected and audited | Adversarial test |
 | R-COV-01 | Coverage floor per critical package | CI fail |
 | R-SEC-01 | No critical/high findings; high needs risk acceptance | CI gate |
 | R-SEC-02 | SBOM and image signature present | CI gate |
@@ -1650,6 +1673,13 @@ Event rules:
 - Failed deliveries retry with backoff, then move to a dead-letter subscription with alerting and a replay runbook.
 - Execution events exist in the contract from R0, but no producer or consumer may perform a Class C effect before R4.
 
+Outbox failure semantics are mandatory test cases (R-OUTBOX-01), not assumptions:
+1. **Crash after commit, before dispatch.** The process dies after the database transaction commits and before publish. On restart, the dispatcher resumes and publishes the pending outbox rows exactly once, with no loss and no duplication.
+2. **Duplicate event delivery.** The transport redelivers an event. The consumer's `event_id` idempotency suppresses the second application of the effect.
+3. **Consumer crash after effect, before acknowledgement.** The consumer applies the effect and dies before ack. Redelivery does not repeat the effect, and any partial state is reconcilable from the recorded outcome.
+4. **Dead-letter replay.** Events that exhaust retries are dead-lettered with alerting; replay from the dead-letter subscription preserves ordering guarantees, correlation IDs and the replay runbook.
+5. **Tenant context isolation during replay.** A replayed or re-dispatched event carries its original tenant/project scope; it cannot act outside that scope even when replayed by a platform operator or a different batch context.
+
 ### 11.3 Workflow state machines
 
 **Ingestion run**
@@ -1730,6 +1760,11 @@ Mandatory for every new repository and query:
 - Tests run under the application database role, not the table owner, and assert `pg_roles.rolbypassrls` is false for every application role.
 - The same tests prove cross-tenant and cross-project reads and writes are denied under the application role.
 - Background jobs carry tenant context explicitly and re-assert it at each persistence boundary.
+
+Adversarial modes (R-TENANT-03), run under the application role:
+- Missing tenant context fails closed. A query issued without tenant context returns nothing or errors; it never defaults to any tenant, any project or an unfiltered result set.
+- Connection-pool reuse cannot leak tenant context. A pooled connection handed from one tenant's request to another tenant's request has isolation re-established per use; state left on the session by the previous request is not readable or writable.
+- Tenant-context change attempts are rejected and audited. Attempts to alter tenant context mid-request or mid-transaction, including session-variable and `SET LOCAL` tricks, fail closed.
 
 ### 12.3 Secrets and provider onboarding
 
@@ -1966,16 +2001,16 @@ Sizing: S (1-2 days), M (3-5 days), L (1-2 weeks), XL (2-4 weeks). Order is the 
 
 ### 16.0 R0 architecture acceptance gate (mandatory)
 
-R0 does not exit until all gates pass with linked evidence.
+R0 does not exit until all gates pass with linked evidence. This gate is a **hard release condition, not a documentation exercise**: every gate is satisfied by evidence produced by CI — test runs, pipeline artefacts, scan outputs and constraint checks — linked from the acceptance record. A gate satisfied only by prose does not pass.
 
 - [ ] ADR-008, ADR-009, ADR-010 and ADR-012 amended and accepted.
-- [ ] All API and MCP operations classified as Class A, B or C, with a mutation class and recovery strategy.
+- [ ] All API and MCP operations classified as Class A, B or C, with a mutation class, recovery strategy and, for external mutations, a complete compensation contract.
 - [ ] No unapproved Class C path and no production execution adapter exist.
 - [ ] R1 read-only boundary and deterministic test adapter are documented.
 - [ ] Immutable revision, approval and execution schema is implemented with constraints.
-- [ ] Idempotency (tenant/project/operation/key scope, canonical request hash) and transactional outbox contracts are defined.
+- [ ] Idempotency (tenant/project/operation/key scope, canonical request hash) and transactional outbox contracts are defined, including failure-mode semantics for crash-after-commit, duplicate delivery, consumer crash before acknowledgement, dead-letter replay and replay tenant isolation.
 - [ ] Complete tenancy matrix is approved for tables, APIs, MCP, events, storage, evidence and workers.
-- [ ] RLS forced with cross-tenant and cross-project tests for every classified table, run under the application role, with no application role holding `BYPASSRLS`.
+- [ ] RLS forced with cross-tenant and cross-project tests for every classified table, run under the application role, with no application role holding `BYPASSRLS`, including missing-context, connection-pool reuse and context-change adversarial modes.
 - [ ] Evidence canonicalization, signing, chain-head and offline verification contracts are defined.
 - [ ] CI security baseline is established: secret scan, dependency/container scan, SBOM, image signing.
 - [ ] UK data, backup, key and support-access residency matrix is approved.
@@ -2004,8 +2039,8 @@ R0 does not exit until all gates pass with linked evidence.
 | R0-16 | Create Terraform module skeletons and dev environment | L | R0-01 | `terraform plan` clean in dev; no long-lived secrets |
 | R0-17 | Create CI/CD pipelines: lint, test, conformance, security, build, sign | L | R0-07 | Pipeline green; SBOM and signature artefacts produced |
 | R0-18 | Review and accept ADR-001..018 and the architecture-review amendments; record outcomes in `docs/adr/README.md` and maintain the reference register | S | - | All ADRs accepted or amended; ADR-017 acknowledged as a constraint; decision log current |
-| R0-19 | Publish the operation and mutation classification plus the tenancy matrix for every API, MCP tool, resource, event, table, bucket and worker | M | R0-03, R0-05 | Every operation has Class A/B/C and a mutation class; every entity is Global/Tenant/Project; recovery strategy is defined for external mutations; review approved; encoded in contracts |
-| R0-20 | Hold the R0 architecture acceptance review against section 16.0 | S | R0-19 | All 13 gates pass with evidence; failures have owners and dates |
+| R0-19 | Publish the operation and mutation classification plus the tenancy matrix for every API, MCP tool, resource, event, table, bucket and worker | M | R0-03, R0-05 | Every operation has Class A/B/C and a mutation class; every entity is Global/Tenant/Project; external mutations have a recovery strategy and a complete compensation contract; review approved; encoded in contracts |
+| R0-20 | Hold the R0 architecture acceptance review against section 16.0 | S | R0-19 | All 13 gates pass with linked CI evidence; no gate passes on documentation alone; failures have owners and dates |
 
 ### R1 - CAIRN Assess (exit: read-only assessment, workspace decisions, evidence and gate validation)
 
@@ -2031,8 +2066,9 @@ R0 does not exit until all gates pass with linked evidence.
 | R1-18 | Build assessment console screens | XL | R1-01..R1-17 | Journey complete: project → ingest → assess → inspect → export |
 | R1-19 | Add cross-tenant, resilience and security tests for R1 | L | R1-01..R1-18 | Mandatory gates pass |
 | R1-20 | Pilot runbook, data-handling terms and SLO baseline | M | R1-18 | Pilot can be run without engineering intervention |
-| R1-21 | Implement immutable revision, approval and execution state machines | L | R0-10 | DB-bound revision hash; mutation class and recovery precondition enforced; separation of duties; invalid transitions rejected |
+| R1-21 | Implement immutable revision, approval and execution state machines | L | R0-10 | DB-bound revision hash; mutation class, recovery precondition and compensation-contract completeness enforced; separation of duties; invalid transitions rejected |
 | R1-22 | Implement kernel execution gate with deterministic test adapter and scoped idempotency | L | R1-21, R0-10 | Full gate lifecycle proven for every external mutation class; recovery precondition blocks authorization when absent; test adapter cannot be replaced by production adapter; no execution credentials reachable |
+| R1-23 | Implement transactional outbox dispatcher with failure-mode tests | M | R1-15, R0-05 | R-OUTBOX-01 passes by failure injection: crash after commit before dispatch, duplicate delivery, consumer crash after effect before acknowledgement, dead-letter replay and replay tenant isolation |
 
 ### R2 - CAIRN Design (exit: one model produces consistent design artefacts)
 
@@ -2073,7 +2109,7 @@ R1 delivered the revision/approval model and a deterministic gate harness (R1-21
 | R4-03 | Implement Terraform plan/apply/drift on top of the provider adapter | XL | R2-07, R4-02 | Plan and apply tied to approved revision; drift detected |
 | R4-04 | Implement rollback and compensation execution, reconciliation and runbooks | L | R4-03 | Reversible rollback and compensatable recovery tested and evidenced; irreversible path requires risk acceptance |
 | R4-05 | Build approval and execution console | L | R1-21, R1-22, R4-01..R4-04 | Approver sees exact revision, diffs, mutation class, recovery plan and evidence |
-| R4-06 | Add execution security, distributed-boundary and failure-mode tests | L | R4-02..R4-05 | Partial failure, timeout, unauthorized apply, audit outage, missing recovery plan, irreversible rollback attempt and reconciliation all tested |
+| R4-06 | Add execution security, distributed-boundary and failure-mode tests | L | R4-02..R4-05 | Partial failure, timeout, unauthorized apply, audit outage, missing recovery plan, compensation trigger failure, irreversible rollback attempt, dead-letter replay and reconciliation all tested |
 
 ### R5 - CAIRN Operate (exit: governed operational loops)
 
@@ -2190,7 +2226,7 @@ CAIRN is greenfield (ADR-017). The reference repositories are evidence for how p
 | Repository shape | Monorepo, public at `solara-associates/cairn` | ADR-001, ADR-018 |
 | Target cloud priority | GCP-first behind neutral contracts | ADR-005 |
 | Data stores | Cloud SQL PostgreSQL in `europe-west2`; BigQuery for analytics | ADR-007 |
-| Mutation boundary | Class A/B/C plus recovery-oriented mutation classes; no Class C before R4; kernel gate for all Class C | ADR-010 |
+| Mutation boundary | Class A/B/C plus recovery-oriented mutation classes with a formal compensation contract; no Class C before R4; kernel gate for all Class C | ADR-010 |
 | Approval binding | Immutable revision rows; approval and execution bind to exact revision, hash, mutation class and recovery strategy | ADR-009 |
 | Tenancy | Every entity classified; forced RLS; composite tenant/project keys; global mappings platform-published | ADR-012 |
 | Idempotency | Tenant/project/operation/key scope; canonical request hash; replay returns original result; payload mismatch conflicts; record and outbox commit atomically | ADR-009, ADR-010 |
@@ -2276,5 +2312,7 @@ Sizes are greenfield build sizes. The earlier reuse-dependent timeline is withdr
 | Reversible external mutation | A Class C change with a tested rollback action defined before authorization |
 | Compensatable external mutation | A Class C change with no direct undo but a defined compensating action and trigger validated before authorization |
 | Irreversible external mutation | A Class C change that cannot be rolled back; requires explicit risk acceptance, blast-radius declaration and preflight where supported |
+| Compensation contract | The declared strategy, preconditions, authority requirements, evidence requirements and failure handling for a mutation's recovery; validated against the mutation class before authorization |
+| Recovery plan | The immutable artifact, referenced by the approval, that records a mutation's compensation contract |
 | Assessment plane | All read-only collection, normalization, assessment and design capability; structurally unable to apply changes |
 | Execution plane | Separately credentialed capability that applies approved changes; not provisioned before R4 |

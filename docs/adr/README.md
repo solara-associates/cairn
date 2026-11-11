@@ -11,7 +11,7 @@ This directory holds the architecture decisions for CAIRN. Each ADR is a short, 
 | Rejected | Considered and declined. The ADR stays to preserve the reasoning. |
 | Superseded | Replaced by a later ADR, which is named in the header. |
 
-All ADRs are Accepted as of 2026-11-09, with ADR-009, ADR-010 and ADR-012 amended on 2026-11-10. The product owner accepted the recommended defaults, with the deviations recorded in ADR-003, ADR-010 and ADR-013.
+All ADRs are Accepted as of 2026-11-09, with ADR-009, ADR-010 and ADR-012 amended on 2026-11-10 and 2026-11-11. The product owner accepted the recommended defaults, with the deviations recorded in ADR-003, ADR-010 and ADR-013.
 
 ## Decision log
 
@@ -26,9 +26,9 @@ All ADRs are Accepted as of 2026-11-09, with ADR-009, ADR-010 and ADR-012 amende
 | [ADR-007](ADR-007-postgres-bigquery.md) | Cloud SQL PostgreSQL (europe-west2) for OLTP, BigQuery for analytics | Accepted | 2026-11-09 |
 | [ADR-008](ADR-008-evidence.md) | Canonical signed JSON evidence, chain-head integrity, audit-before-effect and CAIRN-held keys | Accepted (amended) | 2026-11-09 |
 | [ADR-009](ADR-009-approval-binding.md) | Immutable revisions; approvals and executions bind to exact revision rows, mutation class and recovery strategy | Accepted (amended) | 2026-11-09 |
-| [ADR-010](ADR-010-gated-writes.md) | Operation and mutation classes; recovery preconditions; no Class C customer mutation before R4; kernel execution gate | Accepted (amended) | 2026-11-09 |
+| [ADR-010](ADR-010-gated-writes.md) | Operation and mutation classes; compensation contract; no Class C customer mutation before R4; kernel execution gate | Accepted (amended) | 2026-11-09 |
 | [ADR-011](ADR-011-mcp-a2a.md) | MCP per bounded context, with an A2A bridge, internal until R5 | Accepted | 2026-11-09 |
-| [ADR-012](ADR-012-tenant-isolation.md) | Tenant isolation as a kernel contract, with forced database RLS and application-role conformance tests | Accepted (amended) | 2026-11-09 |
+| [ADR-012](ADR-012-tenant-isolation.md) | Tenant isolation as a kernel contract, with forced database RLS and application-role adversarial tests | Accepted (amended) | 2026-11-09 |
 | [ADR-013](ADR-013-saas-first.md) | SaaS-only multi-tenant product; no supported customer-deployed edition; mid-market first | Accepted | 2026-11-09 |
 | [ADR-014](ADR-014-model-port.md) | Gemini-only model provider behind ModelPort; no customer BYO key | Accepted | 2026-11-09 |
 | [ADR-015](ADR-015-clean-room-transform-engine.md) | Build one transformation engine clean-room in Rust; Terraform and Python first | Accepted | 2026-11-09 |
@@ -60,6 +60,23 @@ The second pre-implementation review hardened recovery, idempotency and RLS conf
 - **ADR-009:** approvals and executions additionally bind to the mutation class and recovery strategy. A reversible mutation without a validated rollback reference, or a compensatable mutation without a compensation reference, cannot reach `APPROVED`. Idempotency is scoped to tenant, project, operation and key with a canonical request hash.
 - **ADR-010:** every operation gains a recovery-oriented mutation class (read-only, internal, reversible external, compensatable external, irreversible external). External mutations require a rollback, compensation or explicit risk-acceptance precondition defined and validated before authorization. Irreversible mutations cannot transition to `ROLLED_BACK`.
 - **ADR-012:** migration and adversarial tenancy tests run under the application database role, not the table owner, and assert forced RLS and that no application role holds `BYPASSRLS`.
+
+## Third architecture review amendments (11 November 2026)
+
+The third review closed the final specification gap before baselining. One amendment round, then the specification is frozen; further changes require an ADR and a version bump.
+
+- **ADR-010:** every external mutation declares a formal compensation contract — strategy, preconditions, authority, evidence requirements and failure handling — validated against its mutation class before authorization. A missing or incomplete element blocks authorization, and recovery failure is an incident, never a silent success.
+- **ADR-009:** the recovery plan is the immutable artifact recording the compensation contract, bound to the revision and approval. Outbox failure semantics (crash after commit before dispatch, duplicate delivery, consumer crash after effect before acknowledgement, dead-letter replay, replay tenant isolation) are conformance-tested by failure injection (R-OUTBOX-01), not assumed.
+- **ADR-012:** adversarial RLS modes are mandatory under the application role: missing tenant context fails closed, pooled connections cannot leak tenant context, and tenant-context change attempts are rejected and audited (R-TENANT-03).
+
+## Architecture acceptance (11 November 2026)
+
+The product owner baselined the R0 architecture on the third review's verdict: ready to baseline the R0 architecture; not yet ready to declare R0 complete or implementation-secure.
+
+- The specification is frozen at v0.6 as the R0 architecture baseline. Further changes require an ADR and a version bump; pre-implementation amendment rounds are closed.
+- The section 16.0 acceptance gate is retained as a **hard release condition, not a documentation exercise**: each gate passes on linked CI evidence — test runs, pipeline artefacts, scan outputs and constraint checks. A gate satisfied only by prose does not pass.
+- The repository holds specification and decision documents only; no runnable implementation, CI results or passing security tests exist yet. R0 completion is proven by the 16.0 gate, not by this record.
+- R0 implementation may start. No further architectural features are to be added before the gate is exercised.
 
 ## How decisions change
 
