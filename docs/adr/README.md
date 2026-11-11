@@ -78,6 +78,14 @@ The product owner baselined the R0 architecture on the third review's verdict: r
 - The repository holds specification and decision documents only; no runnable implementation, CI results or passing security tests exist yet. R0 completion is proven by the 16.0 gate, not by this record.
 - R0 implementation may start. No further architectural features are to be added before the gate is exercised.
 
+### R0 implementation acceptance conditions
+
+R0 does not exit until all three are demonstrated with executable evidence. They bind the interpretation of the section 16.0 gate and do not reopen the specification.
+
+1. **RLS policy composition and dual isolation.** The tenant and project policies compose correctly on every classified table, and cross-tenant **and** cross-project isolation are proven by executable tests under forced RLS (R-TENANT-02) — not by policy review alone.
+2. **Tenant-context integrity under the application database role.** Missing tenant context fails closed, pooled connections cannot leak tenant context between requests, and tenant-context change attempts are rejected and audited — demonstrated under the actual application role, not a privileged or owner role (R-TENANT-03).
+3. **Outbox delivery semantics.** A running outbox dispatcher demonstrates at-least-once delivery with effectively-once effects and tested recovery, by failure injection: crash after commit before dispatch, duplicate delivery, consumer crash after effect before acknowledgement, dead-letter replay and replay tenant isolation (R-OUTBOX-01).
+
 ## How decisions change
 
 1. An accepted ADR is not edited except for status, typo fixes and link updates. Pre-implementation corrections approved by the product owner are recorded in the decision log and the ADR status; after R0 acceptance this exception closes.
