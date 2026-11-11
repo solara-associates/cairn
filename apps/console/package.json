@@ -1,0 +1,11 @@
+{
+  "name": "@cairn/console",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "lint": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}

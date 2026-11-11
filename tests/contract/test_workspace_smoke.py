@@ -1,0 +1,62 @@
+import importlib
+
+import pytest
+
+WORKSPACE_PACKAGES = [
+    "cairn_kernel",
+    "cairn_kernel.hex",
+    "cairn_kernel.tenancy",
+    "cairn_kernel.config",
+    "cairn_kernel.errors",
+    "cairn_kernel.evidence",
+    "cairn_kernel.observability",
+    "cairn_kernel.security",
+    "cairn_kernel.execution_gate",
+    "cairn_kernel.conformance",
+    "cairn_kernel.testing",
+    "cairn_contracts",
+    "cairn_contracts.estate",
+    "cairn_contracts.mapping",
+    "cairn_contracts.events",
+    "cairn_contracts.api",
+    "cairn_kits",
+    "cairn_kits.mcp",
+    "cairn_kits.a2a",
+    "cairn_kits.loop",
+    "cairn_adapters",
+    "cairn_adapters.provider_core",
+    "cairn_adapters.provider_gcp",
+    "cairn_adapters.provider_aws",
+    "cairn_adapters.provider_azure",
+    "cairn_adapters.scanners",
+    "cairn_adapters.persistence_postgres",
+    "cairn_adapters.persistence_bigquery",
+    "cairn_adapters.model",
+    "cairn_adapters.evidence_kms",
+    "cairn_modules",
+    "cairn_modules.tenancy",
+    "cairn_modules.projects",
+    "cairn_modules.connections",
+    "cairn_modules.ingestion",
+    "cairn_modules.estate",
+    "cairn_modules.posture",
+    "cairn_modules.finops",
+    "cairn_modules.mappings",
+    "cairn_modules.design",
+    "cairn_modules.planning",
+    "cairn_modules.transformation",
+    "cairn_modules.approvals",
+    "cairn_modules.execution",
+    "cairn_modules.evidence_service",
+    "cairn_modules.reporting",
+    "cairn_api",
+    "cairn_worker",
+    "cairn_scheduler",
+    "cairn_mcp_gateway",
+    "cairn_cli",
+]
+
+
+@pytest.mark.parametrize("package", WORKSPACE_PACKAGES)
+def test_package_imports(package):
+    importlib.import_module(package)
