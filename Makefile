@@ -1,0 +1,23 @@
+.PHONY: bootstrap lint test build clean
+
+bootstrap:
+	uv sync --all-packages
+	cargo fetch
+	pnpm install
+
+lint:
+	uv run ruff check .
+	cargo fmt --all --check
+	cargo clippy --workspace --all-targets -- -D warnings
+	pnpm -r run lint
+
+test:
+	uv run pytest
+	cargo test --workspace
+
+build:
+	cargo build --workspace
+
+clean:
+	rm -rf .venv .pytest_cache .ruff_cache
+	cargo clean
