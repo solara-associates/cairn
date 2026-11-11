@@ -7,6 +7,7 @@ bootstrap:
 
 lint:
 	uv run ruff check .
+	uv run lint-imports
 	cargo fmt --all --check
 	cargo clippy --workspace --all-targets -- -D warnings
 	pnpm -r run lint

@@ -1,0 +1,74 @@
+[importlinter]
+root_packages =
+    cairn_kernel
+    cairn_contracts
+    cairn_kits
+    cairn_adapters
+    cairn_modules
+    cairn_api
+    cairn_worker
+    cairn_scheduler
+    cairn_mcp_gateway
+    cairn_cli
+
+[importlinter:contract:layers]
+name = Kernel and contracts are leaves
+type = forbidden
+source_modules =
+    cairn_kernel
+    cairn_contracts
+forbidden_modules =
+    cairn_kits
+    cairn_adapters
+    cairn_modules
+    cairn_api
+    cairn_worker
+    cairn_scheduler
+    cairn_mcp_gateway
+    cairn_cli
+
+[importlinter:contract:kernel-purity]
+name = Kernel imports no contracts
+type = forbidden
+source_modules = cairn_kernel
+forbidden_modules = cairn_contracts
+
+[importlinter:contract:contracts-purity]
+name = Contracts import no kernel
+type = forbidden
+source_modules = cairn_contracts
+forbidden_modules = cairn_kernel
+
+[importlinter:contract:kits-purity]
+name = Kits import no modules or adapters
+type = forbidden
+source_modules = cairn_kits
+forbidden_modules =
+    cairn_modules
+    cairn_adapters
+
+[importlinter:contract:domain-purity]
+name = Domain modules import no adapters or applications
+type = forbidden
+source_modules = cairn_modules
+forbidden_modules =
+    cairn_adapters
+    cairn_api
+    cairn_worker
+    cairn_scheduler
+    cairn_mcp_gateway
+    cairn_cli
+
+[importlinter:contract:apps-are-roots]
+name = Applications sit at the top of the graph
+type = forbidden
+source_modules =
+    cairn_modules
+    cairn_adapters
+    cairn_kits
+forbidden_modules =
+    cairn_api
+    cairn_worker
+    cairn_scheduler
+    cairn_mcp_gateway
+    cairn_cli
