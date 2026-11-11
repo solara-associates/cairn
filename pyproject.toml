@@ -29,7 +29,7 @@ members = [
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "packages/kernel/tests"]
+testpaths = ["tests", "packages/kernel/tests", "packages/contracts/tests"]
 
 [tool.ruff]
 target-version = "py312"

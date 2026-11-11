@@ -1,0 +1,61 @@
+{
+  "resource_id": "res-0001",
+  "tenant_id": "tenant-1",
+  "project_id": "project-1",
+  "provider": "gcp",
+  "account_id": "acme-prod",
+  "region": "europe-west2",
+  "service": "compute-engine",
+  "resource_type": "instance",
+  "native_id": "projects/acme-prod/zones/europe-west2-d/instances/web-1",
+  "name": "web-1",
+  "tags": {
+    "env": "prod",
+    "app": "billing"
+  },
+  "facts": {
+    "cpu_count": {
+      "value": 4,
+      "status": "OBSERVED",
+      "source": "gcp-inventory",
+      "observed_at": "2026-11-09T14:00:00Z",
+      "ingested_at": "2026-11-09T14:05:00Z",
+      "confidence": 0.98,
+      "mapping_version": null,
+      "provenance_ref": "provenance://run-0001/web-1/cpu_count"
+    },
+    "machine_type": {
+      "value": "e2-standard-4",
+      "status": "OBSERVED",
+      "source": "gcp-inventory",
+      "observed_at": "2026-11-09T14:00:00Z",
+      "ingested_at": "2026-11-09T14:05:00Z",
+      "confidence": 1.0,
+      "mapping_version": null,
+      "provenance_ref": "provenance://run-0001/web-1/machine_type"
+    },
+    "os_family": {
+      "value": null,
+      "status": "UNVERIFIED",
+      "source": "gcp-inventory",
+      "observed_at": null,
+      "ingested_at": "2026-11-09T14:05:00Z",
+      "confidence": null,
+      "mapping_version": null,
+      "provenance_ref": "provenance://run-0001/web-1/os_family"
+    }
+  },
+  "provenance": [
+    {
+      "source_system": "gcp-inventory",
+      "source_id": "projects/acme-prod/zones/europe-west2-d/instances/web-1",
+      "source_version": "2026-11-09",
+      "observed_at": "2026-11-09T14:00:00Z",
+      "ingested_at": "2026-11-09T14:05:00Z",
+      "parser_version": "gcp-inventory/1.2.0",
+      "ingest_run_id": "run-0001",
+      "raw_ref": "gs://cairn-raw/acme/run-0001/web-1.json"
+    }
+  ],
+  "status": "OBSERVED"
+}

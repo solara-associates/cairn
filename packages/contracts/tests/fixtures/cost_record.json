@@ -1,0 +1,26 @@
+{
+  "cost_id": "cost-0001",
+  "tenant_id": "tenant-1",
+  "project_id": "project-1",
+  "provider": "gcp",
+  "account_id": "acme-prod",
+  "service": "compute-engine",
+  "region": "europe-west2",
+  "period_start": "2026-10-01T00:00:00Z",
+  "period_end": "2026-11-01T00:00:00Z",
+  "currency": "GBP",
+  "amount_minor": 1450000,
+  "tags": {
+    "env": "prod"
+  },
+  "provenance": {
+    "source_system": "gcp-billing-export",
+    "source_id": "acme-prod/2026-10/compute-engine/europe-west2",
+    "source_version": "2026-11-01",
+    "observed_at": "2026-11-01T06:00:00Z",
+    "ingested_at": "2026-11-01T06:15:00Z",
+    "parser_version": "gcp-billing/1.0.0",
+    "ingest_run_id": "run-0002",
+    "raw_ref": "gs://cairn-raw/acme/run-0002/billing-2026-10.json"
+  }
+}

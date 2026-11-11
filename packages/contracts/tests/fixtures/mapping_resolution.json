@@ -1,0 +1,10 @@
+{
+  "source_provider": "aws",
+  "source_service": "s3",
+  "target_provider": "gcp",
+  "target_service": "cloud-storage",
+  "equivalence": "APPROXIMATE",
+  "caveat": "Object storage semantics differ for consistency and lifecycle transitions",
+  "region": "europe-west2",
+  "mapping_version": "2026.11.1"
+}

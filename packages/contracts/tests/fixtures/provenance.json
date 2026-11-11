@@ -1,0 +1,10 @@
+{
+  "source_system": "gcp-inventory",
+  "source_id": "projects/acme-prod/zones/europe-west2-d/instances/web-1",
+  "source_version": "2026-11-09",
+  "observed_at": "2026-11-09T14:00:00Z",
+  "ingested_at": "2026-11-09T14:05:00Z",
+  "parser_version": "gcp-inventory/1.2.0",
+  "ingest_run_id": "run-0001",
+  "raw_ref": "gs://cairn-raw/acme/run-0001/web-1.json"
+}

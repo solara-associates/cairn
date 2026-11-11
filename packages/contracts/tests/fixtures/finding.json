@@ -1,0 +1,15 @@
+{
+  "finding_id": "find-0001",
+  "tenant_id": "tenant-1",
+  "project_id": "project-1",
+  "control_id": "CAIRN-C-0001",
+  "control_version": "1.0.0",
+  "severity": "HIGH",
+  "affected_resource_id": "res-0001",
+  "affected_workload_id": null,
+  "outcome": "MISMATCH",
+  "evidence_refs": ["evidence://run-0001/find-0001"],
+  "remediation": "Enable disk encryption on the instance",
+  "source": "prowler",
+  "status": "OPEN"
+}
