@@ -1,0 +1,21 @@
+{
+  "items": [
+    {
+      "workload_id": "wl-0001",
+      "tenant_id": "tenant-1",
+      "project_id": "project-1",
+      "name": "billing-api",
+      "environment": "prod",
+      "owner": "payments-team",
+      "business_context": "Serves customer billing documents and totals",
+      "resource_ids": ["res-0001"],
+      "dependency_ids": [],
+      "facts": {},
+      "disposition": null,
+      "disposition_confidence": null,
+      "model_version": "0",
+      "mapping_version": "2026.11.1"
+    }
+  ],
+  "next_cursor": "cursor-2"
+}

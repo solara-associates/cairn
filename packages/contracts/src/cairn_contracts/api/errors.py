@@ -1,0 +1,35 @@
+from __future__ import annotations
+
+from enum import Enum
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class ApiErrorCode(str, Enum):
+    UNAUTHENTICATED = "UNAUTHENTICATED"
+    FORBIDDEN = "FORBIDDEN"
+    TENANT_SCOPE_VIOLATION = "TENANT_SCOPE_VIOLATION"
+    NOT_FOUND = "NOT_FOUND"
+    VALIDATION_FAILED = "VALIDATION_FAILED"
+    IDEMPOTENCY_CONFLICT = "IDEMPOTENCY_CONFLICT"
+    REVISION_MISMATCH = "REVISION_MISMATCH"
+    MUTATION_CLASS_MISMATCH = "MUTATION_CLASS_MISMATCH"
+    RECOVERY_PLAN_REQUIRED = "RECOVERY_PLAN_REQUIRED"
+    RISK_ACCEPTANCE_REQUIRED = "RISK_ACCEPTANCE_REQUIRED"
+    MAPPING_UNAVAILABLE = "MAPPING_UNAVAILABLE"
+    EVIDENCE_VERIFICATION_FAILED = "EVIDENCE_VERIFICATION_FAILED"
+    AUDIT_UNAVAILABLE = "AUDIT_UNAVAILABLE"
+    PROVIDER_UNAVAILABLE = "PROVIDER_UNAVAILABLE"
+    COVERAGE_INCOMPLETE = "COVERAGE_INCOMPLETE"
+
+
+class Problem(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    type: str
+    title: str
+    status: int = Field(ge=400, le=599)
+    detail: str
+    instance: str
+    trace_id: str
+    code: ApiErrorCode
