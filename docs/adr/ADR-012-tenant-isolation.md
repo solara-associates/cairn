@@ -1,6 +1,6 @@
 # ADR-012: Tenant isolation as a kernel contract, enforced by database RLS
 
-- **Status:** Accepted (amended 9 November 2026 after architecture review)
+- **Status:** Accepted (amended 10 November 2026 after second architecture review)
 - **Date:** 2026-11-09
 - **Deciders:** Product owner (Allan Smeyatsky)
 - **Related:** Implementation spec §8, §12, ADR-004, ADR-013
@@ -18,7 +18,8 @@ Every customer artefact in CAIRN is tenant-scoped: projects, connections, estate
 - Composite foreign keys enforce tenant/project relationships so a project row cannot reference a tenant that does not own it.
 - Published global mapping releases are platform-owned and immutable. Tenants may propose mappings and consume published releases; proposal authority never implies global publication authority.
 - BigQuery access uses tenant-scoped datasets or authorized views. Object storage uses tenant/project-prefixed paths with server-side authorization.
-- Adversarial cross-tenant and cross-project tests run on every read and write path, including async jobs, MCP tools, evidence retrieval and admin operations.
+- Migration tests connect as the application database role, not the table owner, and assert `pg_class.relrowsecurity` and `pg_class.relforcerowsecurity` are true on every classified table and that `pg_roles.rolbypassrls` is false for every application role.
+- Adversarial cross-tenant and cross-project tests run under the application role on every read and write path, including async jobs, MCP tools, evidence retrieval and admin operations.
 
 ## Consequences
 

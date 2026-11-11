@@ -13,7 +13,7 @@ This repository is at the **specification stage**. It contains architecture, dec
 - **CAIRN Operate**: FinOps and operational loops.
 - **CAIRN Govern**: policy, approval and immutable evidence.
 
-The first usable release is a commercial multi-tenant SaaS on Google Cloud, aimed at the mid-market and launched with a United Kingdom jurisdiction pack. It is read-only against customer environments: R1 does assessment, workspace decisions and evidence. Governed customer-environment writes start only in R4, through a kernel execution gate with policy, immutable revision approval, audit-before-effect, evidence and rollback.
+The first usable release is a commercial multi-tenant SaaS on Google Cloud, aimed at the mid-market and launched with a United Kingdom jurisdiction pack. It is read-only against customer environments: R1 does assessment, workspace decisions and evidence. Governed customer-environment writes start only in R4, through a kernel execution gate with policy, immutable revision approval, audit-before-effect, evidence and a recovery plan that matches the mutation class.
 
 ## Documents
 
@@ -21,9 +21,10 @@ The first usable release is a commercial multi-tenant SaaS on Google Cloud, aime
 |---|---|
 | [Technical implementation specification](CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md) | Contracts, schemas, deployment, backlog and delivery outlook |
 | [Architecture patterns](CLOUD-ARCHITECTURE-PATTERNS.md) | Design evidence from prior work; nothing is reused as code |
-| [Architecture decision records](docs/adr/README.md) | ADR-001 to ADR-018, all accepted 9 November 2026 |
+| [Architecture decision records](docs/adr/README.md) | ADR-001 to ADR-018, all accepted 9 November 2026; ADR-009, ADR-010 and ADR-012 amended 10 November 2026 |
 | [Reference register](docs/specs/reference-register.md) | Clean-room evidence log |
 | `Cloud_Modernization_Platform_PRD.docx` | Product requirements baseline with revision notes |
+| `CAIRN_Architecture_Review_and_R0_Resolution.docx` | Architecture review that drove the pre-R0 corrections and release boundary |
 
 ## Status
 

@@ -31,7 +31,7 @@ Once code exists, the specification is the source of truth for boundaries, contr
 - Python 3.12 for domain and application code; Rust for transformation and measured hot paths.
 - Clean/Hexagonal plus DDD, enforced by `import-linter`.
 - No provider SDK imports in domain or application code.
-- No customer-environment mutation before R4. Class C writes, when they exist, go only through the kernel execution gate with approval and an audit record before effect.
+- No customer-environment mutation before R4. Class C writes, when they exist, go only through the kernel execution gate with approval, a recovery plan that matches the mutation class, and an audit record before effect.
 
 ## Security
 

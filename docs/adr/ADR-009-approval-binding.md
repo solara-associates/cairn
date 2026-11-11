@@ -1,6 +1,6 @@
 # ADR-009: Immutable revisions and approval-bound execution
 
-- **Status:** Accepted (amended 9 November 2026 after architecture review)
+- **Status:** Accepted (amended 10 November 2026 after second architecture review)
 - **Date:** 2026-11-09
 - **Deciders:** Product owner (Allan Smeyatsky)
 - **Related:** Implementation spec §8, §11, §12, §16; ADR-008; ADR-010
@@ -39,19 +39,22 @@ An approval record stores:
 - `subject_kind`, `subject_id`,
 - `revision_id` and `revision_hash`,
 - `risk_tier`, required roles, state,
+- `mutation_class` and `recovery_strategy` (ADR-010),
+- recovery plan reference for reversible or compensatable mutations, or explicit risk acceptance for irreversible mutations,
 - decision actor, timestamp, reason,
 - evidence references.
 
 Database constraints must make the binding enforceable:
 - `approval.revision_id` references the exact revision row.
-- A composite foreign key `(tenant_id, revision_id, revision_hash)` references `subject_revision (tenant_id, revision_id, content_hash)`, so the hash binding is enforced at rest, not only in application code.
-- `execution_record` references `approval (tenant_id, approval_id, revision_id, revision_hash)`, so an execution cannot name an approval while using a different revision or hash.
+- A composite foreign key `(tenant_id, project_id, revision_id, revision_hash)` references `subject_revision (tenant_id, project_id, revision_id, content_hash)`, so the hash and project binding are enforced at rest, not only in application code.
+- `execution_record` references `approval (tenant_id, project_id, approval_id, revision_id, revision_hash, mutation_class, recovery_strategy)`, so an execution cannot name an approval while using a different revision, hash or recovery classification.
 - `execution_record.revision_id` and `execution_record.approved_hash` record the exact approved revision used.
+- The recovery precondition is persisted before approval. A reversible mutation without a rollback reference, or a compensatable mutation without a compensation reference, cannot reach `APPROVED`.
 
 ### Execution rules
 
 - Execution is permitted only when approval state is `APPROVED` and the referenced revision is current for that approval.
-- Before any Class C effect, the execution gate verifies: policy decision, approval state, revision hash match, separation of duties, credential scope and audit-before-effect success.
+- Before any Class C effect, the execution gate verifies: policy decision, approval state, revision hash match, mutation class, recovery precondition, separation of duties, credential scope and audit-before-effect success.
 - If the revision hash does not match, execution fails closed with `REVISION_MISMATCH` and no external effect.
 - Any new revision invalidates prior approvals for execution purposes and requires re-approval.
 
