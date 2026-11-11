@@ -1,0 +1,14 @@
+{
+  "decision_id": "dec-0001",
+  "tenant_id": "tenant-1",
+  "project_id": "project-1",
+  "workload_id": "wl-0001",
+  "disposition": "REPLATFORM",
+  "rationale": "Managed Postgres reduces operational burden and the schema is compatible",
+  "confidence": 0.8,
+  "status": "PROPOSED",
+  "decided_by": null,
+  "decided_at": null,
+  "model_version": "0",
+  "mapping_version": "2026.11.1"
+}
