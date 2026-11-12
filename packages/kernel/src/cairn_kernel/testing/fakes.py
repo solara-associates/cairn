@@ -1,6 +1,9 @@
 from datetime import datetime
 from itertools import count
 
+from cairn_kernel.errors import AuditUnavailableError
+from cairn_kernel.security.audit import AuditEntry
+
 
 class FixedClock:
     def __init__(self, now: datetime) -> None:
@@ -28,3 +31,15 @@ class InMemoryUnitOfWork:
 
     def rollback(self) -> None:
         self.rollbacks += 1
+
+
+class InMemoryAuditSink:
+    def __init__(self) -> None:
+        self.entries: list[AuditEntry] = []
+        self.fail_next = False
+
+    def append(self, entry: AuditEntry) -> str:
+        if self.fail_next:
+            raise AuditUnavailableError("audit sink unavailable")
+        self.entries.append(entry)
+        return f"audit-{len(self.entries)}"
