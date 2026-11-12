@@ -17,6 +17,7 @@ jobs:
       - run: uv run ruff check .
       - run: uv run lint-imports
       - run: uv run pytest
+      - run: uv run python -m cairn_kernel.conformance
 
   rust:
     runs-on: ubuntu-latest
