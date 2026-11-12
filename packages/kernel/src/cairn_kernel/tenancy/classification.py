@@ -33,6 +33,7 @@ TABLE_CLASSIFICATIONS: tuple[TableClassification, ...] = (
     TableClassification(table="role_grant", scope=TenancyScope.TENANT),
     TableClassification(table="ledger_entry", scope=TenancyScope.TENANT),
     TableClassification(table="schema_migration", scope=TenancyScope.GLOBAL),
+    TableClassification(table="schema_migration_history", scope=TenancyScope.GLOBAL),
 )
 
 TENANCY_CLASSIFICATION: dict[str, TenancyScope] = {
