@@ -1,13 +1,12 @@
-import hashlib
-import json
 import uuid
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Generic, TypeVar
 
 import psycopg
 from cairn_kernel.errors import AuditUnavailableError
-from cairn_kernel.security import AuditEntry
+from cairn_kernel.security import AuditEntry, entry_hash
 from psycopg import ClientCursor
 
 ResultT = TypeVar("ResultT")
@@ -19,47 +18,10 @@ class MutationOutcome(Generic[ResultT]):
     audit_entry_id: str
 
 
-def canonical_payload(payload: Mapping[str, object]) -> str:
-    return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-
-
-def entry_hash(
-    *,
-    tenant_id: str,
-    project_id: str | None,
-    actor: str,
-    action: str,
-    operation_class: str,
-    sequence: int,
-    previous_hash: str | None,
-    payload: str,
-) -> str:
-    material = canonical_payload(
-        {
-            "tenant_id": tenant_id,
-            "project_id": project_id,
-            "actor": actor,
-            "action": action,
-            "operation_class": operation_class,
-            "sequence": sequence,
-            "previous_hash": previous_hash,
-            "payload": payload,
-        }
-    )
-    return hashlib.sha256(material.encode("utf-8")).hexdigest()
-
-
-def _payload(entry: AuditEntry) -> str:
-    payload = dict(entry.payload)
-    if entry.correlation_id is not None:
-        payload.setdefault("correlation_id", entry.correlation_id)
-    return canonical_payload(payload)
-
-
 def append_entry(connection: psycopg.Connection, entry: AuditEntry) -> str:
     tenant = entry.tenant_id.value
     project = None if entry.project_id is None else entry.project_id.value
-    payload = _payload(entry)
+    created_at = entry.created_at or datetime.now(UTC)
     connection.execute(
         "SELECT pg_advisory_xact_lock(hashtext(%s))", (tenant,)
     )
@@ -78,14 +40,15 @@ def append_entry(connection: psycopg.Connection, entry: AuditEntry) -> str:
         operation_class=entry.operation_class.value,
         sequence=sequence,
         previous_hash=previous_hash,
-        payload=payload,
+        payload=entry.payload_json,
+        created_at=created_at.isoformat(),
     )
     entry_id = str(uuid.uuid4())
     connection.execute(
         "INSERT INTO ledger_entry (entry_id, tenant_id, project_id,"
         " package_id, sequence, entry_hash, previous_hash, actor,"
-        " action, operation_class, payload)"
-        " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb)",
+        " action, operation_class, payload, created_at)"
+        " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s)",
         (
             entry_id,
             tenant,
@@ -97,7 +60,8 @@ def append_entry(connection: psycopg.Connection, entry: AuditEntry) -> str:
             entry.actor,
             entry.action,
             entry.operation_class.value,
-            payload,
+            entry.payload_json,
+            created_at,
         ),
     )
     return entry_id
