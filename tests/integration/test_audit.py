@@ -106,7 +106,7 @@ def test_sequences_are_scoped_per_tenant(migrated_database: str) -> None:
     _seed(migrated_database)
     sink = _sink(migrated_database, TENANT_A)
     sink.append(_entry(tenant=TENANT_A))
-    _sink(migrated_database, TENANT_B).append(_entry(tenant=TENANT_B, project=None))
+    _sink(migrated_database, TENANT_B, None).append(_entry(tenant=TENANT_B, project=None))
     assert [row[0] for row in _rows(migrated_database, TENANT_A)] == [1]
     assert [row[0] for row in _rows(migrated_database, TENANT_B)] == [1]
 
@@ -145,7 +145,7 @@ def test_ledger_entries_are_tenant_isolated(migrated_database: str) -> None:
     _seed(migrated_database)
     sink = _sink(migrated_database, TENANT_A)
     sink.append(_entry(tenant=TENANT_A))
-    _sink(migrated_database, TENANT_B).append(_entry(tenant=TENANT_B, project=None))
+    _sink(migrated_database, TENANT_B, None).append(_entry(tenant=TENANT_B, project=None))
     with _app_connection(migrated_database, TENANT_B) as connection:
         rows = connection.execute("SELECT tenant_id FROM ledger_entry").fetchall()
     assert [str(row[0]) for row in rows] == [TENANT_B.value]
