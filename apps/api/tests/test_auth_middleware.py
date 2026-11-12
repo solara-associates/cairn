@@ -4,6 +4,8 @@ from datetime import UTC, datetime, timedelta
 import jwt
 from cairn_adapters.auth_oidc import JwtAuthenticator, OidcSettings
 from cairn_api import AuthMiddleware, CairnErrorMiddleware
+
+_SECRET = b"test-assertion-secret"
 from cairn_kernel.security import Role, require_roles
 from cairn_kernel.tenancy import current_tenant_context, has_tenant_context
 
@@ -95,7 +97,7 @@ async def _echo_principal(scope: dict, receive, send) -> None:
 
 
 def test_missing_authorization_header_is_rejected() -> None:
-    app = AuthMiddleware(_echo_principal, _authenticator())
+    app = AuthMiddleware(_echo_principal, _authenticator(), assertion_secret=_SECRET)
     messages = _call(app, _scope())
     assert _response_status(messages) == 401
     headers = _response_headers(messages)
@@ -108,20 +110,20 @@ def test_missing_authorization_header_is_rejected() -> None:
 
 
 def test_non_bearer_scheme_is_rejected() -> None:
-    app = AuthMiddleware(_echo_principal, _authenticator())
+    app = AuthMiddleware(_echo_principal, _authenticator(), assertion_secret=_SECRET)
     messages = _call(app, _scope(headers=[(b"authorization", b"Basic dXNlcjpwYXNz")]))
     assert _response_status(messages) == 401
 
 
 def test_invalid_token_is_rejected() -> None:
-    app = AuthMiddleware(_echo_principal, _authenticator())
+    app = AuthMiddleware(_echo_principal, _authenticator(), assertion_secret=_SECRET)
     messages = _call(app, _scope(headers=[(b"authorization", b"Bearer not-a-jwt")]))
     assert _response_status(messages) == 401
     assert _json_body(messages)["code"] == "UNAUTHENTICATED"
 
 
 def test_valid_token_authenticates_and_binds_tenant_context() -> None:
-    app = AuthMiddleware(_echo_principal, _authenticator())
+    app = AuthMiddleware(_echo_principal, _authenticator(), assertion_secret=_SECRET)
     scope = _scope(headers=[(b"authorization", f"Bearer {_token()}".encode())])
     messages = _call(app, scope)
     assert _response_status(messages) == 200
@@ -130,7 +132,7 @@ def test_valid_token_authenticates_and_binds_tenant_context() -> None:
 
 
 def test_correlation_id_is_propagated_from_the_request() -> None:
-    app = AuthMiddleware(_echo_principal, _authenticator())
+    app = AuthMiddleware(_echo_principal, _authenticator(), assertion_secret=_SECRET)
     scope = _scope(
         headers=[
             (b"authorization", f"Bearer {_token()}".encode()),
@@ -147,7 +149,7 @@ def test_public_paths_bypass_authentication() -> None:
         await send({"type": "http.response.start", "status": 204, "headers": []})
         await send({"type": "http.response.body", "body": b""})
 
-    app = AuthMiddleware(health, _authenticator(), public_paths={"/healthz"})
+    app = AuthMiddleware(health, _authenticator(), assertion_secret=_SECRET, public_paths={"/healthz"})
     assert _response_status(_call(app, _scope("/healthz"))) == 204
     assert _response_status(_call(app, _scope("/v1/me"))) == 401
 
@@ -158,7 +160,7 @@ def test_authorization_denial_becomes_a_problem_response() -> None:
         await send({"type": "http.response.start", "status": 200, "headers": []})
         await send({"type": "http.response.body", "body": b""})
 
-    app = CairnErrorMiddleware(AuthMiddleware(guarded, _authenticator()))
+    app = CairnErrorMiddleware(AuthMiddleware(guarded, _authenticator(), assertion_secret=_SECRET))
     scope = _scope(headers=[(b"authorization", f"Bearer {_token(roles=['VIEWER'])}".encode())])
     messages = _call(app, scope)
     assert _response_status(messages) == 403
@@ -173,13 +175,13 @@ def test_authorized_request_passes_rbac() -> None:
         await send({"type": "http.response.start", "status": 200, "headers": []})
         await send({"type": "http.response.body", "body": b""})
 
-    app = CairnErrorMiddleware(AuthMiddleware(guarded, _authenticator()))
+    app = CairnErrorMiddleware(AuthMiddleware(guarded, _authenticator(), assertion_secret=_SECRET))
     scope = _scope(headers=[(b"authorization", f"Bearer {_token(roles=['ENGINEER'])}".encode())])
     assert _response_status(_call(app, scope)) == 200
 
 
 def test_tenant_context_is_not_leaked_between_requests() -> None:
-    app = AuthMiddleware(_echo_principal, _authenticator())
+    app = AuthMiddleware(_echo_principal, _authenticator(), assertion_secret=_SECRET)
     other_tenant = "1b1b1b1b-2c2c-4d4d-8e8e-3f3f3f3f3f3f"
     first = _scope(headers=[(b"authorization", f"Bearer {_token()}".encode())])
     second = _scope(
