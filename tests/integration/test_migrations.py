@@ -4,7 +4,7 @@ from contextlib import contextmanager
 
 import psycopg
 import pytest
-from cairn_adapters.persistence_postgres.migrator import Migrator
+from cairn_adapters.persistence_postgres.migrator import BASELINE, Migrator
 from cairn_kernel.tenancy import (
     PROJECT_POLICY,
     REQUIRED_POLICIES,
@@ -73,11 +73,17 @@ def test_migrations_up_and_down_round_trip(migration_database: str) -> None:
             "role_grant",
             "ledger_entry",
             "schema_migration",
+            "schema_migration_history",
         }
     assert migrator.up() == ()
-    assert migrator.down() == ("0003", "0002", "0001")
+    assert migrator.down(
+        BASELINE, allow_multiple=True, allow_destructive=True
+    ) == ("0003", "0002", "0001")
     with psycopg.connect(migration_database) as connection:
-        assert _public_tables(connection) == {"schema_migration"}
+        assert _public_tables(connection) == {
+            "schema_migration",
+            "schema_migration_history",
+        }
     assert migrator.up() == ("0001", "0002", "0003")
 
 
