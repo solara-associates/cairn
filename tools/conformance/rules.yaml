@@ -26,7 +26,7 @@ rules:
       policies; app roles lack BYPASSRLS; tests run under the app role
     owner: tenancy
     mandatory: true
-    pending_story: R0-08
+    check: uv run pytest tests/integration/test_migrations.py -q
 
   - id: R-AUDIT-01
     title: >-
@@ -119,7 +119,7 @@ rules:
       tenant-context change attempts are rejected and audited
     owner: tenancy
     mandatory: true
-    pending_story: R0-08
+    pending_story: R1-19
 
   - id: R-COV-01
     title: Coverage floor per critical package
