@@ -1,9 +1,10 @@
 import uuid
 from collections.abc import Awaitable, Callable, Iterable
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from cairn_kernel.errors import CairnError, UnauthenticatedError
-from cairn_kernel.security import Principal
+from cairn_kernel.security import Principal, sign_tenant_assertion
 from cairn_kernel.tenancy import TenantContext, tenant_scope
 
 from cairn_api.errors import send_problem
@@ -38,10 +39,15 @@ class AuthMiddleware:
         self,
         app: App,
         authenticator: Any,
+        *,
+        assertion_secret: bytes,
+        assertion_ttl: timedelta = timedelta(minutes=5),
         public_paths: Iterable[str] = (),
     ) -> None:
         self._app = app
         self._authenticator = authenticator
+        self._assertion_secret = assertion_secret
+        self._assertion_ttl = assertion_ttl
         self._public_paths = frozenset(public_paths)
 
     async def __call__(
@@ -64,6 +70,12 @@ class AuthMiddleware:
         state = scope.setdefault("state", {})
         state["principal"] = principal
         state["correlation_id"] = correlation_id
+        state["tenant_assertion"] = sign_tenant_assertion(
+            secret=self._assertion_secret,
+            tenant_id=principal.tenant_id,
+            actor_id=principal.subject,
+            expires_at=datetime.now(UTC) + self._assertion_ttl,
+        )
         context = TenantContext(
             tenant_id=principal.tenant_id,
             project_id=None,
