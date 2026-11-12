@@ -1,3 +1,4 @@
+import uuid
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 
@@ -7,6 +8,7 @@ from cairn_adapters.persistence_postgres.audit import PostgresAuditSink
 from cairn_kernel.errors import AuditUnavailableError
 from cairn_kernel.hex import OperationClass, ProjectId, TenantId
 from cairn_kernel.security import AuditEntry, AuditSink
+from conftest import signed_assertion
 
 TENANT_A = TenantId("11111111-1111-4111-8111-111111111111")
 TENANT_B = TenantId("33333333-3333-4333-8333-333333333333")
@@ -42,6 +44,21 @@ def _entry(
     )
 
 
+def signed_assertion_tenant(
+    tenant: TenantId, project: ProjectId | None = None
+) -> str:
+    return signed_assertion(
+        uuid.UUID(tenant.value),
+        None if project is None else uuid.UUID(project.value),
+    )
+
+
+def _sink(
+    dsn: str, tenant: TenantId, project: ProjectId | None = PROJECT
+) -> PostgresAuditSink:
+    return PostgresAuditSink(dsn, signed_assertion_tenant(tenant, project))
+
+
 def _rows(dsn: str, tenant: TenantId) -> list[tuple[object, ...]]:
     with _app_connection(dsn, tenant) as connection:
         return connection.execute(
@@ -54,10 +71,12 @@ def _rows(dsn: str, tenant: TenantId) -> list[tuple[object, ...]]:
 def _app_connection(dsn: str, tenant: TenantId) -> Iterator[psycopg.Connection]:
     with psycopg.connect(dsn, autocommit=True) as connection:
         connection.execute("SET ROLE cairn_app")
-        connection.execute(
-            "SELECT set_config('app.tenant_id', %s, false)", (tenant.value,)
-        )
-        yield connection
+        with connection.transaction():
+            connection.execute(
+                "SELECT cairn_set_tenant_context(%s)",
+                (signed_assertion(uuid.UUID(tenant.value)),),
+            )
+            yield connection
 
 
 def _guarded_effect(
@@ -69,7 +88,7 @@ def _guarded_effect(
 
 def test_append_writes_hash_chain(migrated_database: str) -> None:
     _seed(migrated_database)
-    sink = PostgresAuditSink(migrated_database)
+    sink = _sink(migrated_database, TENANT_A)
     first = sink.append(_entry(action="project.create"))
     second = sink.append(_entry(action="project.update"))
     assert first != second
@@ -85,26 +104,31 @@ def test_append_writes_hash_chain(migrated_database: str) -> None:
 
 def test_sequences_are_scoped_per_tenant(migrated_database: str) -> None:
     _seed(migrated_database)
-    sink = PostgresAuditSink(migrated_database)
+    sink = _sink(migrated_database, TENANT_A)
     sink.append(_entry(tenant=TENANT_A))
-    sink.append(_entry(tenant=TENANT_B, project=None))
+    _sink(migrated_database, TENANT_B).append(_entry(tenant=TENANT_B, project=None))
     assert [row[0] for row in _rows(migrated_database, TENANT_A)] == [1]
     assert [row[0] for row in _rows(migrated_database, TENANT_B)] == [1]
 
 
 def test_ledger_is_append_only_for_the_application_role(migrated_database: str) -> None:
     _seed(migrated_database)
-    PostgresAuditSink(migrated_database).append(_entry())
-    with _app_connection(migrated_database, TENANT_A) as connection:
-        with pytest.raises(psycopg.errors.InsufficientPrivilege):
-            connection.execute("UPDATE ledger_entry SET actor = 'mallory'")
-        with pytest.raises(psycopg.errors.InsufficientPrivilege):
-            connection.execute("DELETE FROM ledger_entry")
+    _sink(migrated_database, TENANT_A).append(_entry())
+    with (
+        pytest.raises(psycopg.errors.InsufficientPrivilege),
+        _app_connection(migrated_database, TENANT_A) as connection,
+    ):
+        connection.execute("UPDATE ledger_entry SET actor = 'mallory'")
+    with (
+        pytest.raises(psycopg.errors.InsufficientPrivilege),
+        _app_connection(migrated_database, TENANT_A) as connection,
+    ):
+        connection.execute("DELETE FROM ledger_entry")
 
 
 def test_ledger_is_append_only_for_table_owners(migrated_database: str) -> None:
     _seed(migrated_database)
-    PostgresAuditSink(migrated_database).append(_entry())
+    _sink(migrated_database, TENANT_A).append(_entry())
     with psycopg.connect(migrated_database, autocommit=True) as connection:
         connection.execute(
             "SELECT set_config('app.tenant_id', %s, false)", (TENANT_A.value,)
@@ -119,9 +143,9 @@ def test_ledger_is_append_only_for_table_owners(migrated_database: str) -> None:
 
 def test_ledger_entries_are_tenant_isolated(migrated_database: str) -> None:
     _seed(migrated_database)
-    sink = PostgresAuditSink(migrated_database)
+    sink = _sink(migrated_database, TENANT_A)
     sink.append(_entry(tenant=TENANT_A))
-    sink.append(_entry(tenant=TENANT_B, project=None))
+    _sink(migrated_database, TENANT_B).append(_entry(tenant=TENANT_B, project=None))
     with _app_connection(migrated_database, TENANT_B) as connection:
         rows = connection.execute("SELECT tenant_id FROM ledger_entry").fetchall()
     assert [str(row[0]) for row in rows] == [TENANT_B.value]
@@ -130,7 +154,7 @@ def test_ledger_entries_are_tenant_isolated(migrated_database: str) -> None:
 
 def test_audit_is_recorded_before_the_effect(migrated_database: str) -> None:
     _seed(migrated_database)
-    sink = PostgresAuditSink(migrated_database)
+    sink = _sink(migrated_database, TENANT_A)
     rows_visible_at_effect: list[int] = []
     _guarded_effect(
         sink,
@@ -143,7 +167,10 @@ def test_audit_is_recorded_before_the_effect(migrated_database: str) -> None:
 
 
 def test_audit_outage_fails_closed(migrated_database: str) -> None:
-    sink = PostgresAuditSink("postgresql://postgres:postgres@127.0.0.1:1/postgres")
+    sink = PostgresAuditSink(
+        "postgresql://postgres:postgres@127.0.0.1:1/postgres",
+        signed_assertion_tenant(TENANT_A),
+    )
     effected: list[str] = []
     with pytest.raises(AuditUnavailableError):
         _guarded_effect(sink, _entry(), lambda: effected.append("applied"))

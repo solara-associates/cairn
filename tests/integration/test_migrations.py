@@ -12,8 +12,10 @@ from cairn_kernel.tenancy import (
     TENANT_POLICY,
     TenancyScope,
 )
+from conftest import signed_assertion
 
 APP_ROLE = "cairn_app"
+
 
 
 def _public_tables(connection: psycopg.Connection) -> set[str]:
@@ -53,18 +55,15 @@ def app_role_session(
         with connection.transaction():
             if tenant_id is not None:
                 connection.execute(
-                    "SELECT set_config('app.tenant_id', %s, true)", (str(tenant_id),)
-                )
-            if project_id is not None:
-                connection.execute(
-                    "SELECT set_config('app.project_id', %s, true)", (str(project_id),)
+                    "SELECT cairn_set_tenant_context(%s)",
+                    (signed_assertion(tenant_id, project_id),),
                 )
             yield connection
 
 
 def test_migrations_up_and_down_round_trip(migration_database: str) -> None:
     migrator = Migrator(migration_database)
-    assert migrator.up() == ("0001", "0002", "0003")
+    assert migrator.up() == ("0001", "0002", "0003", "0004")
     with psycopg.connect(migration_database) as connection:
         assert _public_tables(connection) == {
             "tenant",
@@ -74,17 +73,18 @@ def test_migrations_up_and_down_round_trip(migration_database: str) -> None:
             "ledger_entry",
             "schema_migration",
             "schema_migration_history",
+            "tenant_context_secret",
         }
     assert migrator.up() == ()
     assert migrator.down(
         BASELINE, allow_multiple=True, allow_destructive=True
-    ) == ("0003", "0002", "0001")
+    ) == ("0004", "0003", "0002", "0001")
     with psycopg.connect(migration_database) as connection:
         assert _public_tables(connection) == {
             "schema_migration",
             "schema_migration_history",
         }
-    assert migrator.up() == ("0001", "0002", "0003")
+    assert migrator.up() == ("0001", "0002", "0003", "0004")
 
 
 def test_every_table_is_classified_with_required_rls(migrated_database: str) -> None:
@@ -212,7 +212,8 @@ def test_context_is_transaction_local(migrated_database: str) -> None:
         connection.execute(f"SET ROLE {APP_ROLE}")
         with connection.transaction():
             connection.execute(
-                "SELECT set_config('app.tenant_id', %s, true)", (str(ids["tenant_a"]),)
+                "SELECT cairn_set_tenant_context(%s)",
+                (signed_assertion(ids["tenant_a"]),),
             )
             assert connection.execute("SELECT count(*) FROM tenant").fetchone() == (1,)
         with connection.transaction():

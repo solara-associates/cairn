@@ -3,13 +3,17 @@ import subprocess
 import time
 import uuid
 from collections.abc import Iterator
+from datetime import UTC, datetime, timedelta
 
 import psycopg
 import pytest
 from cairn_adapters.persistence_postgres.migrator import Migrator
+from cairn_kernel.hex import ProjectId, TenantId
+from cairn_kernel.security import sign_tenant_assertion
 
 POSTGRES_IMAGE = "postgres:16-alpine"
 APP_ROLE = "cairn_app"
+TENANT_CONTEXT_SECRET = b"test-tenant-context-secret"
 
 
 def _docker_available() -> bool:
@@ -132,6 +136,14 @@ def grant_application_role(dsn: str) -> None:
             f"GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO {APP_ROLE}"
         )
         connection.execute(f"REVOKE UPDATE, DELETE ON ledger_entry FROM {APP_ROLE}")
+        connection.execute(
+            f"GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO {APP_ROLE}"
+        )
+        connection.execute(
+            "INSERT INTO tenant_context_secret (name, secret) VALUES (%s, %s)"
+            " ON CONFLICT (name) DO UPDATE SET secret = EXCLUDED.secret",
+            ("tenant-context", TENANT_CONTEXT_SECRET),
+        )
 
 
 @pytest.fixture()
@@ -139,3 +151,20 @@ def migrated_database(migration_database: str) -> Iterator[str]:
     Migrator(migration_database).up()
     grant_application_role(migration_database)
     yield migration_database
+
+
+def signed_assertion(
+    tenant_id: uuid.UUID,
+    project_id: uuid.UUID | None = None,
+    *,
+    actor_id: str = "test-actor",
+    ttl: timedelta = timedelta(minutes=5),
+    secret: bytes = TENANT_CONTEXT_SECRET,
+) -> str:
+    return sign_tenant_assertion(
+        secret=secret,
+        tenant_id=TenantId(str(tenant_id)),
+        actor_id=actor_id,
+        expires_at=datetime.now(UTC) + ttl,
+        project_id=None if project_id is None else ProjectId(str(project_id)),
+    )
