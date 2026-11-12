@@ -1,4 +1,4 @@
-.PHONY: bootstrap lint test conformance build clean
+.PHONY: bootstrap lint test conformance migrate migrate-down build clean
 
 bootstrap:
 	uv sync --all-packages
@@ -18,6 +18,12 @@ test:
 
 conformance:
 	uv run python -m cairn_kernel.conformance
+
+migrate:
+	uv run python -m cairn_adapters.persistence_postgres.migrator up
+
+migrate-down:
+	uv run python -m cairn_adapters.persistence_postgres.migrator down
 
 build:
 	cargo build --workspace
