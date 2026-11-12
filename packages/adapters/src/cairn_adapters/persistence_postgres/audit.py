@@ -40,8 +40,9 @@ def entry_hash(
 
 
 class PostgresAuditSink:
-    def __init__(self, dsn: str) -> None:
+    def __init__(self, dsn: str, assertion: str) -> None:
         self._dsn = dsn
+        self._assertion = assertion
 
     def append(self, entry: AuditEntry) -> str:
         tenant = entry.tenant_id.value
@@ -54,11 +55,11 @@ class PostgresAuditSink:
                     "SELECT pg_advisory_xact_lock(hashtext(%s))", (tenant,)
                 )
                 connection.execute(
-                    "SELECT set_config('app.tenant_id', %s, true)", (tenant,)
+                    "SELECT cairn_set_tenant_context(%s)", (self._assertion,)
                 )
                 if project is not None:
                     connection.execute(
-                        "SELECT set_config('app.project_id', %s, true)", (project,)
+                        "SELECT cairn_set_project_context(%s::uuid)", (project,)
                     )
                 row = connection.execute(
                     "SELECT sequence, entry_hash FROM ledger_entry"
