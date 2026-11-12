@@ -1,0 +1,77 @@
+version: 0
+exceptions:
+  - rule_id: R-AUDIT-01
+    owner: audit
+    reason: Class C execution paths and external-effect ordering land with R1-22
+    expires_on: 2027-03-31
+    evidence: docs/remediation/CA-003-audit-boundary.md
+  - rule_id: R-EVID-01
+    owner: evidence
+    reason: Evidence tamper and fork detection land with evidence storage in R0-11
+    expires_on: 2027-03-31
+    evidence: docs/remediation/CA-004-audit-integrity.md
+  - rule_id: R-AI-01
+    owner: ai
+    reason: No model integration exists before R5-02
+    expires_on: 2028-03-31
+    evidence: CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md
+  - rule_id: R-AI-02
+    owner: ai
+    reason: No model approval or execution path exists before R5-02
+    expires_on: 2028-03-31
+    evidence: CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md
+  - rule_id: R-MAP-01
+    owner: mapping
+    reason: Mapping and confidence rendering land with R2-01
+    expires_on: 2027-09-30
+    evidence: CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md
+  - rule_id: R-REV-01
+    owner: revisions
+    reason: Immutable revision binding lands with revisions in R1-21
+    expires_on: 2027-03-31
+    evidence: CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md
+  - rule_id: R-GATE-01
+    owner: execution-gate
+    reason: ExecutionGatePort and Class C blocking land with R1-22
+    expires_on: 2027-03-31
+    evidence: CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md
+  - rule_id: R-MUT-01
+    owner: execution-gate
+    reason: Command mutation classes land with the command surface in R1-22
+    expires_on: 2027-03-31
+    evidence: CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md
+  - rule_id: R-MUT-02
+    owner: execution-gate
+    reason: Compensation contracts land with external mutations in R1-21
+    expires_on: 2027-03-31
+    evidence: CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md
+  - rule_id: R-IDEM-01
+    owner: execution-gate
+    reason: Idempotency records land with mutations in R1-22
+    expires_on: 2027-03-31
+    evidence: CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md
+  - rule_id: R-OUTBOX-01
+    owner: events
+    reason: Outbox failure injection lands with the event pipeline in R1-23
+    expires_on: 2027-03-31
+    evidence: CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md
+  - rule_id: R-TENANT-03
+    owner: tenancy
+    reason: Pooled-connection and context-change coverage lands with R1-19
+    expires_on: 2027-03-31
+    evidence: docs/remediation/CA-002-tenant-isolation.md
+  - rule_id: R-COV-01
+    owner: quality
+    reason: Coverage floors and enforcement land with R0-17
+    expires_on: 2027-03-31
+    evidence: CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md
+  - rule_id: R-SEC-01
+    owner: security
+    reason: Security scan gate and risk acceptance land with R0-17
+    expires_on: 2027-03-31
+    evidence: CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md
+  - rule_id: R-SEC-02
+    owner: supply-chain
+    reason: SBOM and image signing land with R0-17
+    expires_on: 2027-03-31
+    evidence: CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md

@@ -6,6 +6,7 @@ import yaml
 
 RULE_ID_PATTERN = re.compile(r"^R-[A-Z]+-\d{2}$")
 PENDING_STORY_PATTERN = re.compile(r"^R\d-\d{2}$")
+EVIDENCE_PATTERN = re.compile(r"^\S+$")
 
 V0_RULE_TITLES: dict[str, str] = {
     "R-ARCH-01": "importlinter all contracts kept",
@@ -74,6 +75,7 @@ class Rule:
     mandatory: bool
     check: str | None = None
     pending_story: str | None = None
+    evidence: tuple[str, ...] = ()
 
 
 def load_rule_map(path: Path) -> tuple[Rule, ...]:
@@ -100,7 +102,23 @@ def _parse_rule(entry: object, path: Path) -> Rule:
         mandatory=bool(entry["mandatory"]),
         check=None if check is None else str(check),
         pending_story=None if pending_story is None else str(pending_story),
+        evidence=_parse_evidence(entry.get("evidence"), entry, path),
     )
+
+
+def _parse_evidence(value: object, entry: dict[str, object], path: Path) -> tuple[str, ...]:
+    if value is None:
+        return ()
+    if isinstance(value, str):
+        items = (value,)
+    elif isinstance(value, list) and all(isinstance(item, str) for item in value):
+        items = tuple(value)
+    else:
+        raise RuleMapError(f"{path}: {entry['id']} evidence must be text or a list")
+    for item in items:
+        if not EVIDENCE_PATTERN.match(item):
+            raise RuleMapError(f"{path}: {entry['id']} has a blank evidence entry")
+    return items
 
 
 def validate_rule_map(rules: tuple[Rule, ...]) -> None:
@@ -124,6 +142,8 @@ def _validate_rule(rule: Rule) -> None:
         raise RuleMapError(f"{rule.id}: owner is required")
     if rule.check is not None and not rule.check.strip():
         raise RuleMapError(f"{rule.id}: check must not be blank")
+    if rule.check is not None and rule.mandatory and not rule.evidence:
+        raise RuleMapError(f"{rule.id}: active mandatory rule needs evidence")
     if rule.check is not None and rule.pending_story is not None:
         raise RuleMapError(f"{rule.id}: declare either a check or a pending_story")
     if rule.mandatory and rule.check is None and rule.pending_story is None:
