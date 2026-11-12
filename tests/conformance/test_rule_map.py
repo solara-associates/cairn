@@ -1,10 +1,15 @@
 import shlex
 from pathlib import Path
 
+from cairn_kernel.conformance.exceptions import (
+    load_exceptions,
+    validate_exceptions,
+)
 from cairn_kernel.conformance.registry import V0_RULE_TITLES, load_rule_map
 
 REPO_ROOT = Path(__file__).parents[2]
 RULES_FILE = REPO_ROOT / "tools/conformance/rules.yaml"
+EXCEPTIONS_FILE = REPO_ROOT / "tools/conformance/exceptions.yaml"
 
 SPEC_RULE_IDS = frozenset(
     {
@@ -52,6 +57,31 @@ def test_active_checks_reference_existing_files() -> None:
         for token in shlex.split(rule.check):
             if token.endswith(".py") and not token.startswith("-"):
                 assert (REPO_ROOT / token).exists(), f"{rule.id} references missing {token}"
+
+
+def test_every_pending_rule_has_a_current_exception() -> None:
+    rules = load_rule_map(RULES_FILE)
+    exceptions = load_exceptions(EXCEPTIONS_FILE)
+    pending = {rule.id for rule in rules if rule.pending_story is not None}
+    excepted = {record.rule_id for record in exceptions}
+    assert excepted == pending
+    assert validate_exceptions(exceptions, rules) == ()
+    for record in exceptions:
+        assert (REPO_ROOT / record.evidence).exists(), (
+            f"{record.rule_id} exception references missing {record.evidence}"
+        )
+
+
+def test_active_rules_publish_existing_evidence() -> None:
+    for rule in load_rule_map(RULES_FILE):
+        if rule.check is None:
+            continue
+        assert rule.evidence, f"{rule.id} needs evidence"
+        for reference in rule.evidence:
+            if reference.endswith((".py", ".md", ".yaml", ".toml")):
+                assert (REPO_ROOT / reference).exists(), (
+                    f"{rule.id} evidence references missing {reference}"
+                )
 
 
 def test_self_test_rule_runs_this_file() -> None:
