@@ -5,8 +5,13 @@ description = "CAIRN adapters"
 requires-python = ">=3.12"
 license = "Apache-2.0"
 dependencies = [
+    "cairn-kernel",
     "psycopg[binary]>=3.2",
+    "pyjwt[crypto]>=2.10",
 ]
+
+[tool.uv.sources]
+cairn-kernel = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]
