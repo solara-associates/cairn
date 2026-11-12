@@ -1,0 +1,146 @@
+version: 0
+rules:
+  - id: R-ARCH-01
+    title: importlinter all contracts kept
+    owner: platform
+    mandatory: true
+    check: uv run lint-imports
+
+  - id: R-ARCH-02
+    title: Domain imports no SDK/framework
+    owner: platform
+    mandatory: true
+    check: >-
+      uv run pytest tests/contract/test_sample_module.py
+      packages/contracts/tests/test_no_sdk_imports.py -q
+
+  - id: R-TENANT-01
+    title: Every repository query enforces tenant context
+    owner: tenancy
+    mandatory: true
+    check: uv run pytest packages/kernel/tests/test_tenancy_isolation.py -q
+
+  - id: R-TENANT-02
+    title: >-
+      Every tenant-owned and project-owned table has forced RLS and required
+      policies; app roles lack BYPASSRLS; tests run under the app role
+    owner: tenancy
+    mandatory: true
+    pending_story: R0-08
+
+  - id: R-AUDIT-01
+    title: >-
+      Class B/C mutations append audit trail; Class C appends before external
+      effect
+    owner: audit
+    mandatory: true
+    pending_story: R0-10
+
+  - id: R-EVID-01
+    title: Evidence tamper/fork is detected
+    owner: evidence
+    mandatory: true
+    pending_story: R0-11
+
+  - id: R-AI-01
+    title: Model output schema-validated
+    owner: ai
+    mandatory: true
+    pending_story: R5-02
+
+  - id: R-AI-02
+    title: Model cannot approve/execute
+    owner: ai
+    mandatory: true
+    pending_story: R5-02
+
+  - id: R-MAP-01
+    title: Approximate/unavailable never rendered as exact
+    owner: mapping
+    mandatory: true
+    pending_story: R2-01
+
+  - id: R-REV-01
+    title: Approvals/executions bind to immutable revision rows and exact hashes
+    owner: revisions
+    mandatory: true
+    pending_story: R1-21
+
+  - id: R-GATE-01
+    title: >-
+      No Class C path outside ExecutionGatePort; no production provider
+      adapter before R4
+    owner: execution-gate
+    mandatory: true
+    pending_story: R1-22
+
+  - id: R-MUT-01
+    title: >-
+      Every command declares a mutation class; operation and mutation classes
+      agree; external classes have a validated recovery strategy before
+      authorization
+    owner: execution-gate
+    mandatory: true
+    pending_story: R1-22
+
+  - id: R-MUT-02
+    title: >-
+      Every external mutation has a complete compensation contract (strategy,
+      preconditions, authority, evidence, failure handling) matching its
+      mutation class; an incomplete contract blocks authorization
+    owner: execution-gate
+    mandatory: true
+    pending_story: R1-21
+
+  - id: R-IDEM-01
+    title: >-
+      Class B and Class C mutations require tenant/project/operation/key
+      scoped idempotency, canonical request hashing, replay/conflict
+      handling and expiry
+    owner: execution-gate
+    mandatory: true
+    pending_story: R1-22
+
+  - id: R-OUTBOX-01
+    title: >-
+      Outbox failure semantics proven by failure injection: crash after
+      commit before dispatch loses nothing; duplicate delivery is
+      idempotent; consumer crash after effect before acknowledgement does
+      not repeat the effect; dead-letter replay preserves ordering and
+      runbook; replay cannot cross tenant scope
+    owner: events
+    mandatory: true
+    pending_story: R1-23
+
+  - id: R-TENANT-03
+    title: >-
+      Adversarial RLS under the application role: missing tenant context
+      fails closed; pooled connections cannot leak tenant context;
+      tenant-context change attempts are rejected and audited
+    owner: tenancy
+    mandatory: true
+    pending_story: R0-08
+
+  - id: R-COV-01
+    title: Coverage floor per critical package
+    owner: quality
+    mandatory: true
+    pending_story: R0-17
+
+  - id: R-SEC-01
+    title: No critical/high findings; high needs risk acceptance
+    owner: security
+    mandatory: true
+    pending_story: R0-17
+
+  - id: R-SEC-02
+    title: SBOM and image signature present
+    owner: supply-chain
+    mandatory: true
+    pending_story: R0-17
+
+  - id: R-CONF-01
+    title: Every mandatory rule maps to a check
+    owner: conformance
+    mandatory: true
+    check: uv run pytest tests/conformance/test_rule_map.py -q

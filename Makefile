@@ -1,4 +1,4 @@
-.PHONY: bootstrap lint test build clean
+.PHONY: bootstrap lint test conformance build clean
 
 bootstrap:
 	uv sync --all-packages
@@ -15,6 +15,9 @@ lint:
 test:
 	uv run pytest
 	cargo test --workspace
+
+conformance:
+	uv run python -m cairn_kernel.conformance
 
 build:
 	cargo build --workspace
