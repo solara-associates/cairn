@@ -5,6 +5,8 @@ rules:
     owner: platform
     mandatory: true
     check: uv run lint-imports
+    evidence:
+      - .importlinter
 
   - id: R-ARCH-02
     title: Domain imports no SDK/framework
@@ -13,12 +15,17 @@ rules:
     check: >-
       uv run pytest tests/contract/test_sample_module.py
       packages/contracts/tests/test_no_sdk_imports.py -q
+    evidence:
+      - tests/contract/test_sample_module.py
+      - packages/contracts/tests/test_no_sdk_imports.py
 
   - id: R-TENANT-01
     title: Every repository query enforces tenant context
     owner: tenancy
     mandatory: true
     check: uv run pytest packages/kernel/tests/test_tenancy_isolation.py -q
+    evidence:
+      - packages/kernel/tests/test_tenancy_isolation.py
 
   - id: R-TENANT-02
     title: >-
@@ -27,6 +34,8 @@ rules:
     owner: tenancy
     mandatory: true
     check: uv run pytest tests/integration/test_migrations.py -q
+    evidence:
+      - tests/integration/test_migrations.py
 
   - id: R-AUDIT-01
     title: >-
@@ -144,3 +153,6 @@ rules:
     owner: conformance
     mandatory: true
     check: uv run pytest tests/conformance/test_rule_map.py -q
+    evidence:
+      - tests/conformance/test_rule_map.py
+      - tools/conformance/exceptions.yaml
