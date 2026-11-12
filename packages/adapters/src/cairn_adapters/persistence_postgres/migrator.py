@@ -4,6 +4,7 @@ import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Self
 
 import psycopg
 from psycopg import ClientCursor
@@ -15,6 +16,7 @@ MIGRATION_FILE_PATTERN = re.compile(
 LEDGER_TABLE = "schema_migration"
 HISTORY_TABLE = "schema_migration_history"
 BASELINE = "0000"
+LOCK_KEY = 0x636169726E
 PRODUCTION_ENVIRONMENTS = frozenset({"production", "prod"})
 DESTRUCTIVE_STATEMENTS = re.compile(
     r"\b(?:DROP\s+(?:TABLE|COLUMN|SCHEMA|TYPE|FUNCTION|INDEX|TRIGGER|POLICY)"
@@ -165,6 +167,10 @@ class Migrator:
         return tuple((row[0], row[1], row[2]) for row in rows)
 
     def up(self) -> tuple[str, ...]:
+        with self._lock():
+            return self._up()
+
+    def _up(self) -> tuple[str, ...]:
         applied = set(self.applied_versions())
         pending = [migration for migration in self._migrations if migration.version not in applied]
         for migration in pending:
@@ -179,6 +185,22 @@ class Migrator:
         return tuple(migration.version for migration in pending)
 
     def down(
+        self,
+        target: str,
+        *,
+        allow_multiple: bool = False,
+        allow_destructive: bool = False,
+        recovery_reference: str | None = None,
+    ) -> tuple[str, ...]:
+        with self._lock():
+            return self._down(
+                target,
+                allow_multiple=allow_multiple,
+                allow_destructive=allow_destructive,
+                recovery_reference=recovery_reference,
+            )
+
+    def _down(
         self,
         target: str,
         *,
@@ -244,8 +266,29 @@ class Migrator:
             reverted.append(version)
         return tuple(reverted)
 
+    def _lock(self) -> "_AdvisoryLock":
+        return _AdvisoryLock(self)
+
     def _by_version(self) -> dict[str, Migration]:
         return {migration.version: migration for migration in self._migrations}
+
+
+class _AdvisoryLock:
+    def __init__(self, migrator: Migrator) -> None:
+        self._migrator = migrator
+        self._connection: psycopg.Connection | None = None
+
+    def __enter__(self) -> Self:
+        self._connection = self._migrator._connect()
+        self._connection.execute("SELECT pg_advisory_lock(%s)", (LOCK_KEY,))
+        return self
+
+    def __exit__(self, *exc_info: object) -> None:
+        assert self._connection is not None
+        self._connection.execute("SELECT pg_advisory_unlock(%s)", (LOCK_KEY,))
+        self._connection.commit()
+        self._connection.close()
+        self._connection = None
 
 
 def main(argv: list[str] | None = None) -> int:
