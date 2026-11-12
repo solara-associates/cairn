@@ -2,7 +2,7 @@
 
 CAIRN is a cloud modernization platform. It assesses an estate, applies 6R dispositions, designs a target architecture, modernizes code and infrastructure, and records every governed change as signed evidence.
 
-This repository is at the **specification stage**. It contains architecture, decision and requirements documents. There is no runnable product yet, no supported release and no hosted service. Nothing here should be used against a live environment.
+This repository is in **early R0 implementation**. It contains architecture, decision and requirements documents, plus the first foundation code for the CAIRN Kernel, shared contracts, Postgres tenancy and audit, and API authentication. There is no runnable product yet, no supported release and no hosted service. Nothing here should be used against a live environment.
 
 ## What is being built
 
@@ -29,8 +29,8 @@ The first usable release is a commercial multi-tenant SaaS on Google Cloud, aime
 ## Status
 
 - Decisions: accepted (ADR-001 to ADR-018).
-- Architecture: frozen R0 baseline, spec v0.6, 11 November 2026. R0 implementation may start.
-- Code: none.
+- Architecture: frozen R0 baseline, spec v0.6, 11 November 2026.
+- Code: R0 foundation in progress. Implemented so far: build and CI workspaces; kernel primitives, ports and tenancy isolation; estate, event and API contracts; architecture import checks; conformance harness; Postgres tenancy schema with forced row level security; OIDC/JWT authentication with role checks; an append-only audit ledger; signed tenant assertions with forced row level security; a transactional audit boundary; tamper-evident ledger verification with canonical payloads; safe rollbacks and serialized migrations; and enforced conformance with expiring exceptions. There are no application use cases yet.
 - Team: one maintainer.
 - Timeline: ASAP, with no committed date. The specification gives a solo outlook of R0 in 8 to 12 weeks and R1 in 9 to 15 months.
 
