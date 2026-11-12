@@ -131,6 +131,7 @@ def grant_application_role(dsn: str) -> None:
         connection.execute(
             f"GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO {APP_ROLE}"
         )
+        connection.execute(f"REVOKE UPDATE, DELETE ON ledger_entry FROM {APP_ROLE}")
 
 
 @pytest.fixture()

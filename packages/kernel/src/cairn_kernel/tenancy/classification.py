@@ -31,6 +31,7 @@ TABLE_CLASSIFICATIONS: tuple[TableClassification, ...] = (
     TableClassification(table="app_user", scope=TenancyScope.TENANT),
     TableClassification(table="project", scope=TenancyScope.PROJECT),
     TableClassification(table="role_grant", scope=TenancyScope.TENANT),
+    TableClassification(table="ledger_entry", scope=TenancyScope.TENANT),
     TableClassification(table="schema_migration", scope=TenancyScope.GLOBAL),
 )
 

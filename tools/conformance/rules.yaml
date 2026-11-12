@@ -34,7 +34,7 @@ rules:
       effect
     owner: audit
     mandatory: true
-    pending_story: R0-10
+    pending_story: R1-22
 
   - id: R-EVID-01
     title: Evidence tamper/fork is detected

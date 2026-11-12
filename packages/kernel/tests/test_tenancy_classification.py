@@ -21,7 +21,12 @@ def test_every_table_has_exactly_one_classification() -> None:
 
 
 def test_tenancy_baseline_tables_are_classified() -> None:
-    assert set(TENANT_OWNED_TABLES) == {"tenant", "app_user", "role_grant"}
+    assert set(TENANT_OWNED_TABLES) == {
+        "tenant",
+        "app_user",
+        "role_grant",
+        "ledger_entry",
+    }
     assert set(PROJECT_OWNED_TABLES) == {"project"}
     assert TENANCY_CLASSIFICATION["schema_migration"] is TenancyScope.GLOBAL
 
