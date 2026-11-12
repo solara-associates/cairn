@@ -23,7 +23,7 @@ migrate:
 	uv run python -m cairn_adapters.persistence_postgres.migrator up
 
 migrate-down:
-	uv run python -m cairn_adapters.persistence_postgres.migrator down
+	uv run python -m cairn_adapters.persistence_postgres.migrator down --to "$${VERSION:?set VERSION}"
 
 build:
 	cargo build --workspace
