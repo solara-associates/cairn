@@ -64,20 +64,21 @@ def app_role_session(
 
 def test_migrations_up_and_down_round_trip(migration_database: str) -> None:
     migrator = Migrator(migration_database)
-    assert migrator.up() == ("0001", "0002")
+    assert migrator.up() == ("0001", "0002", "0003")
     with psycopg.connect(migration_database) as connection:
         assert _public_tables(connection) == {
             "tenant",
             "app_user",
             "project",
             "role_grant",
+            "ledger_entry",
             "schema_migration",
         }
     assert migrator.up() == ()
-    assert migrator.down() == ("0002", "0001")
+    assert migrator.down() == ("0003", "0002", "0001")
     with psycopg.connect(migration_database) as connection:
         assert _public_tables(connection) == {"schema_migration"}
-    assert migrator.up() == ("0001", "0002")
+    assert migrator.up() == ("0001", "0002", "0003")
 
 
 def test_every_table_is_classified_with_required_rls(migrated_database: str) -> None:

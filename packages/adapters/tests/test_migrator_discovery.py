@@ -13,10 +13,15 @@ def _write(directory: Path, name: str, content: str = "") -> None:
 
 def test_default_migrations_are_the_tenancy_baseline() -> None:
     migrations = discover_migrations()
-    assert [migration.version for migration in migrations] == ["0001", "0002"]
+    assert [migration.version for migration in migrations] == [
+        "0001",
+        "0002",
+        "0003",
+    ]
     assert [migration.name for migration in migrations] == [
         "tenancy_baseline",
         "tenant_rls",
+        "audit_ledger",
     ]
 
 
