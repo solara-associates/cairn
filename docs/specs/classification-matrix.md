@@ -67,6 +67,5 @@ does not duplicate or pre-empt that work.
 
 ## Review
 
-**Allan's review of this classification is outstanding.** The spec's
-acceptance criterion for R0-19 includes "review approved"; this matrix and
-its enforcing tests are ready for that review but have not been through it.
+R0-19 classification matrix (PR #14) approved by Allan Smeyatsky on
+2026-11-13.

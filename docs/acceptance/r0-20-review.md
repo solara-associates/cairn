@@ -52,8 +52,9 @@ No other gate below Evidenced is closable by a small, file-only change: gates 5,
 
 ## Sign-off
 
-This review assembles evidence. It does not constitute R0 acceptance. Per the spec, section 16.0's gate is a human decision.
+This review assembles evidence. Per the spec, section 16.0's gate is a human decision.
 
-Reviewed and accepted by: _______________________  Date: _______________
+R0-20 signed off conditionally by Allan Smeyatsky on 2026-11-13; open
+gates owned and scheduled per the R1 plan.
 
-(Allan Smeyatsky — signature pending)
+Reviewed and accepted by: Allan Smeyatsky  Date: 2026-11-13
