@@ -15,5 +15,5 @@ variable "workload_service_accounts" {
     cairn-assess-job, cairn-transform-job). Key is the short workload name, value
     is the list of least-privilege project IAM roles that workload needs.
   EOT
-  type = map(list(string))
+  type        = map(list(string))
 }
