@@ -1,0 +1,2 @@
+VM,Powerstate,CPUs,Memory,Datacenter
+web-01,poweredOn,2,4096,DC1
