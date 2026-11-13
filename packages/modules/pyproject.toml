@@ -4,6 +4,11 @@ version = "0.1.0"
 description = "CAIRN bounded-context modules"
 requires-python = ">=3.12"
 license = "Apache-2.0"
+dependencies = [
+    "cairn-contracts",
+    "cairn-kernel",
+    "pyyaml>=6.0.3",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -11,3 +16,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/cairn_modules"]
+
+[tool.uv.sources]
+cairn-contracts = { workspace = true }
+cairn-kernel = { workspace = true }
