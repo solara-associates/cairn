@@ -1,0 +1,76 @@
+version: "2026.11.1"
+released_at: "2026-11-09T00:00:00Z"
+status: PUBLISHED
+entries:
+  - id: s3-to-gcs
+    source_provider: aws
+    source_service: s3
+    target_provider: gcp
+    target_service: cloud-storage
+    equivalence: APPROXIMATE
+    caveat: "Consistency, lifecycle transition and access-control semantics differ"
+    regions: [europe-west2, us-central1, asia-south1]
+    evidence: "CAIRN service map seed; AWS S3 and Google Cloud Storage documentation"
+    effective_from: "2026-11-01"
+  - id: dynamodb-to-bigtable
+    source_provider: aws
+    source_service: dynamodb
+    target_provider: gcp
+    target_service: bigtable
+    equivalence: APPROXIMATE
+    caveat: "Access patterns and secondary indexes require redesign"
+    regions: [europe-west2, us-central1]
+    evidence: "CAIRN service map seed; AWS DynamoDB and Google Cloud Bigtable documentation"
+  - id: step-functions-to-workflows
+    source_provider: aws
+    source_service: step-functions
+    target_provider: gcp
+    target_service: workflows
+    equivalence: APPROXIMATE
+    caveat: "State language, retry semantics and connector coverage differ"
+    regions: [europe-west2, us-central1]
+    evidence: "CAIRN service map seed; AWS Step Functions and Google Cloud Workflows documentation"
+  - id: sagemaker-to-vertex
+    source_provider: aws
+    source_service: sagemaker
+    target_provider: gcp
+    target_service: vertex-ai
+    equivalence: APPROXIMATE
+    caveat: "Notebook, pipeline and endpoint behaviour require revalidation"
+    regions: [europe-west2, us-central1]
+    evidence: "CAIRN service map seed; AWS SageMaker and Google Cloud Vertex AI documentation"
+  - id: azure-openai-to-vertex
+    source_provider: azure
+    source_service: openai
+    target_provider: gcp
+    target_service: vertex-ai-gemini
+    equivalence: APPROXIMATE
+    caveat: "Model behaviour and API contracts differ; prompt and evaluation migration required"
+    regions: [europe-west2, us-central1]
+    evidence: "CAIRN service map seed; Azure OpenAI and Google Cloud Vertex AI documentation"
+  - id: s3-object-lock-to-gcs-retention
+    source_provider: aws
+    source_service: s3-object-lock
+    target_provider: gcp
+    target_service: gcs-retention-policy
+    equivalence: UNAVAILABLE
+    caveat: "Legal-hold semantics have no exact equivalent in this registry version"
+    evidence: "CAIRN service map seed; AWS S3 Object Lock and Google Cloud Storage retention documentation"
+  - id: lambda-to-cloud-functions
+    source_provider: aws
+    source_service: lambda
+    target_provider: gcp
+    target_service: cloud-functions
+    equivalence: APPROXIMATE
+    caveat: "Runtime, concurrency, event-source and packaging models differ"
+    regions: [europe-west2, us-central1, asia-south1]
+    evidence: "CAIRN service map seed; AWS Lambda and Google Cloud Functions documentation"
+  - id: cloudwatch-to-cloud-monitoring
+    source_provider: aws
+    source_service: cloudwatch
+    target_provider: gcp
+    target_service: cloud-monitoring
+    equivalence: APPROXIMATE
+    caveat: "Metric, alarm and dashboard definitions require translation"
+    regions: [europe-west2, us-central1]
+    evidence: "CAIRN service map seed; AWS CloudWatch and Google Cloud Monitoring documentation"

@@ -132,6 +132,18 @@ source = { editable = "apps/mcp-gateway" }
 name = "cairn-modules"
 version = "0.1.0"
 source = { editable = "packages/modules" }
+dependencies = [
+    { name = "cairn-contracts" },
+    { name = "cairn-kernel" },
+    { name = "pyyaml" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "cairn-contracts", editable = "packages/contracts" },
+    { name = "cairn-kernel", editable = "packages/kernel" },
+    { name = "pyyaml", specifier = ">=6.0.3" },
+]
 
 [[package]]
 name = "cairn-scheduler"
