@@ -1,0 +1,35 @@
+{
+  "group_id": "gcp_cis_v200",
+  "title": "CIS v2.0.0 Google Cloud Platform Foundation Benchmark",
+  "controls": [
+    {
+      "control_id": "gcp_cis_v200.control.cis_v200_7_9",
+      "title": "An unseeded control Steampipe ships that CAIRN does not yet map",
+      "results": [
+        {
+          "resource": "projects/my-project-1/instances/unmapped-instance",
+          "resource_type": "gcp_sql_database_instance",
+          "status": "alarm",
+          "reason": "No mapped control for this check"
+        }
+      ]
+    },
+    {
+      "control_id": "gcp_cis_v200.control.cis_v200_3_1",
+      "title": "3.1 Ensure that the default network does not exist in a project",
+      "results": [
+        {
+          "resource": "projects/my-project-2/global/networks/default",
+          "resource_type": "gcp_compute_network",
+          "status": "error",
+          "reason": "A status Steampipe can emit that this adapter does not recognize"
+        }
+      ]
+    },
+    {
+      "control_id": "gcp_cis_v200.control.cis_v200_3_6",
+      "title": "3.6 Ensure that SSH access is restricted from the internet",
+      "results": "not-an-array"
+    }
+  ]
+}
