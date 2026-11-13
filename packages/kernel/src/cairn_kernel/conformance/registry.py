@@ -66,6 +66,12 @@ V0_RULE_TITLES: dict[str, str] = {
         " external mutations, a complete compensation contract; new or removed"
         " surfaces fail this check until the matrix is updated"
     ),
+    "R-ADR-01": (
+        "ADR-008, ADR-009, ADR-010 and ADR-012 acceptance status is CI-checked,"
+        " not documentation-only: the decision-log table and each ADR's own"
+        " Status header must read Accepted or Accepted (amended), and the two"
+        " must agree"
+    ),
 }
 
 
