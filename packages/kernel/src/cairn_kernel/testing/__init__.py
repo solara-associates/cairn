@@ -4,6 +4,7 @@ from cairn_kernel.testing.fakes import (
     FixedClock,
     FixedIdGenerator,
     InMemoryUnitOfWork,
+    RotatingEvidenceVerifier,
 )
 
 __all__ = [
@@ -12,4 +13,5 @@ __all__ = [
     "FixedClock",
     "FixedIdGenerator",
     "InMemoryUnitOfWork",
+    "RotatingEvidenceVerifier",
 ]
