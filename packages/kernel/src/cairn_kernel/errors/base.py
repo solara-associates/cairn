@@ -17,6 +17,8 @@ class ErrorCode(str, Enum):
     AUDIT_UNAVAILABLE = "AUDIT_UNAVAILABLE"
     PROVIDER_UNAVAILABLE = "PROVIDER_UNAVAILABLE"
     COVERAGE_INCOMPLETE = "COVERAGE_INCOMPLETE"
+    INVALID_STATE_TRANSITION = "INVALID_STATE_TRANSITION"
+    SEPARATION_OF_DUTIES_VIOLATION = "SEPARATION_OF_DUTIES_VIOLATION"
     INTERNAL = "INTERNAL"
 
 
@@ -105,6 +107,16 @@ class ProviderUnavailableError(CairnError):
 class CoverageIncompleteError(CairnError):
     code = ErrorCode.COVERAGE_INCOMPLETE
     title = "Coverage incomplete"
+
+
+class InvalidStateTransitionError(CairnError):
+    code = ErrorCode.INVALID_STATE_TRANSITION
+    title = "Invalid state transition"
+
+
+class SeparationOfDutiesError(CairnError):
+    code = ErrorCode.SEPARATION_OF_DUTIES_VIOLATION
+    title = "Separation of duties violation"
 
 
 class ConfigurationError(CairnError):

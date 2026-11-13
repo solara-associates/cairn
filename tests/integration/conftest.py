@@ -136,6 +136,7 @@ def grant_application_role(dsn: str) -> None:
             f"GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO {APP_ROLE}"
         )
         connection.execute(f"REVOKE UPDATE, DELETE ON ledger_entry FROM {APP_ROLE}")
+        connection.execute(f"REVOKE UPDATE, DELETE ON subject_revision FROM {APP_ROLE}")
         connection.execute(
             f"GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO {APP_ROLE}"
         )

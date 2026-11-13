@@ -20,11 +20,6 @@ exceptions:
     reason: Mapping and confidence rendering land with R2-01
     expires_on: 2027-09-30
     evidence: CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md
-  - rule_id: R-REV-01
-    owner: revisions
-    reason: Immutable revision binding lands with revisions in R1-21
-    expires_on: 2027-03-31
-    evidence: CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md
   - rule_id: R-GATE-01
     owner: execution-gate
     reason: ExecutionGatePort and Class C blocking land with R1-22
@@ -33,11 +28,6 @@ exceptions:
   - rule_id: R-MUT-01
     owner: execution-gate
     reason: Command mutation classes land with the command surface in R1-22
-    expires_on: 2027-03-31
-    evidence: CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md
-  - rule_id: R-MUT-02
-    owner: execution-gate
-    reason: Compensation contracts land with external mutations in R1-21
     expires_on: 2027-03-31
     evidence: CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md
   - rule_id: R-IDEM-01
