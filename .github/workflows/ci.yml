@@ -36,6 +36,13 @@ jobs:
       - run: uv run python -m cairn_kernel.conformance
       - if: startsWith(github.ref, 'refs/tags/')
         run: uv run python -m cairn_kernel.conformance --release
+      - name: Generate Python SBOM
+        run: uvx --from cyclonedx-bom cyclonedx-py environment --output-format json --output-file python-sbom.cdx.json .venv
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: python-sbom
+          path: python-sbom.cdx.json
+          retention-days: 1
 
   rust:
     runs-on: ubuntu-latest
@@ -69,25 +76,40 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - name: Generate SBOM (Python + Rust, CycloneDX)
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: python-sbom
+      - name: Write syft config (Rust-only catalogers)
+        run: |
+          cat > /tmp/syft-rust.yaml <<'EOF'
+          default-catalogers:
+            - rust
+          EOF
+      - name: Generate Rust SBOM (CycloneDX, Cargo.lock)
         uses: anchore/sbom-action@9f7302141466aa6482940f15371237e9d9f4c34a # v0.19.0
         with:
           path: .
           format: cyclonedx-json
-          output-file: cairn-sbom.cdx.json
+          output-file: rust-sbom.cdx.json
+          config: /tmp/syft-rust.yaml
           upload-artifact: false
       - name: Install cosign
         uses: sigstore/cosign-installer@7e8b541eb2e61bf99390e1afd4be13a184e9ebc5 # v3.10.1
-      - name: Sign SBOM (keyless, GitHub OIDC)
+      - name: Sign SBOMs (keyless, GitHub OIDC)
         run: |
-          cosign sign-blob --yes \
-            --output-signature cairn-sbom.cdx.json.sig \
-            --output-certificate cairn-sbom.cdx.json.pem \
-            cairn-sbom.cdx.json
+          for f in python-sbom.cdx.json rust-sbom.cdx.json; do
+            cosign sign-blob --yes \
+              --output-signature "$f.sig" \
+              --output-certificate "$f.pem" \
+              "$f"
+          done
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: cairn-sbom
           path: |
-            cairn-sbom.cdx.json
-            cairn-sbom.cdx.json.sig
-            cairn-sbom.cdx.json.pem
+            python-sbom.cdx.json
+            python-sbom.cdx.json.sig
+            python-sbom.cdx.json.pem
+            rust-sbom.cdx.json
+            rust-sbom.cdx.json.sig
+            rust-sbom.cdx.json.pem
