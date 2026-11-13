@@ -1,0 +1,28 @@
+{
+  "result": [
+    {
+      "expressions": [
+        {
+          "value": [
+            {
+              "control_id": "cis_5_1",
+              "resource_id": "projects/my-project-1/buckets/public-bucket",
+              "resource_type": "gcp.storage.bucket",
+              "allow": false,
+              "message": "Bucket 'public-bucket' grants access to allUsers"
+            },
+            {
+              "control_id": "cis_6_1",
+              "resource_id": "projects/my-project-1/instances/primary-db",
+              "resource_type": "gcp.sql.instance",
+              "allow": true,
+              "message": "Instance 'primary-db' has no authorized network of 0.0.0.0/0"
+            }
+          ],
+          "text": "data.cairn.posture.findings",
+          "location": { "row": 1, "col": 1 }
+        }
+      ]
+    }
+  ]
+}

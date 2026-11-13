@@ -1,0 +1,35 @@
+{
+  "group_id": "gcp_cis_v200",
+  "title": "CIS v2.0.0 Google Cloud Platform Foundation Benchmark",
+  "description": "Steampipe compliance benchmark run for the GCP CIS foundation benchmark.",
+  "controls": [
+    {
+      "control_id": "gcp_cis_v200.control.cis_v200_3_1",
+      "title": "3.1 Ensure that the default network does not exist in a project",
+      "description": "The auto-created default VPC network ships with permissive default firewall rules.",
+      "severity": "medium",
+      "results": [
+        {
+          "resource": "projects/my-project-1/global/networks/default",
+          "resource_type": "gcp_compute_network",
+          "status": "alarm",
+          "reason": "Default network 'default' exists in project my-project-1"
+        }
+      ]
+    },
+    {
+      "control_id": "gcp_cis_v200.control.cis_v200_3_6",
+      "title": "3.6 Ensure that SSH access is restricted from the internet",
+      "description": "Firewall rules should not allow ingress on TCP port 22 from 0.0.0.0/0.",
+      "severity": "critical",
+      "results": [
+        {
+          "resource": "projects/my-project-1/global/firewalls/allow-all-ssh",
+          "resource_type": "gcp_compute_firewall",
+          "status": "ok",
+          "reason": "Firewall 'allow-all-ssh' does not allow 0.0.0.0/0 on tcp/22"
+        }
+      ]
+    }
+  ]
+}

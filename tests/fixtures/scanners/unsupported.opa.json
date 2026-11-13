@@ -1,0 +1,29 @@
+{
+  "result": [
+    {
+      "expressions": [
+        {
+          "value": [
+            {
+              "control_id": "cis_9_9",
+              "resource_id": "projects/my-project-1/unmapped-resource",
+              "resource_type": "gcp.unknown",
+              "allow": false,
+              "message": "No mapped control for this check"
+            },
+            {
+              "control_id": "cis_5_1",
+              "resource_id": "projects/my-project-1/buckets/ambiguous-bucket",
+              "resource_type": "gcp.storage.bucket",
+              "allow": "unknown",
+              "message": "A non-boolean 'allow' value this adapter does not accept"
+            },
+            "not-an-object"
+          ],
+          "text": "data.cairn.posture.findings",
+          "location": { "row": 1, "col": 1 }
+        }
+      ]
+    }
+  ]
+}
