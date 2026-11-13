@@ -1,0 +1,14 @@
+# pip-audit allowlist, read by the python-deps-scan CI job.
+#
+# One vulnerability ID (PYSEC-... or CVE-...) per line, with a comment above
+# it explaining why it's accepted. Blank lines and lines starting with # are
+# ignored.
+#
+# pip-audit's advisory sources (PyPI advisory DB / OSV) do not carry a
+# consistent CVSS severity for every Python advisory, so unlike the Rust and
+# container gates this one cannot filter by severity threshold directly: it
+# fails on ANY known vulnerability by default. That is the deliberately
+# stricter reading of "fail on critical and high" where the spec is silent —
+# anything lower-severity that needs to pass CI must be added here explicitly
+# with a reason, rather than silently let through by a threshold cargo-audit
+# and Trivy can express but pip-audit cannot.
