@@ -98,6 +98,7 @@ dependencies = [
     { name = "cairn-adapters" },
     { name = "cairn-contracts" },
     { name = "cairn-kernel" },
+    { name = "cairn-modules" },
     { name = "fastapi" },
     { name = "uvicorn" },
 ]
@@ -107,6 +108,7 @@ requires-dist = [
     { name = "cairn-adapters", editable = "packages/adapters" },
     { name = "cairn-contracts", editable = "packages/contracts" },
     { name = "cairn-kernel", editable = "packages/kernel" },
+    { name = "cairn-modules", editable = "packages/modules" },
     { name = "fastapi", specifier = ">=0.162.5" },
     { name = "uvicorn", specifier = ">=0.34" },
 ]
