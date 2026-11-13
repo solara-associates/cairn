@@ -8,6 +8,8 @@ dependencies = [
     "cairn-adapters",
     "cairn-contracts",
     "cairn-kernel",
+    "fastapi>=0.162.5",
+    "uvicorn>=0.34",
 ]
 
 [tool.uv.sources]
