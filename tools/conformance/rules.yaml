@@ -137,7 +137,13 @@ rules:
       runbook; replay cannot cross tenant scope
     owner: events
     mandatory: true
-    pending_story: R1-23
+    check: uv run pytest packages/kernel/tests/test_outbox_dispatcher.py -q
+    evidence:
+      - packages/kernel/src/cairn_kernel/outbox/dispatcher.py
+      - packages/kernel/src/cairn_kernel/outbox/store.py
+      - packages/kernel/src/cairn_kernel/outbox/ports.py
+      - packages/kernel/src/cairn_kernel/outbox/model.py
+      - packages/kernel/tests/test_outbox_dispatcher.py
 
   - id: R-TENANT-03
     title: >-
