@@ -77,7 +77,14 @@ rules:
     title: Approvals/executions bind to immutable revision rows and exact hashes
     owner: revisions
     mandatory: true
-    pending_story: R1-21
+    check: >-
+      uv run pytest packages/modules/tests/test_approvals_transitions.py
+      tests/integration/test_revision_approval_execution_schema.py -q
+    evidence:
+      - packages/adapters/src/cairn_adapters/persistence_postgres/migrations/0005_revision_approval_execution.up.sql
+      - packages/modules/src/cairn_modules/approvals/model.py
+      - packages/modules/tests/test_approvals_transitions.py
+      - tests/integration/test_revision_approval_execution_schema.py
 
   - id: R-GATE-01
     title: >-
@@ -103,7 +110,14 @@ rules:
       mutation class; an incomplete contract blocks authorization
     owner: execution-gate
     mandatory: true
-    pending_story: R1-21
+    check: >-
+      uv run pytest packages/modules/tests/test_execution_transitions.py
+      tests/integration/test_revision_approval_execution_schema.py -q
+    evidence:
+      - packages/adapters/src/cairn_adapters/persistence_postgres/migrations/0005_revision_approval_execution.up.sql
+      - packages/modules/src/cairn_modules/execution/model.py
+      - packages/modules/tests/test_execution_transitions.py
+      - tests/integration/test_revision_approval_execution_schema.py
 
   - id: R-IDEM-01
     title: >-
