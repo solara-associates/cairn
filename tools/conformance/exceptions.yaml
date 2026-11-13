@@ -40,13 +40,3 @@ exceptions:
     reason: Coverage floors and enforcement land with R0-17
     expires_on: 2027-03-31
     evidence: CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md
-  - rule_id: R-SEC-01
-    owner: security
-    reason: Security scan gate and risk acceptance land with R0-17
-    expires_on: 2027-03-31
-    evidence: CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md
-  - rule_id: R-SEC-02
-    owner: supply-chain
-    reason: SBOM and image signing land with R0-17
-    expires_on: 2027-03-31
-    evidence: CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md
