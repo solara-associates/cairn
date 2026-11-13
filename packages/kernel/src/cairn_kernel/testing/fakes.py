@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+from collections.abc import Mapping
 from datetime import datetime
 from itertools import count
 
@@ -93,3 +94,27 @@ class FakeEvidenceVerifier:
             return False
         expected = hmac.new(self._key, payload, hashlib.sha256).digest()
         return hmac.compare_digest(expected, signature)
+
+
+class RotatingEvidenceVerifier:
+    """A trust store keyed by key id, modelling ADR-008's "verification keys
+    are published" and the signature-agility requirement: a verifier that
+    knows both a retired key and its replacement, so evidence signed before a
+    rotation still verifies after it. docs/runbooks/key-rotation.md's dry run
+    is proven against this, not a real KMS key."""
+
+    def __init__(self, verifiers: Mapping[str, FakeEvidenceVerifier]) -> None:
+        self._verifiers = dict(verifiers)
+
+    def verify(
+        self,
+        payload: bytes,
+        *,
+        signature: bytes,
+        key_id: str,
+        algorithm: str,
+    ) -> bool:
+        verifier = self._verifiers.get(key_id)
+        if verifier is None:
+            return False
+        return verifier.verify(payload, signature=signature, key_id=key_id, algorithm=algorithm)
