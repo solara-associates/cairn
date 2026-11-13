@@ -47,18 +47,18 @@ def test_rollback_rejects_unknown_target(migrated_database: str) -> None:
 
 def test_rollback_rejects_unapplied_target(migrated_database: str) -> None:
     migrator = Migrator(migrated_database)
-    migrator.down("0004", allow_destructive=True)
-    assert migrator.applied_versions() == ("0001", "0002", "0003", "0004")
+    migrator.down("0005", allow_destructive=True)
+    assert migrator.applied_versions() == ("0001", "0002", "0003", "0004", "0005")
     with pytest.raises(MigrationError, match="not applied"):
-        migrator.down("0005", allow_destructive=True)
+        migrator.down("0006", allow_destructive=True)
 
 
 def test_rollback_is_one_step_by_default(migrated_database: str) -> None:
     migrator = Migrator(migrated_database)
     with pytest.raises(MigrationError, match="multi-step"):
-        migrator.down("0003")
-    assert migrator.down("0004", allow_destructive=True) == ("0005",)
-    assert migrator.applied_versions() == ("0001", "0002", "0003", "0004")
+        migrator.down("0004")
+    assert migrator.down("0005", allow_destructive=True) == ("0006",)
+    assert migrator.applied_versions() == ("0001", "0002", "0003", "0004", "0005")
 
 
 def test_rollback_allows_multiple_steps_when_requested(migrated_database: str) -> None:
@@ -68,12 +68,15 @@ def test_rollback_allows_multiple_steps_when_requested(migrated_database: str) -
     reverted = migrator.down(
         BASELINE, allow_multiple=True, allow_destructive=True
     )
-    assert reverted == ("0005", "0004", "0003", "0002", "0001")
+    assert reverted == ("0006", "0005", "0004", "0003", "0002", "0001")
     assert migrator.applied_versions() == ()
 
 
 def test_destructive_rollback_requires_explicit_flag(migrated_database: str) -> None:
     migrator = Migrator(migrated_database)
+    # 0006 only replaces a function definition; it is not destructive and
+    # needs no flag to revert.
+    assert migrator.down("0005") == ("0006",)
     with pytest.raises(MigrationError, match="destructive"):
         migrator.down("0004")
     assert migrator.applied_versions() == ("0001", "0002", "0003", "0004", "0005")
@@ -84,6 +87,7 @@ def test_production_destructive_rollback_requires_recovery_reference(
 ) -> None:
     monkeypatch.setenv("CAIRN_ENVIRONMENT", "production")
     migrator = Migrator(migrated_database, operator="dba-1")
+    assert migrator.down("0005", allow_destructive=True) == ("0006",)
     with pytest.raises(MigrationError, match="recovery reference"):
         migrator.down("0004", allow_destructive=True)
     assert migrator.down(
@@ -99,11 +103,11 @@ def test_rollback_preserves_business_data_and_records_history(
 ) -> None:
     _seed(migrated_database)
     migrator = Migrator(migrated_database, operator="alice")
-    assert migrator.down("0004", allow_destructive=True) == ("0005",)
+    assert migrator.down("0005", allow_destructive=True) == ("0006",)
     with psycopg.connect(migrated_database) as connection:
         assert connection.execute("SELECT count(*) FROM tenant").fetchone() == (1,)
         assert connection.execute("SELECT count(*) FROM project").fetchone() == (1,)
-    assert migrator.history()[-1] == ("0005", "down", "reverted")
+    assert migrator.history()[-1] == ("0006", "down", "reverted")
     with psycopg.connect(migrated_database) as connection:
         operator = connection.execute(
             "SELECT operator_name FROM schema_migration_history ORDER BY history_id DESC LIMIT 1"
@@ -147,5 +151,12 @@ def test_failed_rollback_leaves_recoverable_state(migration_database: str) -> No
 
 def test_history_records_successful_up_runs(migrated_database: str) -> None:
     history = Migrator(migrated_database).history()
-    assert [entry[2] for entry in history] == ["applied"] * 5
-    assert [entry[0] for entry in history] == ["0001", "0002", "0003", "0004", "0005"]
+    assert [entry[2] for entry in history] == ["applied"] * 6
+    assert [entry[0] for entry in history] == [
+        "0001",
+        "0002",
+        "0003",
+        "0004",
+        "0005",
+        "0006",
+    ]
