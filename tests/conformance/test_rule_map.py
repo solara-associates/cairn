@@ -34,6 +34,7 @@ SPEC_RULE_IDS = frozenset(
         "R-SEC-02",
         "R-CONF-01",
         "R-OPCLASS-01",
+        "R-ADR-01",
     }
 )
 
