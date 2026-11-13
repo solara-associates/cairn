@@ -49,7 +49,11 @@ rules:
     title: Evidence tamper/fork is detected
     owner: evidence
     mandatory: true
-    pending_story: R0-11
+    check: uv run pytest packages/kernel/tests/test_evidence.py -q
+    evidence:
+      - packages/kernel/tests/test_evidence.py
+      - packages/kernel/src/cairn_kernel/evidence/envelope.py
+      - packages/kernel/src/cairn_kernel/evidence/verify.py
 
   - id: R-AI-01
     title: Model output schema-validated

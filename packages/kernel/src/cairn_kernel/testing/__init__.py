@@ -1,3 +1,15 @@
-from cairn_kernel.testing.fakes import FixedClock, FixedIdGenerator, InMemoryUnitOfWork
+from cairn_kernel.testing.fakes import (
+    FakeEvidenceSigner,
+    FakeEvidenceVerifier,
+    FixedClock,
+    FixedIdGenerator,
+    InMemoryUnitOfWork,
+)
 
-__all__ = ["FixedClock", "FixedIdGenerator", "InMemoryUnitOfWork"]
+__all__ = [
+    "FakeEvidenceSigner",
+    "FakeEvidenceVerifier",
+    "FixedClock",
+    "FixedIdGenerator",
+    "InMemoryUnitOfWork",
+]

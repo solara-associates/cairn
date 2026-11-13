@@ -30,7 +30,7 @@ The first usable release is a commercial multi-tenant SaaS on Google Cloud, aime
 
 - Decisions: accepted (ADR-001 to ADR-018).
 - Architecture: frozen R0 baseline, spec v0.6, 11 November 2026.
-- Code: R0 foundation in progress. Implemented so far: build and CI workspaces; kernel primitives, ports and tenancy isolation; estate, event and API contracts; architecture import checks; conformance harness; Postgres tenancy schema with forced row level security; OIDC/JWT authentication with role checks; an append-only audit ledger; signed tenant assertions with forced row level security; a transactional audit boundary; tamper-evident ledger verification with canonical payloads; safe rollbacks and serialized migrations; and enforced conformance with expiring exceptions. There are no application use cases yet.
+- Code: R0 foundation in progress. Implemented so far: build and CI workspaces; kernel primitives, ports and tenancy isolation; estate, event and API contracts; architecture import checks; conformance harness; Postgres tenancy schema with forced row level security; OIDC/JWT authentication with role checks; an append-only audit ledger; signed tenant assertions with forced row level security; a transactional audit boundary; tamper-evident ledger verification with canonical payloads; safe rollbacks and serialized migrations; enforced conformance with expiring exceptions; and signed, hash-chained evidence envelopes with offline tamper and fork verification. There are no application use cases yet.
 - Team: one maintainer.
 - Timeline: ASAP, with no committed date. The specification gives a solo outlook of R0 in 8 to 12 weeks and R1 in 9 to 15 months.
 
