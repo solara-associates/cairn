@@ -1,0 +1,3 @@
+VMName,State,Generation,CPUCount,MemoryAssigned,Host
+app-01,Running,2,2,4294967296,hv-01.corp.local
+app-02,Off,1,1,2147483648,hv-02.corp.local
