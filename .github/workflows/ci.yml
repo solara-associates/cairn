@@ -55,6 +55,23 @@ jobs:
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
+      - name: Install cargo-audit
+        run: |
+          curl -sL -o cargo-audit.tgz "https://github.com/RustSec/rustsec/releases/download/cargo-audit%2Fv0.23.0/cargo-audit-x86_64-unknown-linux-gnu-v0.23.0.tgz"
+          echo "b77993532b253fcbf550996d7716465ec3d734d4e74e7f87bfb65a19add0fb59  cargo-audit.tgz" | sha256sum -c -
+          tar xzf cargo-audit.tgz
+          sudo install -m 755 cargo-audit-x86_64-unknown-linux-gnu-v0.23.0/cargo-audit /usr/local/bin/cargo-audit
+      - name: Run cargo audit (dependency vulnerability scan)
+        run: cargo audit --file Cargo.lock --format json > cargo-audit-result.json
+      - name: Show cargo audit report
+        if: always()
+        run: cat cargo-audit-result.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: cargo-audit-report
+          path: cargo-audit-result.json
+          retention-days: 1
 
   console:
     runs-on: ubuntu-latest
@@ -113,3 +130,134 @@ jobs:
             rust-sbom.cdx.json
             rust-sbom.cdx.json.sig
             rust-sbom.cdx.json.pem
+
+  python-deps-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+      - name: Export uv.lock to requirements format
+        run: |
+          uv export --frozen --all-packages --no-dev --format requirements.txt -o requirements-audit.txt
+          grep -v '^-e ' requirements-audit.txt > requirements-audit-filtered.txt
+      - name: Install pip-audit
+        run: python3 -m pip install --quiet "pip-audit==2.10.1"
+      - name: Run pip-audit (dependency vulnerability scan)
+        run: |
+          IGNORE_ARGS=()
+          while IFS= read -r line; do
+            case "$line" in
+              ''|'#'*) continue ;;
+            esac
+            IGNORE_ARGS+=(--ignore-vuln "$line")
+          done < .github/pip-audit-ignore.txt
+          python3 -m pip_audit \
+            -r requirements-audit-filtered.txt \
+            --no-deps --strict \
+            "${IGNORE_ARGS[@]}" \
+            -f json -o pip-audit-result.json
+      - name: Show pip-audit report
+        if: always()
+        run: cat pip-audit-result.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: pip-audit-report
+          path: pip-audit-result.json
+          retention-days: 1
+
+  secrets-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - name: Run gitleaks (secret scan)
+        run: |
+          docker run --rm -v "$PWD:/repo" \
+            zricethezav/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f \
+            detect --source /repo --redact --exit-code 1 \
+            --report-format json --report-path /repo/gitleaks-report.json --no-banner
+      - name: Show gitleaks report
+        if: always()
+        run: cat gitleaks-report.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: gitleaks-report
+          path: gitleaks-report.json
+          retention-days: 1
+
+  image-scan:
+    needs: [python, rust, console]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: api
+            dockerfile: apps/api/Dockerfile
+          - app: worker
+            dockerfile: apps/worker/Dockerfile
+          - app: console
+            dockerfile: apps/console/Dockerfile
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build image (no push)
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: false
+          load: true
+          tags: cairn-${{ matrix.app }}:ci
+      - name: Scan image for vulnerabilities (Trivy)
+        if: steps.build.outcome == 'success'
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: cairn-${{ matrix.app }}:ci
+          format: json
+          output: trivy-${{ matrix.app }}.json
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always() && steps.build.outcome == 'success'
+        with:
+          name: trivy-${{ matrix.app }}-report
+          path: trivy-${{ matrix.app }}.json
+          retention-days: 1
+      - name: Generate image SBOM
+        if: steps.build.outcome == 'success'
+        uses: anchore/sbom-action@9f7302141466aa6482940f15371237e9d9f4c34a # v0.19.0
+        with:
+          image: cairn-${{ matrix.app }}:ci
+          format: cyclonedx-json
+          output-file: image-${{ matrix.app }}-sbom.cdx.json
+          upload-artifact: false
+      - name: Install cosign
+        if: steps.build.outcome == 'success'
+        uses: sigstore/cosign-installer@7e8b541eb2e61bf99390e1afd4be13a184e9ebc5 # v3.10.1
+      - name: Sign image SBOM (keyless, GitHub OIDC)
+        if: steps.build.outcome == 'success'
+        run: |
+          f="image-${{ matrix.app }}-sbom.cdx.json"
+          cosign sign-blob --yes \
+            --output-signature "$f.sig" \
+            --output-certificate "$f.pem" \
+            "$f"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: steps.build.outcome == 'success'
+        with:
+          name: image-sbom-${{ matrix.app }}
+          path: |
+            image-${{ matrix.app }}-sbom.cdx.json
+            image-${{ matrix.app }}-sbom.cdx.json.sig
+            image-${{ matrix.app }}-sbom.cdx.json.pem
+          retention-days: 1
