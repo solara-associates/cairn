@@ -9,3 +9,13 @@ target/
 node_modules/
 *.tsbuildinfo
 .DS_Store
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+**/terraform.tfvars
+!**/terraform.tfvars.example
+crash.log
+crash.*.log
