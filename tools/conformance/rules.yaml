@@ -152,7 +152,14 @@ rules:
       tenant-context change attempts are rejected and audited
     owner: tenancy
     mandatory: true
-    pending_story: R1-19
+    check: >-
+      uv run pytest tests/integration/test_migrations.py
+      packages/kernel/tests/test_tenancy_isolation.py -q
+    evidence:
+      - packages/adapters/src/cairn_adapters/persistence_postgres/migrations/0006_tenant_context_change_guard.up.sql
+      - packages/adapters/src/cairn_adapters/persistence_postgres/context_guard.py
+      - tests/integration/test_migrations.py
+      - packages/kernel/tests/test_tenancy_isolation.py
 
   - id: R-COV-01
     title: Coverage floor per critical package
