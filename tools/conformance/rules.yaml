@@ -211,3 +211,20 @@ rules:
       - packages/kernel/src/cairn_kernel/classification/model.py
       - tests/conformance/test_classification_matrix.py
       - packages/kernel/tests/test_classification_model.py
+
+  - id: R-ADR-01
+    title: >-
+      ADR-008, ADR-009, ADR-010 and ADR-012 acceptance status is CI-checked,
+      not documentation-only: the decision-log table and each ADR's own
+      Status header must read Accepted or Accepted (amended), and the two
+      must agree
+    owner: platform
+    mandatory: true
+    check: uv run pytest tests/conformance/test_adr_acceptance.py -q
+    evidence:
+      - docs/adr/README.md
+      - docs/adr/ADR-008-evidence.md
+      - docs/adr/ADR-009-approval-binding.md
+      - docs/adr/ADR-010-gated-writes.md
+      - docs/adr/ADR-012-tenant-isolation.md
+      - tests/conformance/test_adr_acceptance.py
