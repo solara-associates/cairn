@@ -13,6 +13,7 @@ class ErrorCode(str, Enum):
     RECOVERY_PLAN_REQUIRED = "RECOVERY_PLAN_REQUIRED"
     RISK_ACCEPTANCE_REQUIRED = "RISK_ACCEPTANCE_REQUIRED"
     MAPPING_UNAVAILABLE = "MAPPING_UNAVAILABLE"
+    CONTROL_UNAVAILABLE = "CONTROL_UNAVAILABLE"
     EVIDENCE_VERIFICATION_FAILED = "EVIDENCE_VERIFICATION_FAILED"
     AUDIT_UNAVAILABLE = "AUDIT_UNAVAILABLE"
     PROVIDER_UNAVAILABLE = "PROVIDER_UNAVAILABLE"
@@ -87,6 +88,11 @@ class RiskAcceptanceRequiredError(CairnError):
 class MappingUnavailableError(CairnError):
     code = ErrorCode.MAPPING_UNAVAILABLE
     title = "Mapping unavailable"
+
+
+class ControlUnavailableError(CairnError):
+    code = ErrorCode.CONTROL_UNAVAILABLE
+    title = "Control unavailable"
 
 
 class EvidenceVerificationFailedError(CairnError):

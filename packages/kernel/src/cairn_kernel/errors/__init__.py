@@ -1,6 +1,7 @@
 from cairn_kernel.errors.base import (
     AuditUnavailableError,
     CairnError,
+    ControlUnavailableError,
     CoverageIncompleteError,
     ErrorCode,
     EvidenceVerificationFailedError,
@@ -24,6 +25,7 @@ from cairn_kernel.errors.base import (
 __all__ = [
     "AuditUnavailableError",
     "CairnError",
+    "ControlUnavailableError",
     "CoverageIncompleteError",
     "ErrorCode",
     "EvidenceVerificationFailedError",
