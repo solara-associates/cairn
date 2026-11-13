@@ -5,11 +5,6 @@ exceptions:
     reason: Class C execution paths and external-effect ordering land with R1-22
     expires_on: 2027-03-31
     evidence: docs/remediation/CA-003-audit-boundary.md
-  - rule_id: R-EVID-01
-    owner: evidence
-    reason: Evidence tamper and fork detection land with evidence storage in R0-11
-    expires_on: 2027-03-31
-    evidence: docs/remediation/CA-004-audit-integrity.md
   - rule_id: R-AI-01
     owner: ai
     reason: No model integration exists before R5-02
