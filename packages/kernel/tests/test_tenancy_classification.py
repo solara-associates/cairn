@@ -27,7 +27,12 @@ def test_tenancy_baseline_tables_are_classified() -> None:
         "role_grant",
         "ledger_entry",
     }
-    assert set(PROJECT_OWNED_TABLES) == {"project"}
+    assert set(PROJECT_OWNED_TABLES) == {
+        "project",
+        "subject_revision",
+        "approval",
+        "execution_record",
+    }
     assert TENANCY_CLASSIFICATION["schema_migration"] is TenancyScope.GLOBAL
 
 
