@@ -27,8 +27,8 @@ variable "workload_image" {
     sample image so this environment is internally consistent without
     requiring a registry push first.
   EOT
-  type    = string
-  default = "us-docker.pkg.dev/cloudrun/container/hello"
+  type        = string
+  default     = "us-docker.pkg.dev/cloudrun/container/hello"
 }
 
 variable "evidence_retention_period_seconds" {
