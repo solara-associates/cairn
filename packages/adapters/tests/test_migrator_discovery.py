@@ -18,12 +18,14 @@ def test_default_migrations_are_the_tenancy_baseline() -> None:
         "0002",
         "0003",
         "0004",
+        "0005",
     ]
     assert [migration.name for migration in migrations] == [
         "tenancy_baseline",
         "tenant_rls",
         "audit_ledger",
         "signed_tenant_context",
+        "revision_approval_execution",
     ]
 
 
