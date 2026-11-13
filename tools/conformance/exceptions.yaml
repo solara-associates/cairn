@@ -35,11 +35,6 @@ exceptions:
     reason: Idempotency records land with mutations in R1-22
     expires_on: 2027-03-31
     evidence: CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md
-  - rule_id: R-OUTBOX-01
-    owner: events
-    reason: Outbox failure injection lands with the event pipeline in R1-23
-    expires_on: 2027-03-31
-    evidence: CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md
   - rule_id: R-TENANT-03
     owner: tenancy
     reason: Pooled-connection and context-change coverage lands with R1-19
