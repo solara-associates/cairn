@@ -52,6 +52,7 @@ name = "cairn-adapters"
 version = "0.1.0"
 source = { editable = "packages/adapters" }
 dependencies = [
+    { name = "cairn-contracts" },
     { name = "cairn-kernel" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pyjwt", extra = ["crypto"] },
@@ -59,6 +60,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "cairn-contracts", editable = "packages/contracts" },
     { name = "cairn-kernel", editable = "packages/kernel" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
     { name = "pyjwt", extras = ["crypto"], specifier = ">=2.10" },
