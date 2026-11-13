@@ -43,7 +43,13 @@ rules:
       effect
     owner: audit
     mandatory: true
-    pending_story: R1-22
+    check: >-
+      uv run pytest packages/kernel/tests/test_execution_gate_ports.py
+      packages/modules/tests/test_execution_gate_lifecycle.py -q
+    evidence:
+      - packages/modules/src/cairn_modules/execution/gate.py
+      - packages/kernel/tests/test_execution_gate_ports.py
+      - packages/modules/tests/test_execution_gate_lifecycle.py
 
   - id: R-EVID-01
     title: Evidence tamper/fork is detected
@@ -92,7 +98,15 @@ rules:
       adapter before R4
     owner: execution-gate
     mandatory: true
-    pending_story: R1-22
+    check: >-
+      uv run pytest packages/kernel/tests/test_execution_gate_ports.py
+      packages/modules/tests/test_execution_gate_lifecycle.py -q
+    evidence:
+      - packages/kernel/src/cairn_kernel/execution_gate/ports.py
+      - packages/kernel/src/cairn_kernel/execution_gate/deterministic_adapter.py
+      - packages/modules/src/cairn_modules/execution/gate.py
+      - packages/kernel/tests/test_execution_gate_ports.py
+      - packages/modules/tests/test_execution_gate_lifecycle.py
 
   - id: R-MUT-01
     title: >-
@@ -101,7 +115,14 @@ rules:
       authorization
     owner: execution-gate
     mandatory: true
-    pending_story: R1-22
+    check: >-
+      uv run pytest packages/modules/tests/test_execution_transitions.py
+      packages/modules/tests/test_execution_gate_lifecycle.py -q
+    evidence:
+      - packages/modules/src/cairn_modules/execution/model.py
+      - packages/modules/src/cairn_modules/execution/gate.py
+      - packages/modules/tests/test_execution_transitions.py
+      - packages/modules/tests/test_execution_gate_lifecycle.py
 
   - id: R-MUT-02
     title: >-
@@ -126,7 +147,14 @@ rules:
       handling and expiry
     owner: execution-gate
     mandatory: true
-    pending_story: R1-22
+    check: >-
+      uv run pytest packages/kernel/tests/test_execution_gate_ports.py
+      packages/modules/tests/test_execution_gate_lifecycle.py -q
+    evidence:
+      - packages/kernel/src/cairn_kernel/execution_gate/idempotency.py
+      - packages/modules/src/cairn_modules/execution/gate.py
+      - packages/kernel/tests/test_execution_gate_ports.py
+      - packages/modules/tests/test_execution_gate_lifecycle.py
 
   - id: R-OUTBOX-01
     title: >-
