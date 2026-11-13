@@ -4,7 +4,14 @@ from contextlib import contextmanager
 
 import psycopg
 import pytest
+from cairn_adapters.persistence_postgres.audit import PostgresAuditSink
+from cairn_adapters.persistence_postgres.context_guard import (
+    CONTEXT_CHANGE_REJECTED_ACTION,
+    guard_tenant_context_change,
+)
 from cairn_adapters.persistence_postgres.migrator import BASELINE, Migrator
+from cairn_kernel.errors import TenantScopeViolationError
+from cairn_kernel.hex import TenantId
 from cairn_kernel.tenancy import (
     PROJECT_POLICY,
     REQUIRED_POLICIES,
@@ -63,7 +70,7 @@ def app_role_session(
 
 def test_migrations_up_and_down_round_trip(migration_database: str) -> None:
     migrator = Migrator(migration_database)
-    assert migrator.up() == ("0001", "0002", "0003", "0004", "0005")
+    assert migrator.up() == ("0001", "0002", "0003", "0004", "0005", "0006")
     with psycopg.connect(migration_database) as connection:
         assert _public_tables(connection) == {
             "tenant",
@@ -81,13 +88,13 @@ def test_migrations_up_and_down_round_trip(migration_database: str) -> None:
     assert migrator.up() == ()
     assert migrator.down(
         BASELINE, allow_multiple=True, allow_destructive=True
-    ) == ("0005", "0004", "0003", "0002", "0001")
+    ) == ("0006", "0005", "0004", "0003", "0002", "0001")
     with psycopg.connect(migration_database) as connection:
         assert _public_tables(connection) == {
             "schema_migration",
             "schema_migration_history",
         }
-    assert migrator.up() == ("0001", "0002", "0003", "0004", "0005")
+    assert migrator.up() == ("0001", "0002", "0003", "0004", "0005", "0006")
 
 
 def test_every_table_is_classified_with_required_rls(migrated_database: str) -> None:
@@ -221,6 +228,112 @@ def test_context_is_transaction_local(migrated_database: str) -> None:
             assert connection.execute("SELECT count(*) FROM tenant").fetchone() == (1,)
         with connection.transaction():
             assert connection.execute("SELECT count(*) FROM tenant").fetchone() == (0,)
+
+
+def test_context_change_is_rejected_mid_transaction(migrated_database: str) -> None:
+    """R-TENANT-03 / ADR-012: a second cairn_set_tenant_context call within
+    one transaction that names a *different* tenant -- a session-variable/
+    SET LOCAL tenant-context-change trick -- is rejected."""
+    ids = _seed_two_tenants(migrated_database)
+    with psycopg.connect(migrated_database, autocommit=True) as connection:
+        connection.execute(f"SET ROLE {APP_ROLE}")
+        with (
+            pytest.raises(psycopg.errors.InsufficientPrivilege),
+            connection.transaction(),
+        ):
+            connection.execute(
+                "SELECT cairn_set_tenant_context(%s)",
+                (signed_assertion(ids["tenant_a"]),),
+            )
+            connection.execute(
+                "SELECT cairn_set_tenant_context(%s)",
+                (signed_assertion(ids["tenant_b"]),),
+            )
+
+
+def test_context_reassertion_of_the_same_tenant_is_not_a_change(
+    migrated_database: str,
+) -> None:
+    """Re-asserting the same tenant context mid-transaction is not a
+    context-change attempt (e.g. a read-only ledger verification helper
+    that binds context defensively on every call) and stays legal."""
+    ids = _seed_two_tenants(migrated_database)
+    with psycopg.connect(migrated_database, autocommit=True) as connection:
+        connection.execute(f"SET ROLE {APP_ROLE}")
+        with connection.transaction():
+            connection.execute(
+                "SELECT cairn_set_tenant_context(%s)",
+                (signed_assertion(ids["tenant_a"]),),
+            )
+            connection.execute(
+                "SELECT cairn_set_tenant_context(%s)",
+                (signed_assertion(ids["tenant_a"]),),
+            )
+            assert connection.execute("SELECT count(*) FROM tenant").fetchone() == (
+                1,
+            )
+
+
+def test_context_change_attempt_is_audited(migrated_database: str) -> None:
+    ids = _seed_two_tenants(migrated_database)
+    bound_assertion = signed_assertion(ids["tenant_a"])
+    attempted_assertion = signed_assertion(ids["tenant_b"])
+    audit_sink = PostgresAuditSink(migrated_database, bound_assertion)
+    tenant_a = TenantId(str(ids["tenant_a"]))
+
+    with psycopg.connect(migrated_database, autocommit=True) as connection:
+        connection.execute(f"SET ROLE {APP_ROLE}")
+        with (
+            pytest.raises(TenantScopeViolationError),
+            connection.transaction(),
+        ):
+            connection.execute(
+                "SELECT cairn_set_tenant_context(%s)", (bound_assertion,)
+            )
+            guard_tenant_context_change(
+                connection,
+                new_assertion=attempted_assertion,
+                audit_sink=audit_sink,
+                bound_tenant_id=tenant_a,
+                bound_project_id=None,
+                actor="test-actor",
+            )
+
+    with app_role_session(migrated_database, tenant_id=ids["tenant_a"]) as connection:
+        rows = connection.execute(
+            "SELECT action, actor, payload FROM ledger_entry WHERE action = %s",
+            (CONTEXT_CHANGE_REJECTED_ACTION,),
+        ).fetchall()
+    assert len(rows) == 1
+    assert rows[0][0] == CONTEXT_CHANGE_REJECTED_ACTION
+    assert rows[0][1] == "test-actor"
+
+
+def test_new_transaction_context_change_is_unaffected(migrated_database: str) -> None:
+    """A legitimate context change across a new request/new transaction on
+    a pooled connection is unaffected by the mid-transaction guard."""
+    ids = _seed_two_tenants(migrated_database)
+    with psycopg.connect(migrated_database, autocommit=True) as connection:
+        connection.execute(f"SET ROLE {APP_ROLE}")
+        with connection.transaction():
+            connection.execute(
+                "SELECT cairn_set_tenant_context(%s)",
+                (signed_assertion(ids["tenant_a"]),),
+            )
+            assert connection.execute("SELECT count(*) FROM tenant").fetchone() == (
+                1,
+            )
+        with connection.transaction():
+            connection.execute(
+                "SELECT cairn_set_tenant_context(%s)",
+                (signed_assertion(ids["tenant_b"]),),
+            )
+            assert connection.execute("SELECT count(*) FROM tenant").fetchone() == (
+                1,
+            )
+            assert connection.execute(
+                "SELECT tenant_id FROM tenant"
+            ).fetchone() == (ids["tenant_b"],)
 
 
 def test_rls_policy_names_match_the_tenancy_contract(migrated_database: str) -> None:
