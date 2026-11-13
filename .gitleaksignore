@@ -1,0 +1,11 @@
+# gitleaks allowlist — documented exceptions only, one fingerprint per line.
+# Format: <commit>:<file>:<rule-id>:<start-line>  (gitleaks detect --report-format json
+# prints the exact fingerprint for any finding; copy it here verbatim to allowlist it).
+#
+# Add an entry only when the finding has been confirmed NOT to be a real secret
+# (e.g. a test fixture constant). Never allowlist a live credential.
+
+# Dummy HS256 test secrets used only to sign fixture JWTs in unit tests — not
+# real credentials, never used outside the test process. Confirmed R0-17b (2026-11-13).
+f0747d2953345156c5fbda2eb463df0c6e393ca8:apps/api/tests/test_auth_middleware.py:generic-api-key:10
+f0747d2953345156c5fbda2eb463df0c6e393ca8:packages/adapters/tests/test_auth_oidc.py:generic-api-key:9

@@ -1,0 +1,12 @@
+# cargo-audit config (read automatically from `.cargo/audit.toml`).
+# The spec (CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md §16.0) requires a dependency
+# vulnerability gate but is silent on severity thresholds, so this fails CI on
+# high and critical RustSec advisories and leaves lower severities visible but
+# non-blocking.
+#
+# Allowlist mechanism: add an advisory ID below with a comment explaining why
+# it is accepted. Never add an ID without a reason; never ignore a critical
+# advisory.
+[advisories]
+ignore = []
+severity_threshold = "high"
