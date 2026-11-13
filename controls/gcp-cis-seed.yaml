@@ -1,0 +1,87 @@
+version: "2026.11.1"
+released_at: "2026-11-13T00:00:00Z"
+status: PUBLISHED
+controls:
+  - id: gcp-cis-1.1
+    provider: gcp
+    benchmark: "CIS Google Cloud Platform Foundation Benchmark v2.0"
+    benchmark_section: "1.1"
+    category: "Identity and Access Management"
+    title: "Ensure that corporate login credentials are used instead of Gmail accounts"
+    description: "Project owners and editors should authenticate with the organization's managed identity provider rather than personal Gmail accounts."
+    rationale: "Personal accounts are outside organizational control and cannot be centrally deprovisioned or monitored."
+    remediation: "Migrate all project members to Cloud Identity or federated SSO accounts and remove Gmail-based principals."
+    severity: HIGH
+    automated: true
+
+  - id: gcp-cis-1.4
+    provider: gcp
+    benchmark: "CIS Google Cloud Platform Foundation Benchmark v2.0"
+    benchmark_section: "1.4"
+    category: "Identity and Access Management"
+    title: "Ensure that there are only GCP-managed service account keys for each service account"
+    description: "User-managed service account keys should not exist; GCP-managed keys are rotated automatically."
+    rationale: "User-managed keys are long-lived credentials that, if leaked, grant durable access with no automatic rotation."
+    remediation: "Delete user-managed service account keys and use workload identity federation or GCP-managed keys instead."
+    severity: HIGH
+    automated: true
+
+  - id: gcp-cis-3.1
+    provider: gcp
+    benchmark: "CIS Google Cloud Platform Foundation Benchmark v2.0"
+    benchmark_section: "3.1"
+    category: "Networking"
+    title: "Ensure that the default network does not exist in a project"
+    description: "The auto-created default VPC network ships with permissive default firewall rules."
+    rationale: "Default network firewall rules allow broad ingress that is rarely intended for production workloads."
+    remediation: "Delete the default network and define VPCs and firewall rules explicitly per workload."
+    severity: MEDIUM
+    automated: true
+
+  - id: gcp-cis-3.6
+    provider: gcp
+    benchmark: "CIS Google Cloud Platform Foundation Benchmark v2.0"
+    benchmark_section: "3.6"
+    category: "Networking"
+    title: "Ensure that SSH access is restricted from the internet"
+    description: "Firewall rules should not allow ingress on TCP port 22 from 0.0.0.0/0."
+    rationale: "Internet-exposed SSH is a common entry point for credential-stuffing and exploitation attempts."
+    remediation: "Restrict SSH ingress to known administrative ranges or use Identity-Aware Proxy for TCP forwarding."
+    severity: CRITICAL
+    automated: true
+
+  - id: gcp-cis-5.1
+    provider: gcp
+    benchmark: "CIS Google Cloud Platform Foundation Benchmark v2.0"
+    benchmark_section: "5.1"
+    category: "Storage"
+    title: "Ensure that Cloud Storage buckets are not anonymously or publicly accessible"
+    description: "Bucket IAM bindings should not grant access to allUsers or allAuthenticatedUsers."
+    rationale: "Public bucket access is a leading cause of unintended data exposure."
+    remediation: "Remove allUsers/allAuthenticatedUsers bindings and enforce bucket-level IAM with least privilege."
+    severity: CRITICAL
+    automated: true
+
+  - id: gcp-cis-6.1
+    provider: gcp
+    benchmark: "CIS Google Cloud Platform Foundation Benchmark v2.0"
+    benchmark_section: "6.1"
+    category: "Databases"
+    title: "Ensure that Cloud SQL database instances are not open to the world"
+    description: "Cloud SQL authorized networks should not include 0.0.0.0/0."
+    rationale: "An authorized network of 0.0.0.0/0 exposes the database to brute-force and exploitation attempts from any host."
+    remediation: "Restrict authorized networks to known ranges or require private IP and VPC peering."
+    severity: CRITICAL
+    automated: true
+
+  - id: gcp-cis-2.1
+    provider: gcp
+    benchmark: "CIS Google Cloud Platform Foundation Benchmark v2.0"
+    benchmark_section: "2.1"
+    category: "Logging and Monitoring"
+    title: "Ensure that Cloud Audit Logging is configured properly across all services and all users from a project"
+    description: "Admin Activity and Data Access audit logs should be retained and not excluded for any principal or service."
+    rationale: "Without complete audit logs, security investigations and compliance reporting cannot reconstruct what happened."
+    remediation: "Confirm audit logging is enabled org-wide and that no log exemptions apply to the project."
+    severity: MEDIUM
+    automated: false
