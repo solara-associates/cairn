@@ -117,6 +117,7 @@ jobs:
   terraform:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         dir:
           - infra/terraform/modules/cairn-network
