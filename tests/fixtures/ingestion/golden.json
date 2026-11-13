@@ -1,0 +1,6 @@
+{
+  "records": [
+    {"hostname": "web-01", "ip_address": "10.0.1.10", "role": "web"},
+    {"hostname": "db-01", "ip_address": "10.0.1.20", "role": null}
+  ]
+}

@@ -1,0 +1,3 @@
+VM,Powerstate,CPUs,Memory,Datacenter,Cluster,Host
+web-01,poweredOn,2,4096,DC1,ClusterA,esxi-01.corp.local
+db-01,poweredOff,4,16384,DC1,ClusterA,esxi-02.corp.local
