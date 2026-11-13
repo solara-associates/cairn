@@ -60,6 +60,12 @@ V0_RULE_TITLES: dict[str, str] = {
     "R-SEC-01": "No critical/high findings; high needs risk acceptance",
     "R-SEC-02": "SBOM and image signature present",
     "R-CONF-01": "Every mandatory rule maps to a check",
+    "R-OPCLASS-01": (
+        "Every existing API, MCP tool/resource, event and worker job carries an"
+        " operation class and mutation class, with a tenancy scope and, for"
+        " external mutations, a complete compensation contract; new or removed"
+        " surfaces fail this check until the matrix is updated"
+    ),
 }
 
 
