@@ -1,0 +1,13 @@
+.git
+.venv
+.pytest_cache
+.ruff_cache
+.import_linter_cache
+build
+target
+node_modules
+**/__pycache__
+**/*.pyc
+**/dist
+**/*.tsbuildinfo
+.DS_Store
