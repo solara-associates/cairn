@@ -171,13 +171,20 @@ rules:
     title: No critical/high findings; high needs risk acceptance
     owner: security
     mandatory: true
-    pending_story: R0-17
+    check: uv run pytest tests/conformance/test_ci_security_jobs.py -q
+    evidence:
+      - .github/workflows/ci.yml
+      - tests/conformance/test_ci_security_jobs.py
+      - .trivyignore
 
   - id: R-SEC-02
     title: SBOM and image signature present
     owner: supply-chain
     mandatory: true
-    pending_story: R0-17
+    check: uv run pytest tests/conformance/test_ci_security_jobs.py -q
+    evidence:
+      - .github/workflows/ci.yml
+      - tests/conformance/test_ci_security_jobs.py
 
   - id: R-CONF-01
     title: Every mandatory rule maps to a check
