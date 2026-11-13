@@ -7,6 +7,7 @@ validates this lifecycle against a deterministic test adapter only — no
 production Class C adapter exists or may be added here (ADR-010).
 """
 
+from cairn_modules.execution.gate import ExecutionGate, ExecutionOutcome
 from cairn_modules.execution.model import (
     ALLOWED_EXECUTION_TRANSITIONS,
     CompensationContract,
@@ -20,6 +21,8 @@ from cairn_modules.execution.model import (
 __all__ = [
     "ALLOWED_EXECUTION_TRANSITIONS",
     "CompensationContract",
+    "ExecutionGate",
+    "ExecutionOutcome",
     "ExecutionRecord",
     "ExecutionState",
     "RecoveryStrategy",
