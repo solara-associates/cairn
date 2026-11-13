@@ -8,6 +8,7 @@ dependencies = [
     "cairn-adapters",
     "cairn-contracts",
     "cairn-kernel",
+    "cairn-modules",
     "fastapi>=0.162.5",
     "uvicorn>=0.34",
 ]
@@ -16,6 +17,7 @@ dependencies = [
 cairn-adapters = { workspace = true }
 cairn-contracts = { workspace = true }
 cairn-kernel = { workspace = true }
+cairn-modules = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]
