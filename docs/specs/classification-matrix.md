@@ -34,16 +34,27 @@ Removing a classification entry for a surface that still exists fails
 verified during R0-19 by deleting one entry, confirming the test failed, and
 restoring it.
 
-## Counts as of R0-19 (R0-01..R0-15's work)
+## Counts as of R1-01 (R0-01..R0-15, R0-19 and R1-01's work)
 
 | Surface | Count | Classes present |
 |---|---|---|
-| API (apps/api, apps/worker health/readiness) | 4 | Class A, `READ_ONLY` |
+| API (apps/api, apps/worker health/readiness; R1-01 project/membership/settings) | 13 | Class A `READ_ONLY` (health/readiness, project/member/settings reads); Class B `INTERNAL_MUTATION` (project create/update, member add/remove, settings set) |
 | Event (declared in `cairn_contracts.events.model`) | 20 | 17 Class B `INTERNAL_MUTATION`; 3 Class C (`execution.*`) with a deferred mutation class — see below |
 | MCP tool / resource | 0 | `apps/mcp-gateway` is a docstring-only stub |
 | Worker job | 0 | no job beyond the health API above exists yet |
-| Table (Global/Tenant/Project) | 8 | see `cairn_kernel.tenancy.classification` |
+| Table (Global/Tenant/Project) | 8 | see `cairn_kernel.tenancy.classification`; R1-01's project/membership/settings surface reuses the existing `project` and `role_grant` tables, so no new table was added |
 | Bucket | 0 | no GCS adapter is wired yet |
+
+R1-01 added 9 API routes (create/read/update project; add/remove/list
+members; get/set settings, under `/v1/projects`), backed by
+`cairn_modules.projects.InMemoryProjectRepository` — the first in-process
+adapter any bounded-context module has shipped. `apps/api` still wires no
+production datastore for any surface, so this matches R0's existing
+maturity rather than introducing one ahead of need. Cross-tenant isolation
+is enforced the same way `packages/kernel/tests/test_tenancy_isolation.py`
+proves it for a generic repository: through the ambient `TenantContext`
+(ADR-012), not a new RLS policy — no new table was added, so none was
+needed.
 
 No external mutation (`REVERSIBLE_EXTERNAL_MUTATION`,
 `COMPENSATABLE_EXTERNAL_MUTATION`, or `IRREVERSIBLE_EXTERNAL_MUTATION`) exists

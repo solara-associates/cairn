@@ -9,3 +9,7 @@
 # real credentials, never used outside the test process. Confirmed R0-17b (2026-11-13).
 f0747d2953345156c5fbda2eb463df0c6e393ca8:apps/api/tests/test_auth_middleware.py:generic-api-key:10
 f0747d2953345156c5fbda2eb463df0c6e393ca8:packages/adapters/tests/test_auth_oidc.py:generic-api-key:9
+
+# Same dummy HS256 test secret constant, reused in R1-01's HTTP-layer test
+# fixture. Confirmed R1-01 (2026-11-13).
+45a7c068c8dd301b716a5b234a338b6bfa1c8cc1:apps/api/tests/test_projects_api.py:generic-api-key:18

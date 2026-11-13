@@ -59,6 +59,76 @@ OPERATIONS: tuple[OperationEntry, ...] = (
         mutation_class=MutationClass.READ_ONLY,
         tenancy_scope=TenancyScope.GLOBAL,
     ),
+    # --- apps/api: project, membership and settings APIs (R1-01) ---
+    # Creating and listing projects are tenant-level actions (no project
+    # exists yet, or the query spans every project the caller's tenant
+    # owns); every other route below acts on one existing project and is
+    # project-scoped. None of these crosses into a customer environment
+    # (ADR-010), so each mutation is Class B INTERNAL_MUTATION with no
+    # compensation contract, and each read is Class A READ_ONLY.
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.POST /v1/projects",
+        operation_class=OperationClass.WORKSPACE_MUTATION,
+        mutation_class=MutationClass.INTERNAL_MUTATION,
+        tenancy_scope=TenancyScope.TENANT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.GET /v1/projects",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.TENANT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.GET /v1/projects/{project_id}",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.PATCH /v1/projects/{project_id}",
+        operation_class=OperationClass.WORKSPACE_MUTATION,
+        mutation_class=MutationClass.INTERNAL_MUTATION,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.GET /v1/projects/{project_id}/members",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.POST /v1/projects/{project_id}/members",
+        operation_class=OperationClass.WORKSPACE_MUTATION,
+        mutation_class=MutationClass.INTERNAL_MUTATION,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.DELETE /v1/projects/{project_id}/members/{user_id}",
+        operation_class=OperationClass.WORKSPACE_MUTATION,
+        mutation_class=MutationClass.INTERNAL_MUTATION,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.GET /v1/projects/{project_id}/settings",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.PUT /v1/projects/{project_id}/settings",
+        operation_class=OperationClass.WORKSPACE_MUTATION,
+        mutation_class=MutationClass.INTERNAL_MUTATION,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
     # --- cairn_contracts.events: declared event envelopes (R0-05) ---
     # Every event below records a CAIRN-workspace fact or state change; none
     # of them is produced by a wired publisher yet (no EventPublisher adapter
