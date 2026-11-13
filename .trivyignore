@@ -1,0 +1,33 @@
+# Trivy allowlist for the image-scan CI job (auto-discovered from the repo
+# root as the default `.trivyignore` path).
+#
+# One CVE ID per line, with a comment above it explaining why it's accepted.
+# The job scans with `--severity CRITICAL,HIGH --exit-code 1`, so only
+# critical/high findings can fail the build; anything that needs to pass
+# despite that must be listed here explicitly with a reason.
+#
+# Each entry below carries an `exp:` date so it drops out and starts failing
+# the build again automatically if nobody revisits it — do not renew an
+# expiry without re-checking that the advisory still has no fix.
+
+# apps/api and apps/worker base image (ghcr.io/astral-sh/uv:python3.12-trixie-slim,
+# Debian 13 "trixie"), confirmed via local Trivy scan on 2026-11-13 after the
+# image was rebuilt with the latest base tag AND `apt-get upgrade`. All of the
+# following are HIGH-severity Debian OS-package advisories with Status
+# "affected" (no fixed version published by Debian yet) or "fix_deferred"
+# (Debian maintainers have explicitly deferred it) at the time of the scan —
+# there is no newer package version `apt-get upgrade` can install. Re-run the
+# image-scan job after the expiry date; anything Debian has since fixed will
+# start failing the build again until the base image/apt upgrade picks up
+# the fix.
+CVE-2025-69720 exp:2027-02-13
+CVE-2026-9538 exp:2027-02-13
+CVE-2026-16742 exp:2027-02-13
+CVE-2026-54369 exp:2027-02-13
+CVE-2026-76642 exp:2027-02-13
+CVE-2026-78408 exp:2027-02-13
+CVE-2026-78409 exp:2027-02-13
+CVE-2026-78410 exp:2027-02-13
+CVE-2026-119373 exp:2027-02-13
+CVE-2026-119374 exp:2027-02-13
+CVE-2026-119379 exp:2027-02-13

@@ -13,7 +13,9 @@ COPY apps/console apps/console
 
 RUN pnpm --filter @cairn/console run build
 
-FROM nginx:1.27-alpine
+FROM nginx:1.29-alpine
+
+RUN apk update && apk upgrade --no-cache
 
 COPY apps/console/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/apps/console/dist /usr/share/nginx/html
