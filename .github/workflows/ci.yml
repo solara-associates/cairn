@@ -261,3 +261,33 @@ jobs:
             image-${{ matrix.app }}-sbom.cdx.json.sig
             image-${{ matrix.app }}-sbom.cdx.json.pem
           retention-days: 1
+
+  terraform:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dir:
+          - infra/terraform/modules/cairn-network
+          - infra/terraform/modules/cairn-iam
+          - infra/terraform/modules/cairn-data
+          - infra/terraform/modules/cairn-runtime
+          - infra/terraform/modules/cairn-events
+          - infra/terraform/modules/cairn-observability
+          - infra/terraform/modules/cairn-guardrails
+          - infra/terraform/modules/cairn-evidence
+          - infra/terraform/modules/cairn-connections
+          - infra/terraform/envs/dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.7"
+      - run: terraform -chdir=${{ matrix.dir }} fmt -check -diff
+      - run: terraform -chdir=${{ matrix.dir }} init -backend=false
+      - run: terraform -chdir=${{ matrix.dir }} validate
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install checkov
+      - run: checkov --directory ${{ matrix.dir }} --download-external-modules false
