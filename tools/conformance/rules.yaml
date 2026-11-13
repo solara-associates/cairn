@@ -160,3 +160,20 @@ rules:
     evidence:
       - tests/conformance/test_rule_map.py
       - tools/conformance/exceptions.yaml
+
+  - id: R-OPCLASS-01
+    title: >-
+      Every existing API, MCP tool/resource, event and worker job carries an
+      operation class and mutation class, with a tenancy scope and, for
+      external mutations, a complete compensation contract; new or removed
+      surfaces fail this check until the matrix is updated
+    owner: execution-gate
+    mandatory: true
+    check: >-
+      uv run pytest packages/kernel/tests/test_classification_model.py
+      tests/conformance/test_classification_matrix.py -q
+    evidence:
+      - packages/kernel/src/cairn_kernel/classification/matrix.py
+      - packages/kernel/src/cairn_kernel/classification/model.py
+      - tests/conformance/test_classification_matrix.py
+      - packages/kernel/tests/test_classification_model.py
