@@ -1,10 +1,5 @@
 version: 0
 exceptions:
-  - rule_id: R-AUDIT-01
-    owner: audit
-    reason: Class C execution paths and external-effect ordering land with R1-22
-    expires_on: 2027-03-31
-    evidence: docs/remediation/CA-003-audit-boundary.md
   - rule_id: R-AI-01
     owner: ai
     reason: No model integration exists before R5-02
@@ -19,21 +14,6 @@ exceptions:
     owner: mapping
     reason: Mapping and confidence rendering land with R2-01
     expires_on: 2027-09-30
-    evidence: CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md
-  - rule_id: R-GATE-01
-    owner: execution-gate
-    reason: ExecutionGatePort and Class C blocking land with R1-22
-    expires_on: 2027-03-31
-    evidence: CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md
-  - rule_id: R-MUT-01
-    owner: execution-gate
-    reason: Command mutation classes land with the command surface in R1-22
-    expires_on: 2027-03-31
-    evidence: CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md
-  - rule_id: R-IDEM-01
-    owner: execution-gate
-    reason: Idempotency records land with mutations in R1-22
-    expires_on: 2027-03-31
     evidence: CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md
   - rule_id: R-COV-01
     owner: quality
