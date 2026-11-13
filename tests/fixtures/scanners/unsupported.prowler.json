@@ -1,0 +1,33 @@
+[
+  {
+    "AssessmentStartTime": "2026-11-10T00:00:00Z",
+    "FindingUniqueId": "prowler-gcp-storage_unknown_check-my-project-1",
+    "Provider": "gcp",
+    "CheckID": "storage_unknown_check_xyz",
+    "CheckTitle": "An unseeded check Prowler ships that CAIRN does not yet map",
+    "ServiceName": "storage",
+    "SubServiceName": "",
+    "Status": "FAIL",
+    "StatusExtended": "No mapped control for this check",
+    "Severity": "medium",
+    "ResourceType": "Bucket",
+    "ResourceId": "projects/my-project-1/buckets/unmapped-bucket",
+    "Region": "global"
+  },
+  {
+    "AssessmentStartTime": "2026-11-10T00:00:00Z",
+    "FindingUniqueId": "prowler-gcp-iam_corporate_login_credentials-my-project-2",
+    "Provider": "gcp",
+    "CheckID": "iam_corporate_login_credentials",
+    "CheckTitle": "Ensure that corporate login credentials are used instead of Gmail accounts",
+    "ServiceName": "iam",
+    "SubServiceName": "",
+    "Status": "NOTAPPLICABLE",
+    "StatusExtended": "A status Prowler can emit that this adapter does not recognize",
+    "Severity": "high",
+    "ResourceType": "Project",
+    "ResourceId": "projects/my-project-2",
+    "Region": "global"
+  },
+  "not-an-object"
+]

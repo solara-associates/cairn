@@ -1,0 +1,32 @@
+[
+  {
+    "AssessmentStartTime": "2026-11-10T00:00:00Z",
+    "FindingUniqueId": "prowler-gcp-iam_corporate_login_credentials-my-project-1",
+    "Provider": "gcp",
+    "CheckID": "iam_corporate_login_credentials",
+    "CheckTitle": "Ensure that corporate login credentials are used instead of Gmail accounts",
+    "ServiceName": "iam",
+    "SubServiceName": "",
+    "Status": "FAIL",
+    "StatusExtended": "User alice@gmail.com has Owner role on project my-project-1",
+    "Severity": "high",
+    "ResourceType": "Project",
+    "ResourceId": "projects/my-project-1",
+    "Region": "global"
+  },
+  {
+    "AssessmentStartTime": "2026-11-10T00:00:00Z",
+    "FindingUniqueId": "prowler-gcp-iam_user_managed_service_account_key-my-project-1",
+    "Provider": "gcp",
+    "CheckID": "iam_user_managed_service_account_key",
+    "CheckTitle": "Ensure that there are only GCP-managed service account keys for each service account",
+    "ServiceName": "iam",
+    "SubServiceName": "",
+    "Status": "PASS",
+    "StatusExtended": "No user-managed service account keys found in project my-project-1",
+    "Severity": "high",
+    "ResourceType": "ServiceAccount",
+    "ResourceId": "projects/my-project-1/serviceAccounts/app@my-project-1.iam.gserviceaccount.com",
+    "Region": "global"
+  }
+]
