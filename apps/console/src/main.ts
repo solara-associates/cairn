@@ -1,5 +1,7 @@
 import { Router } from "./router";
+import { isOidcCallback } from "./oidc";
 import { renderSignIn } from "./screens/signin";
+import { renderCallback } from "./screens/callback";
 import { renderProjects } from "./screens/projects";
 import { renderConnect } from "./screens/connect";
 import { renderRun } from "./screens/run";
@@ -36,7 +38,8 @@ async function checkApi(): Promise<void> {
 
 export function buildRouter(container: HTMLElement): Router {
   const router = new Router(container, "sign-in");
-  router.register({ name: "sign-in", render: (c) => renderSignIn(c, router) });
+  router.register({ name: "sign-in", render: (c) => renderSignIn(c) });
+  router.register({ name: "callback", render: (c) => renderCallback(c, router) });
   router.register({ name: "projects", render: (c) => renderProjects(c, router) });
   router.register({ name: "connect", render: (c) => renderConnect(c, router) });
   router.register({ name: "run", render: (c) => renderRun(c, router) });
@@ -48,7 +51,16 @@ export function buildRouter(container: HTMLElement): Router {
 
 const journeyContainer = document.querySelector<HTMLElement>("#journey");
 if (journeyContainer) {
-  buildRouter(journeyContainer).start();
+  const router = buildRouter(journeyContainer);
+  // The identity provider redirects back with `?code=...&state=...` (or
+  // `?error=...`) on the plain path configured as `redirectUri` -- not a
+  // hash route -- so this has to be detected before handing off to the
+  // hash-based router.
+  if (isOidcCallback(window.location.search)) {
+    void router.go("callback");
+  } else {
+    router.start();
+  }
 }
 
 void checkApi();
