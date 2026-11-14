@@ -10,7 +10,12 @@ signature is a genuine signature, not a hardcoded fixture."""
 import hashlib
 
 import pytest
-from cairn_adapters.evidence_kms import ALGORITHM, KmsEvidenceSigner, KmsEvidenceVerifier, KmsKeyVersion
+from cairn_adapters.evidence_kms import (
+    ALGORITHM,
+    KmsEvidenceSigner,
+    KmsEvidenceVerifier,
+    KmsKeyVersion,
+)
 from cairn_kernel.errors import ProviderUnavailableError
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
