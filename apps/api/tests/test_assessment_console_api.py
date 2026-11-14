@@ -224,3 +224,96 @@ def test_a_second_evidence_package_for_the_same_project_chains_to_the_first(
     ).json()
 
     assert second["envelope"]["previous_hash"] == first["envelope"]["payload_hash"]
+
+
+# --- R1-19: cross-tenant adversarial coverage for every R1-18 route -----------
+# (test_results_for_another_tenants_run_is_not_found above already covers
+# /results; these close the gap on /report, the decision actions and
+# /evidence-package, which R1-18's own session did not test this way.)
+
+
+def test_report_for_another_tenants_run_is_not_found(client: TestClient) -> None:
+    run_id = _completed_run(client, _token(tenant_id=TENANT_A))
+    response = client.get(
+        f"/v1/projects/project-1/assessment-runs/{run_id}/report",
+        headers=_auth(_token(tenant_id=TENANT_B)),
+    )
+    assert response.status_code == 404
+
+
+def test_decision_actions_on_another_tenants_run_are_not_found(client: TestClient) -> None:
+    token_a = _token(tenant_id=TENANT_A)
+    run_id = _completed_run(client, token_a)
+    decision_id = _first_decision_id(client, run_id, token_a)
+    other_tenant = _auth(_token(tenant_id=TENANT_B))
+
+    assert (
+        client.post(
+            f"/v1/projects/project-1/assessment-runs/{run_id}/decisions/{decision_id}/accept",
+            headers=other_tenant,
+        ).status_code
+        == 404
+    )
+    assert (
+        client.post(
+            f"/v1/projects/project-1/assessment-runs/{run_id}/decisions/{decision_id}/reject",
+            json={"reason": "x"},
+            headers=other_tenant,
+        ).status_code
+        == 404
+    )
+    assert (
+        client.post(
+            f"/v1/projects/project-1/assessment-runs/{run_id}/decisions/{decision_id}/amend",
+            json={"disposition": "RETAIN", "rationale": "x", "confidence": 0.5},
+            headers=other_tenant,
+        ).status_code
+        == 404
+    )
+
+
+def test_evidence_package_for_another_tenants_run_is_not_found(client: TestClient) -> None:
+    run_id = _completed_run(client, _token(tenant_id=TENANT_A))
+    response = client.post(
+        f"/v1/projects/project-1/assessment-runs/{run_id}/evidence-package",
+        headers=_auth(_token(tenant_id=TENANT_B)),
+    )
+    assert response.status_code == 404
+
+
+def test_evidence_chains_do_not_cross_tenants_sharing_the_same_project_id(
+    client: TestClient,
+) -> None:
+    """Regression test for a real cross-tenant leak found in this session's
+    own earlier PR (#46): the evidence chain was keyed by ``project_id``
+    alone. ``project_id`` is a client-supplied path segment this route
+    never validates against real project ownership, so two different
+    tenants naming the same ``project_id`` (exactly what every other test
+    in this file does, with ``project-1``) must never chain their
+    evidence packages together -- that would leak one tenant's
+    ``payload_hash`` into another tenant's signed envelope.
+    """
+    token_a = _token(tenant_id=TENANT_A)
+    token_b = _token(tenant_id=TENANT_B)
+
+    run_a = _completed_run(client, token_a)
+    package_a = client.post(
+        f"/v1/projects/project-1/assessment-runs/{run_a}/evidence-package", headers=_auth(token_a)
+    ).json()
+    assert package_a["envelope"]["previous_hash"] is None
+
+    run_b = _completed_run(client, token_b)
+    package_b = client.post(
+        f"/v1/projects/project-1/assessment-runs/{run_b}/evidence-package", headers=_auth(token_b)
+    ).json()
+    assert package_b["envelope"]["previous_hash"] is None
+    assert package_b["envelope"]["previous_hash"] != package_a["envelope"]["payload_hash"]
+
+    # A second package for tenant A still chains to tenant A's own first
+    # package, proving the fix didn't also break same-tenant chaining.
+    run_a_2 = _completed_run(client, token_a)
+    package_a_2 = client.post(
+        f"/v1/projects/project-1/assessment-runs/{run_a_2}/evidence-package",
+        headers=_auth(token_a),
+    ).json()
+    assert package_a_2["envelope"]["previous_hash"] == package_a["envelope"]["payload_hash"]
