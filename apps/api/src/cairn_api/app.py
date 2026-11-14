@@ -3,22 +3,44 @@ import secrets
 import uuid
 from collections.abc import Callable, Mapping
 from importlib.metadata import PackageNotFoundError, version
+from pathlib import Path
 from typing import Any
 
 from cairn_adapters.auth_oidc import JwtAuthenticator, OidcSettings
+from cairn_contracts.finops import PriceListRelease
+from cairn_contracts.posture import ControlCatalogueRelease
 from cairn_kernel.errors import CairnError, UnauthenticatedError
+from cairn_kernel.outbox import InMemoryOutboxStore, OutboxStore
 from cairn_kernel.security import Principal
+from cairn_modules.assessment import AssessmentService, CheckpointStore, InMemoryCheckpointStore
+from cairn_modules.finops import load_price_list_release
+from cairn_modules.posture import load_control_catalogue_release
 from cairn_modules.projects import InMemoryProjectRepository, ProjectRepository, ProjectService
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from cairn_api.errors import problem_from_error
 from cairn_api.middleware import AuthMiddleware, CairnErrorMiddleware
+from cairn_api.routes_assessment import register_assessment_routes
 from cairn_api.routes_projects import register_projects_routes
 
 ReadinessProbe = Callable[[], Mapping[str, bool]]
 
 _PUBLIC_PATHS = frozenset({"/healthz", "/readyz"})
+
+# This monorepo has no separate packaging/distribution story yet for
+# seed data (controls/, pricing/) -- these resolve relative to the repo
+# root, same as the test suite's own fixtures. Revisit once a packaged
+# deployment needs its own copy.
+_REPO_ROOT = Path(__file__).resolve().parents[4]
+
+
+def _default_control_catalogue() -> ControlCatalogueRelease:
+    return load_control_catalogue_release(_REPO_ROOT / "controls" / "gcp-cis-seed.yaml")
+
+
+def _default_price_list() -> PriceListRelease:
+    return load_price_list_release(_REPO_ROOT / "pricing" / "gcp-price-list-seed.yaml")
 
 
 def _service_version() -> str:
@@ -93,6 +115,10 @@ def create_app(
     project_repository: ProjectRepository | None = None,
     authenticator: Any | None = None,
     assertion_secret: bytes | None = None,
+    assessment_checkpoint_store: CheckpointStore | None = None,
+    assessment_outbox: OutboxStore | None = None,
+    control_catalogue: ControlCatalogueRelease | None = None,
+    price_list: PriceListRelease | None = None,
 ) -> FastAPI:
     service_version = _service_version()
     probe = readiness or (dict)
@@ -124,6 +150,17 @@ def create_app(
 
     service = ProjectService(project_repository or InMemoryProjectRepository())
     register_projects_routes(app, service)
+
+    assessment_service = AssessmentService(
+        checkpoint_store=assessment_checkpoint_store or InMemoryCheckpointStore(),
+        outbox=assessment_outbox or InMemoryOutboxStore(),
+    )
+    register_assessment_routes(
+        app,
+        service=assessment_service,
+        control_catalogue=control_catalogue or _default_control_catalogue(),
+        price_list=price_list or _default_price_list(),
+    )
 
     app.add_exception_handler(CairnError, _cairn_error_handler)
     app.add_middleware(
