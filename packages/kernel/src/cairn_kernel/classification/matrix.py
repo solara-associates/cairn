@@ -129,6 +129,25 @@ OPERATIONS: tuple[OperationEntry, ...] = (
         mutation_class=MutationClass.INTERNAL_MUTATION,
         tenancy_scope=TenancyScope.PROJECT,
     ),
+    # --- apps/api: assessment orchestration async operation API (R1-15) ---
+    # Queuing/advancing a run is CAIRN's own workspace state (checkpoints,
+    # artifacts derived from already-ingested data); it never touches a
+    # customer environment (ADR-010), so each is Class B INTERNAL_MUTATION
+    # with no compensation contract, same as the project routes above.
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.POST /v1/projects/{project_id}/assessment-runs",
+        operation_class=OperationClass.WORKSPACE_MUTATION,
+        mutation_class=MutationClass.INTERNAL_MUTATION,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.GET /v1/projects/{project_id}/assessment-runs/{run_id}",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
     # --- cairn_contracts.events: declared event envelopes (R0-05) ---
     # Every event below records a CAIRN-workspace fact or state change; none
     # of them is produced by a wired publisher yet (no EventPublisher adapter

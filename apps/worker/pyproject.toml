@@ -5,9 +5,15 @@ description = "CAIRN worker service"
 requires-python = ">=3.12"
 license = "Apache-2.0"
 dependencies = [
+    "cairn-kernel",
+    "cairn-modules",
     "fastapi>=0.162.5",
     "uvicorn>=0.34",
 ]
+
+[tool.uv.sources]
+cairn-kernel = { workspace = true }
+cairn-modules = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]
