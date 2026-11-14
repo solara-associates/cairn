@@ -294,6 +294,7 @@ jobs:
           - infra/terraform/modules/cairn-evidence
           - infra/terraform/modules/cairn-connections
           - infra/terraform/envs/dev
+          - infra/terraform/envs/dev-foundation
     steps:
       - uses: actions/checkout@v4
       - uses: hashicorp/setup-terraform@v3
