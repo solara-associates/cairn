@@ -127,17 +127,19 @@ needs Allan's decision before a real pilot can run this unaided.
    whose algorithm literally reads `FAKE_HMAC_SHA256` (Finding 5) all
    appear verbatim. None of this is wrong, but none of it reads as
    customer-facing copy either.
-5. **The evidence signer is explicitly a non-production key, and says
-   so in the algorithm name (needs Allan).** `FAKE_HMAC_SHA256`
-   (`apps/api/src/cairn_api/app.py`'s `_LocalEvidenceSigner`) is a
-   process-local key minted fresh on every API restart -- it does not
-   survive a restart and is not a real signing key. A pilot's signed
-   evidence package is real in structure (hash chain, tamper
-   detection) but not yet backed by a durable, production key.
-   **Needs Allan**: decide whether a pilot may run against this local
-   signer, or whether a real KMS-backed signer (not yet built --
-   `cairn_adapters.evidence_kms` is still a docstring stub) is required
-   first.
+5. **The evidence signer is explicitly a non-production key by
+   default -- a real one now exists but isn't wired to any deployment
+   (session s684, 2026-11-14).** `apps/api`'s default remains
+   `_LocalEvidenceSigner` (`FAKE_HMAC_SHA256`, process-local, does not
+   survive a restart) unless `CAIRN_KMS_*` env vars are set. A real
+   Cloud KMS signing key (`cairn-dev-evidence-signing`, `europe-west2`,
+   software protection) now exists in `solara-cairn-dev`, and
+   `cairn_adapters.evidence_kms` implements the signing/verification
+   ports against it (no longer a docstring stub) -- proven in
+   `tools/ops/kms_signing_proof.py` against the real key. **Still needs
+   Allan**: whether and when any real deployment is actually
+   configured to use it (no deployment is today -- this is a
+   configuration decision, not further code).
 6. **"0" everywhere in the report can read as a failure, not an
    honest result (presenter must explain).** "Controls evaluated: 0/7",
    "Cost baseline: ... Total: 0", "TCO: 0 ... (projected)" are all
@@ -174,9 +176,10 @@ needs Allan's decision before a real pilot can run this unaided.
    provider (issuer, client ID, redirect URI, and who gets an
    account/role with it) for an actual pilot deployment's
    `config.json`.
-2. **Evidence signing key** (Finding 5) -- decide whether a pilot may
-   run against the local non-production signer, or needs a real
-   KMS-backed one first.
+2. **Evidence signing key** (Finding 5) -- a real KMS-backed signer
+   now exists and is proven (session s684); decide whether and when
+   to point any real deployment's `CAIRN_KMS_*` config at it, or keep
+   running pilots against the local non-production signer for now.
 3. **Data-handling terms and SLO baseline -- approved for
    publication.** Allan approved `docs/pilot/data-handling-terms-
    draft.md` and `docs/pilot/slo-baseline-proposal.md` as drafted, on
