@@ -12,26 +12,45 @@ demo-readiness rule that code that works is not a pass. Every step
 below is what actually happened, not what was expected to happen. See
 "Findings from the real run" below for what did not go cleanly.
 
-**This runbook does not fully satisfy its own acceptance criterion
-today.** Step 1 (sign-in) requires an access token nobody but an
-engineer can currently produce -- see Finding 1. That gap is the single
-largest blocker to a real "no engineering intervention" pilot and
-needs Allan's decision (see "Needs Allan" at the end).
+**Update (session s684, 2026-11-14): Finding 1 below is
+resolved in code.** The console now drives a real, provider-agnostic
+OIDC authorization-code-with-PKCE flow (`apps/console/src/oidc.ts`,
+`apps/console/src/screens/signin.ts`/`callback.ts`) instead of asking
+the operator to paste a token; tokens are verified by the same
+existing kernel middleware this runbook already relied on. Proven
+against a real local OIDC provider (login, token refresh, RBAC role
+mapping, tenant isolation, rejection of a token from the wrong issuer)
+in `apps/api/tests/test_oidc_dex_integration.py`. What is **not** yet
+done is pointing a real deployment's `config.json` at an actual
+identity provider -- that is a per-deployment configuration decision,
+not a further code change, and is **still Allan's to make** (see
+"Needs Allan" below). Step 1 and the prerequisites below are updated
+to describe the new flow; this story's own real-browser proof (the
+rest of this runbook) predates it and has not been re-run end to end
+against a real IdP's own login page, since none is configured yet.
 
 ## Prerequisites
 
 - The CAIRN API (`apps/api`) and console (`apps/console`) are
-  deployed and reachable.
+  deployed and reachable, and the console's `config.json` points at a
+  real OIDC provider (issuer, client ID, redirect URI) that has
+  granted the pilot's user an account and role -- see
+  `apps/console/public/config.json.example`. No provider is configured
+  for any deployment today; that's Allan's decision (see "Needs
+  Allan").
 - The pilot has one estate-inventory file ready (CSV, JSON, an
   RVTools export, an HVTools export, or a BOM), or read-only
   credentials for a GCP project they want assessed.
-- The pilot has an access token issued for CAIRN (see Finding 1 --
-  today this step itself needs an engineer).
+- The pilot has an account with the identity provider configured
+  above (Finding 1 -- previously this step itself needed an engineer
+  to hand-issue a token; it no longer does, once a provider is
+  configured).
 
 ## Steps
 
-1. **Sign in.** Open the console. Paste the access token into the
-   "Access token" field and click Continue.
+1. **Sign in.** Open the console and click "Sign in". You're taken to
+   your organisation's identity provider to authenticate, then
+   returned to the console signed in.
 2. **Create a project.** On the Projects screen, type a project name
    (e.g. the customer or workload name) into "New project name" and
    click Create. The new project appears in the list below.
@@ -70,17 +89,17 @@ needs Allan's decision (see "Needs Allan" at the end).
 Each of these either needs a presenter's spoken explanation today, or
 needs Allan's decision before a real pilot can run this unaided.
 
-1. **Sign-in has no real login flow (presenter must explain / needs
-   Allan).** No identity-provider integration exists anywhere in this
-   codebase -- the console asks the operator to paste an
-   already-issued access token. A real pilot customer has no way to
-   obtain one without an engineer handing it to them, directly
-   contradicting this story's own acceptance criterion ("without
-   engineering intervention"). This is the single biggest gap between
-   what was proven today and a truly unassisted pilot. **Needs
-   Allan**: either wire in a real OIDC provider before any pilot, or
-   explicitly decide this story ships as "engineer provisions the
-   first token, pilot does everything after that."
+1. **Sign-in has no real login flow -- RESOLVED (session
+   s684, 2026-11-14).** A real, provider-agnostic OIDC
+   authorization-code-with-PKCE flow now exists
+   (`apps/console/src/oidc.ts`); the console redirects to the
+   configured identity provider instead of asking for a pasted token.
+   Proven against a real local OIDC provider in
+   `apps/api/tests/test_oidc_dex_integration.py`. **Still needs
+   Allan**: no real deployment's `config.json` names an actual
+   identity provider yet -- that's a configuration decision (which
+   IdP, whose accounts) separate from this code existing. See "Needs
+   Allan" below.
 2. **The connect-a-provider fields can be silently autofilled by the
    browser's own saved-password manager (presenter must explain).**
    Observed directly during this run: Chrome's autofill populated the
@@ -127,12 +146,15 @@ needs Allan's decision before a real pilot can run this unaided.
    like something didn't work.
 7. **Refreshing the browser mid-journey signs the pilot out and loses
    their place (off-script, presenter must explain).** Confirmed
-   directly: a page refresh at any step returns to the sign-in screen
-   with an empty token field. The underlying project and any
-   completed run are untouched server-side (nothing is lost there),
-   but the pilot has to paste their token again and re-select the
-   project and run -- which also means Finding 1 (no real login) is
-   now a recurring friction point, not just a one-time one.
+   directly: a page refresh at any step returns to the sign-in screen,
+   because the session lives only in an in-memory JS variable
+   (`apps/console/src/state.ts`), not persisted storage. The
+   underlying project and any completed run are untouched server-side
+   (nothing is lost there), but the pilot has to sign in again (now
+   via the real OIDC redirect -- Finding 1's fix changes *how* they
+   re-authenticate, not *whether* a refresh forces it) and re-select
+   the project and run. Not re-verified against this session's own
+   change; the underlying cause (no persisted session) is unchanged.
 8. **The browser's own Back button does nothing (off-script, not
    harmful).** Confirmed directly: the console's router never pushes
    browser history entries, so Back does not return to the previous
@@ -147,12 +169,20 @@ needs Allan's decision before a real pilot can run this unaided.
 
 ## Needs Allan
 
-1. **Sign-in / identity** (Finding 1) -- decide the real pilot auth
-   story before any external pilot runs this.
+1. **Sign-in / identity** (Finding 1) -- the OIDC mechanism is built
+   (session s684); what's left is naming a real identity
+   provider (issuer, client ID, redirect URI, and who gets an
+   account/role with it) for an actual pilot deployment's
+   `config.json`.
 2. **Evidence signing key** (Finding 5) -- decide whether a pilot may
    run against the local non-production signer, or needs a real
    KMS-backed one first.
-3. See `docs/pilot/data-handling-terms-draft.md` and
-   `docs/pilot/slo-baseline-proposal.md` for the other two items this
-   story asks for -- both stop at an explicit Allan decision point by
-   design, per the brief.
+3. **Data-handling terms and SLO baseline -- approved for
+   publication.** Allan approved `docs/pilot/data-handling-terms-
+   draft.md` and `docs/pilot/slo-baseline-proposal.md` as drafted, on
+   2026-11-14, to be published with the open-source project (session
+   s684). This approves publishing the documents in their current
+   drafted form -- it does not resolve the `[ALLAN: decide]` markers
+   each document still carries; those remain open questions within
+   the published text, not settled by this approval. See
+   `docs/acceptance/r0-20-review.md` for the recorded approval.
