@@ -1,0 +1,28 @@
+version: "2026.11.1"
+released_at: "2026-11-14T00:00:00Z"
+status: PUBLISHED
+entries:
+  - id: compute-n2-standard-4-europe-west2
+    provider: gcp
+    service: Compute Engine
+    sku: n2-standard-4
+    region: europe-west2
+    unit: hour
+    unit_price_minor: 19460
+    currency: GBP
+  - id: cloudsql-db-n1-standard-2-europe-west2
+    provider: gcp
+    service: Cloud SQL
+    sku: db-n1-standard-2
+    region: europe-west2
+    unit: hour
+    unit_price_minor: 15230
+    currency: GBP
+  - id: gcs-standard-storage-europe-west2
+    provider: gcp
+    service: Cloud Storage
+    sku: standard-storage
+    region: europe-west2
+    unit: gb-month
+    unit_price_minor: 190
+    currency: GBP
