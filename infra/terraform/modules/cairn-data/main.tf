@@ -17,8 +17,16 @@ resource "google_sql_database_instance" "cairn" {
     tier              = var.cloudsql_tier
     availability_type = var.cloudsql_availability_type
 
+    # UK residency commitment (R0-20 gate 11, docs/residency/uk-residency-matrix.md,
+    # Allan's decision 2026-11-14): automated backups and PITR storage are
+    # pinned to the instance's own region, never left to Cloud SQL's
+    # unpinned default, so backup storage never leaves the UK. GCP has a
+    # single UK region (europe-west2), so this is multi-zone resilience
+    # within London, not region-level disaster recovery -- there is no
+    # second UK region to fail over to.
     backup_configuration {
       enabled                        = true
+      location                       = var.region
       point_in_time_recovery_enabled = true
     }
 
