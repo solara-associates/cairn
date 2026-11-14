@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from cairn_adapters.auth_oidc import JwtAuthenticator, OidcSettings
+from cairn_adapters.evidence_kms import KmsEvidenceSigner, KmsKeyVersion
 from cairn_contracts.finops import PriceListRelease
 from cairn_contracts.posture import ControlCatalogueRelease
 from cairn_kernel.errors import CairnError, UnauthenticatedError
@@ -89,16 +90,18 @@ def _default_authenticator() -> JwtAuthenticator | _ClosedAuthenticator:
 
 
 class _LocalEvidenceSigner:
-    """Default console-wiring evidence signer.
+    """Fallback evidence signer for tests, CI and any deployment without a
+    configured KMS key.
 
-    No real KMS adapter exists yet (``cairn_adapters.evidence_kms`` is a
-    docstring stub -- R4/R5 scope); this mints a process-local HMAC key,
-    the same shape as ``_default_assertion_secret`` below, so the
-    evidence-package route still works without a cloud account. It
-    signs with the same ``FAKE_ALGORITHM`` R0-11's own fake/test signer
-    uses, so a chain sealed by this process verifies with
-    ``cairn_kernel.evidence.verify`` the same way, but it is explicitly
-    not a production signing key -- it does not survive a restart.
+    Mints a process-local HMAC key, the same shape as
+    ``_default_assertion_secret`` below, so the evidence-package route
+    still works without a cloud account. It signs with the same
+    ``FAKE_ALGORITHM`` R0-11's own fake/test signer uses, so a chain
+    sealed by this process verifies with ``cairn_kernel.evidence.verify``
+    the same way, but it is explicitly not a production signing key -- it
+    does not survive a restart. ``_default_evidence_signer`` below prefers
+    a real KMS-backed signer (``cairn_adapters.evidence_kms``) whenever one
+    is configured.
     """
 
     def __init__(self) -> None:
@@ -115,6 +118,23 @@ class _LocalEvidenceSigner:
 
     def sign(self, payload: bytes) -> bytes:
         return hmac.new(self._key, payload, hashlib.sha256).digest()
+
+
+def _default_evidence_signer() -> EvidenceSigner:
+    project_id = os.environ.get("CAIRN_KMS_PROJECT_ID")
+    location = os.environ.get("CAIRN_KMS_LOCATION")
+    key_ring = os.environ.get("CAIRN_KMS_KEY_RING")
+    key_name = os.environ.get("CAIRN_KMS_KEY_NAME")
+    if not (project_id and location and key_ring and key_name):
+        return _LocalEvidenceSigner()
+    key_version = KmsKeyVersion(
+        project_id=project_id,
+        location=location,
+        key_ring=key_ring,
+        key_name=key_name,
+        key_version=os.environ.get("CAIRN_KMS_KEY_VERSION", "1"),
+    )
+    return KmsEvidenceSigner(key_version)
 
 
 def _default_assertion_secret() -> bytes:
@@ -200,7 +220,7 @@ def create_app(
         control_catalogue=control_catalogue or _default_control_catalogue(),
         price_list=price_list or _default_price_list(),
         audit_sink=sink,
-        evidence_signer=evidence_signer or _LocalEvidenceSigner(),
+        evidence_signer=evidence_signer or _default_evidence_signer(),
     )
 
     register_connections_routes(
