@@ -5,6 +5,7 @@ export default defineConfig({
     proxy: {
       "/healthz": "http://localhost:8080",
       "/readyz": "http://localhost:8080",
+      "/v1": "http://localhost:8080",
     },
   },
 });

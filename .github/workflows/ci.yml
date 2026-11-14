@@ -92,6 +92,14 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm -r run lint
+      # The console's R1-18 end-to-end test spawns the real cairn_api
+      # backend (uv run uvicorn cairn_api.main:app) rather than mocking
+      # it, so the Python workspace needs to be set up here too.
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --all-packages
+      - run: pnpm -r run test
 
   sbom-sign:
     needs: [python, rust, console]
