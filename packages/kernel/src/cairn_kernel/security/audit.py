@@ -68,3 +68,26 @@ class AuditSink(Protocol):
 
 class MutationBoundary(Protocol):
     def execute(self, entry: AuditEntry, mutation: Callable[[Any], Any]) -> Any: ...
+
+
+class InMemoryAuditSink:
+    """Reference ``AuditSink`` adapter: appends to a process-local list.
+
+    Not durable and not chain-verified against a real ledger (see
+    ``cairn_adapters.persistence_postgres.audit`` for that) -- a
+    lightweight default for a call site that needs *an* ``AuditSink``
+    today and has no Postgres connection configured, the same role
+    ``InMemoryOutboxStore``/``InMemoryCheckpointStore`` play elsewhere
+    in this codebase.
+    """
+
+    def __init__(self) -> None:
+        self._entries: list[AuditEntry] = []
+
+    def append(self, entry: AuditEntry) -> str:
+        self._entries.append(entry)
+        return f"audit-{len(self._entries)}"
+
+    @property
+    def entries(self) -> tuple[AuditEntry, ...]:
+        return tuple(self._entries)
