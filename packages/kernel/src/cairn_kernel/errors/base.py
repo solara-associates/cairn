@@ -14,6 +14,7 @@ class ErrorCode(str, Enum):
     RISK_ACCEPTANCE_REQUIRED = "RISK_ACCEPTANCE_REQUIRED"
     MAPPING_UNAVAILABLE = "MAPPING_UNAVAILABLE"
     CONTROL_UNAVAILABLE = "CONTROL_UNAVAILABLE"
+    PRICE_LIST_UNAVAILABLE = "PRICE_LIST_UNAVAILABLE"
     EVIDENCE_VERIFICATION_FAILED = "EVIDENCE_VERIFICATION_FAILED"
     AUDIT_UNAVAILABLE = "AUDIT_UNAVAILABLE"
     PROVIDER_UNAVAILABLE = "PROVIDER_UNAVAILABLE"
@@ -93,6 +94,11 @@ class MappingUnavailableError(CairnError):
 class ControlUnavailableError(CairnError):
     code = ErrorCode.CONTROL_UNAVAILABLE
     title = "Control unavailable"
+
+
+class PriceListUnavailableError(CairnError):
+    code = ErrorCode.PRICE_LIST_UNAVAILABLE
+    title = "Price list unavailable"
 
 
 class EvidenceVerificationFailedError(CairnError):
