@@ -1,3 +1,5 @@
+import hashlib
+import hmac
 import os
 import secrets
 import uuid
@@ -10,9 +12,11 @@ from cairn_adapters.auth_oidc import JwtAuthenticator, OidcSettings
 from cairn_contracts.finops import PriceListRelease
 from cairn_contracts.posture import ControlCatalogueRelease
 from cairn_kernel.errors import CairnError, UnauthenticatedError
+from cairn_kernel.evidence import FAKE_ALGORITHM, EvidenceSigner
 from cairn_kernel.outbox import InMemoryOutboxStore, OutboxStore
-from cairn_kernel.security import Principal
+from cairn_kernel.security import AuditSink, InMemoryAuditSink, Principal
 from cairn_modules.assessment import AssessmentService, CheckpointStore, InMemoryCheckpointStore
+from cairn_modules.connections import ConnectionRegistry
 from cairn_modules.finops import load_price_list_release
 from cairn_modules.posture import load_control_catalogue_release
 from cairn_modules.projects import InMemoryProjectRepository, ProjectRepository, ProjectService
@@ -22,6 +26,7 @@ from fastapi.responses import JSONResponse
 from cairn_api.errors import problem_from_error
 from cairn_api.middleware import AuthMiddleware, CairnErrorMiddleware
 from cairn_api.routes_assessment import register_assessment_routes
+from cairn_api.routes_connections import register_connections_routes
 from cairn_api.routes_projects import register_projects_routes
 
 ReadinessProbe = Callable[[], Mapping[str, bool]]
@@ -83,6 +88,35 @@ def _default_authenticator() -> JwtAuthenticator | _ClosedAuthenticator:
     )
 
 
+class _LocalEvidenceSigner:
+    """Default console-wiring evidence signer.
+
+    No real KMS adapter exists yet (``cairn_adapters.evidence_kms`` is a
+    docstring stub -- R4/R5 scope); this mints a process-local HMAC key,
+    the same shape as ``_default_assertion_secret`` below, so the
+    evidence-package route still works without a cloud account. It
+    signs with the same ``FAKE_ALGORITHM`` R0-11's own fake/test signer
+    uses, so a chain sealed by this process verifies with
+    ``cairn_kernel.evidence.verify`` the same way, but it is explicitly
+    not a production signing key -- it does not survive a restart.
+    """
+
+    def __init__(self) -> None:
+        self._key = secrets.token_bytes(32)
+        self._key_id = f"local-evidence-key-{uuid.uuid4()}"
+
+    @property
+    def key_id(self) -> str:
+        return self._key_id
+
+    @property
+    def algorithm(self) -> str:
+        return FAKE_ALGORITHM
+
+    def sign(self, payload: bytes) -> bytes:
+        return hmac.new(self._key, payload, hashlib.sha256).digest()
+
+
 def _default_assertion_secret() -> bytes:
     configured = os.environ.get("CAIRN_TENANT_ASSERTION_SECRET")
     if configured:
@@ -119,6 +153,9 @@ def create_app(
     assessment_outbox: OutboxStore | None = None,
     control_catalogue: ControlCatalogueRelease | None = None,
     price_list: PriceListRelease | None = None,
+    connection_registry: ConnectionRegistry | None = None,
+    audit_sink: AuditSink | None = None,
+    evidence_signer: EvidenceSigner | None = None,
 ) -> FastAPI:
     service_version = _service_version()
     probe = readiness or (dict)
@@ -151,6 +188,8 @@ def create_app(
     service = ProjectService(project_repository or InMemoryProjectRepository())
     register_projects_routes(app, service)
 
+    sink = audit_sink or InMemoryAuditSink()
+
     assessment_service = AssessmentService(
         checkpoint_store=assessment_checkpoint_store or InMemoryCheckpointStore(),
         outbox=assessment_outbox or InMemoryOutboxStore(),
@@ -160,6 +199,12 @@ def create_app(
         service=assessment_service,
         control_catalogue=control_catalogue or _default_control_catalogue(),
         price_list=price_list or _default_price_list(),
+        audit_sink=sink,
+        evidence_signer=evidence_signer or _LocalEvidenceSigner(),
+    )
+
+    register_connections_routes(
+        app, registry=connection_registry or ConnectionRegistry(audit_sink=sink)
     )
 
     app.add_exception_handler(CairnError, _cairn_error_handler)

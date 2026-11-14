@@ -7,6 +7,7 @@ from cairn_kernel.security.assertion import (
 from cairn_kernel.security.audit import (
     AuditEntry,
     AuditSink,
+    InMemoryAuditSink,
     MutationBoundary,
     entry_hash,
 )
@@ -20,6 +21,7 @@ __all__ = [
     "AuditEntry",
     "AuditSink",
     "CanonicalJSONError",
+    "InMemoryAuditSink",
     "MutationBoundary",
     "Principal",
     "Role",

@@ -9,8 +9,11 @@ event -- never a direct ``EventPublisher`` call.
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import UTC, datetime
 
+from cairn_contracts.estate import DispositionDecision
+from cairn_kernel.errors import NotFoundError
 from cairn_kernel.outbox import OutboxStore
 
 from cairn_modules.assessment.outbox import OutboxPublishingCheckpointStore
@@ -54,6 +57,48 @@ class AssessmentService:
 
     def coverage_report(self, run_id: str) -> object:
         return coverage_report(self.get_run(run_id))
+
+    def get_decision(self, run_id: str, decision_id: str) -> DispositionDecision:
+        """The run's own R1-14 disposition decision with this id.
+
+        Raises ``NotFoundError`` if the classification stage never ran,
+        or ran but produced no decision with this id -- both are
+        reported the same way the run itself is not-found elsewhere in
+        this service, never a crash on a missing artifact key.
+        """
+        run = self.get_run(run_id)
+        decisions: tuple[DispositionDecision, ...] = run.context.artifacts.get(
+            "disposition_decisions", ()
+        )
+        for decision in decisions:
+            if decision.decision_id == decision_id:
+                return decision
+        raise NotFoundError(f"disposition decision {decision_id} not found on run {run_id}")
+
+    def review_decision(
+        self, run_id: str, decision_id: str, reviewed: DispositionDecision
+    ) -> AssessmentRun:
+        """Persist ``reviewed`` (the output of an accept/amend/reject call
+        in ``cairn_modules.planning``) back into the run's artifacts, and
+        checkpoint the run so the review durably sticks and the usual
+        stage-transition event still fires.
+        """
+        run = self.get_run(run_id)
+        decisions: tuple[DispositionDecision, ...] = run.context.artifacts.get(
+            "disposition_decisions", ()
+        )
+        updated = tuple(
+            reviewed if decision.decision_id == decision_id else decision
+            for decision in decisions
+        )
+        if updated == decisions and not any(
+            decision.decision_id == decision_id for decision in decisions
+        ):
+            raise NotFoundError(f"disposition decision {decision_id} not found on run {run_id}")
+        context = run.context.with_artifact("disposition_decisions", updated)
+        run = replace(run, context=context, updated_at=datetime.now(UTC))
+        self._store.save(run)
+        return run
 
 
 __all__ = ["AssessmentService"]
