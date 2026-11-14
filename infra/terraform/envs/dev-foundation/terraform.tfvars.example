@@ -1,0 +1,2 @@
+# Copy to terraform.tfvars. project_id must be solara-cairn-dev -- see README.md.
+project_id = "solara-cairn-dev"
