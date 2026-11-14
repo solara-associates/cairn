@@ -1,3 +1,5 @@
+import { loadConfig } from "./config";
+import { refreshAccessToken } from "./oidc";
 import { getSession } from "./state";
 
 let apiBase = "";
@@ -20,7 +22,26 @@ export class ApiError extends Error {
   }
 }
 
+// Refresh a little ahead of actual expiry so a request doesn't race the
+// token dying mid-flight.
+const REFRESH_SKEW_MS = 30_000;
+
+async function ensureFreshToken(): Promise<void> {
+  const session = getSession();
+  if (
+    !session.token ||
+    !session.refreshToken ||
+    !session.expiresAt ||
+    Date.now() < session.expiresAt - REFRESH_SKEW_MS
+  ) {
+    return;
+  }
+  const config = await loadConfig();
+  await refreshAccessToken(config.oidc, session.refreshToken);
+}
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  await ensureFreshToken();
   const headers: Record<string, string> = { Accept: "application/json" };
   const token = getSession().token;
   if (token) {

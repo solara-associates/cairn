@@ -19,6 +19,15 @@
  * "true end-to-end... against the real backend APIs... not mocked").
  * See the R1-18 handover for why a real-browser pass is still owed
  * before this console is shown to anyone.
+ *
+ * This file mints a token directly rather than driving the real OIDC
+ * redirect flow, so it can focus on the rest of the journey (ingest ->
+ * assess -> review -> report -> export) without re-proving sign-in on
+ * every run. The sign-in flow itself -- PKCE, discovery, the callback,
+ * refresh -- is covered by `tests/oidc.test.ts`,
+ * `tests/screens/signin.test.ts` and `tests/screens/callback.test.ts`
+ * (console side) and `apps/api/tests/test_oidc_dex_integration.py`
+ * (proving the same tokens verify against a real OIDC provider).
  */
 import { createHmac } from "node:crypto";
 import { ChildProcess, execFileSync, spawn } from "node:child_process";
