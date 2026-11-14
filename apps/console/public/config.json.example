@@ -1,0 +1,8 @@
+{
+  "oidc": {
+    "issuer": "https://your-identity-provider.example.com",
+    "clientId": "cairn-console",
+    "redirectUri": "https://console.example.com/",
+    "scope": "openid email profile offline_access"
+  }
+}
