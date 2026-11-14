@@ -13,3 +13,7 @@ f0747d2953345156c5fbda2eb463df0c6e393ca8:packages/adapters/tests/test_auth_oidc.
 # Same dummy HS256 test secret constant, reused in R1-01's HTTP-layer test
 # fixture. Confirmed R1-01 (2026-11-13).
 45a7c068c8dd301b716a5b234a338b6bfa1c8cc1:apps/api/tests/test_projects_api.py:generic-api-key:18
+
+# Same dummy HS256 test secret constant, reused in R1-15's HTTP-layer test
+# fixture. Confirmed R1-15 (2026-11-14).
+2c77c0ea2c9ef94017d8a6e29ec285877e38a8ba:apps/api/tests/test_assessment_api.py:generic-api-key:17
