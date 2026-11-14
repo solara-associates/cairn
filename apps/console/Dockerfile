@@ -19,5 +19,7 @@ RUN apk update && apk upgrade --no-cache
 
 COPY apps/console/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/apps/console/dist /usr/share/nginx/html
+COPY apps/console/docker-entrypoint.sh /docker-entrypoint.d/50-cairn-console-config.sh
+RUN chmod +x /docker-entrypoint.d/50-cairn-console-config.sh
 
 EXPOSE 8080
