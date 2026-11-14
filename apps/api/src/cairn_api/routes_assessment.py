@@ -307,14 +307,22 @@ def register_assessment_routes(
     ) -> dict[str, object]:
         run = _load_run(project_id, run_id, principal)
         package_id = f"{run.project_id}:{run.run_id}"
+        # Keyed by (tenant_id, project_id), not project_id alone: project_id
+        # is a client-supplied path segment this route never validates
+        # against real project ownership (no ProjectService lookup here),
+        # so two different tenants naming the same project_id (e.g. a
+        # fixture-style "project-1") must never chain their evidence
+        # packages together -- that would leak one tenant's payload_hash
+        # into another tenant's signed envelope as its previous_hash.
+        chain_key = (run.tenant_id, run.project_id)
         envelope, report = build_evidence_package(
             run,
             package_id=package_id,
             signer=evidence_signer,
             created_at=datetime.now(UTC),
-            previous_hash=_evidence_chain.get(run.project_id),
+            previous_hash=_evidence_chain.get(chain_key),
         )
-        _evidence_chain[run.project_id] = envelope.payload_hash
+        _evidence_chain[chain_key] = envelope.payload_hash
         return jsonable_encoder({"envelope": envelope.to_dict(), "report": report})
 
 
