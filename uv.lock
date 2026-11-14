@@ -187,12 +187,16 @@ name = "cairn-worker"
 version = "0.1.0"
 source = { editable = "apps/worker" }
 dependencies = [
+    { name = "cairn-kernel" },
+    { name = "cairn-modules" },
     { name = "fastapi" },
     { name = "uvicorn" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "cairn-kernel", editable = "packages/kernel" },
+    { name = "cairn-modules", editable = "packages/modules" },
     { name = "fastapi", specifier = ">=0.162.5" },
     { name = "uvicorn", specifier = ">=0.34" },
 ]
