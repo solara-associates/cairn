@@ -148,6 +148,99 @@ OPERATIONS: tuple[OperationEntry, ...] = (
         mutation_class=MutationClass.READ_ONLY,
         tenancy_scope=TenancyScope.PROJECT,
     ),
+    # --- apps/api: assessment run inspection, 6R review, report and
+    # evidence export (R1-16, R1-17, R1-18) ---
+    # Every route below reads or mutates this project's own already-
+    # computed assessment artifacts (stage outputs, 6R review state, a
+    # rendered report, a sealed evidence package); none of it crosses
+    # into a customer environment (ADR-010), so reads are Class A
+    # READ_ONLY and mutations are Class B INTERNAL_MUTATION with no
+    # compensation contract, same reasoning as the routes above.
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.GET /v1/projects/{project_id}/assessment-runs/{run_id}/results",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.GET /v1/projects/{project_id}/assessment-runs/{run_id}/report",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name=(
+            "api.POST /v1/projects/{project_id}/assessment-runs/{run_id}"
+            "/decisions/{decision_id}/accept"
+        ),
+        operation_class=OperationClass.WORKSPACE_MUTATION,
+        mutation_class=MutationClass.INTERNAL_MUTATION,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name=(
+            "api.POST /v1/projects/{project_id}/assessment-runs/{run_id}"
+            "/decisions/{decision_id}/reject"
+        ),
+        operation_class=OperationClass.WORKSPACE_MUTATION,
+        mutation_class=MutationClass.INTERNAL_MUTATION,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name=(
+            "api.POST /v1/projects/{project_id}/assessment-runs/{run_id}"
+            "/decisions/{decision_id}/amend"
+        ),
+        operation_class=OperationClass.WORKSPACE_MUTATION,
+        mutation_class=MutationClass.INTERNAL_MUTATION,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.POST /v1/projects/{project_id}/assessment-runs/{run_id}/evidence-package",
+        operation_class=OperationClass.WORKSPACE_MUTATION,
+        mutation_class=MutationClass.INTERNAL_MUTATION,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    # --- apps/api: provider connection create/validate/revoke (R1-02) ---
+    # A connection record is CAIRN's own workspace state (ADR-010: it
+    # carries a read-only assessment credential only, never execution
+    # scope), so creating/validating/revoking it is Class B
+    # INTERNAL_MUTATION with no compensation contract, and reading it
+    # is Class A READ_ONLY -- same reasoning as the project routes.
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.POST /v1/projects/{project_id}/connections",
+        operation_class=OperationClass.WORKSPACE_MUTATION,
+        mutation_class=MutationClass.INTERNAL_MUTATION,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.GET /v1/projects/{project_id}/connections/{connection_id}",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.POST /v1/projects/{project_id}/connections/{connection_id}/validate",
+        operation_class=OperationClass.WORKSPACE_MUTATION,
+        mutation_class=MutationClass.INTERNAL_MUTATION,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.POST /v1/projects/{project_id}/connections/{connection_id}/revoke",
+        operation_class=OperationClass.WORKSPACE_MUTATION,
+        mutation_class=MutationClass.INTERNAL_MUTATION,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
     # --- cairn_contracts.events: declared event envelopes (R0-05) ---
     # Every event below records a CAIRN-workspace fact or state change; none
     # of them is produced by a wired publisher yet (no EventPublisher adapter
