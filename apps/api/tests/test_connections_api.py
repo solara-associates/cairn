@@ -120,3 +120,47 @@ def test_unknown_connection_is_not_found(client: TestClient) -> None:
         "/v1/projects/project-1/connections/does-not-exist", headers=_auth(_token())
     )
     assert response.status_code == 404
+
+
+# --- R1-19: cross-tenant adversarial coverage for validate/revoke -------------
+# (only GET was covered this way before; validate/revoke never actually
+# mutate another tenant's connection because the lookup check comes
+# first, but that was never proven by a test until now.)
+
+
+def test_validate_another_tenants_connection_is_not_found(client: TestClient) -> None:
+    created = _create(client, _token(tenant_id=TENANT_A))
+
+    response = client.post(
+        f"/v1/projects/project-1/connections/{created['connection_id']}/validate",
+        headers=_auth(_token(tenant_id=TENANT_B)),
+    )
+    assert response.status_code == 404
+
+    # The connection is genuinely untouched -- same tenant can still
+    # validate it afterwards.
+    own_tenant_response = client.post(
+        f"/v1/projects/project-1/connections/{created['connection_id']}/validate",
+        headers=_auth(_token(tenant_id=TENANT_A)),
+    )
+    assert own_tenant_response.status_code == 200
+
+
+def test_revoke_another_tenants_connection_is_not_found_and_leaves_it_active(
+    client: TestClient,
+) -> None:
+    created = _create(client, _token(tenant_id=TENANT_A))
+
+    response = client.post(
+        f"/v1/projects/project-1/connections/{created['connection_id']}/revoke",
+        headers=_auth(_token(tenant_id=TENANT_B)),
+    )
+    assert response.status_code == 404
+
+    # The connection was never actually revoked by the other tenant's
+    # attempt -- its own tenant still sees it ACTIVE.
+    own_tenant_view = client.get(
+        f"/v1/projects/project-1/connections/{created['connection_id']}",
+        headers=_auth(_token(tenant_id=TENANT_A)),
+    )
+    assert own_tenant_view.json()["status"] == "ACTIVE"
