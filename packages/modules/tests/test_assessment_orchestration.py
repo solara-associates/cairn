@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 from cairn_contracts.posture import ControlCatalogueRelease
-from cairn_kernel.errors import InvalidStateTransitionError
+from cairn_kernel.errors import InvalidStateTransitionError, NotFoundError
 from cairn_kernel.outbox import InMemoryOutboxStore, OutboxDispatcher, OutboxPublishError
 from cairn_kernel.testing.fakes import FixedClock, InMemoryAuditSink
 from cairn_modules.assessment import (
@@ -34,6 +34,7 @@ from cairn_modules.assessment import (
     queue_run,
 )
 from cairn_modules.finops import BillingLineItem, TcoAssumptions, load_price_list_release
+from cairn_modules.planning import accept_disposition
 from cairn_modules.posture import load_control_catalogue_release
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -205,3 +206,61 @@ def test_stage_transition_events_flow_through_the_real_outbox_dispatcher() -> No
     assert "assessment.run.completed" in event_types
     assert all(message.tenant_id == TENANT for message in publisher.published)
     assert all(message.project_id == PROJECT for message in publisher.published)
+
+
+# --- R1-18 console wiring: decision lookup/review on a completed run ----------
+
+
+def test_get_decision_returns_the_matching_proposed_decision() -> None:
+    service = AssessmentService(checkpoint_store=InMemoryCheckpointStore(), outbox=InMemoryOutboxStore())
+    service.queue_run(run_id="run-1", tenant_id=TENANT, project_id=PROJECT)
+    run = service.advance_run("run-1", stage_fns=_build_stage_fns())
+    decision = run.context.artifacts["disposition_decisions"][0]
+
+    found = service.get_decision("run-1", decision.decision_id)
+
+    assert found.decision_id == decision.decision_id
+    assert found.status.value == "PROPOSED"
+
+
+def test_get_decision_raises_not_found_for_an_unknown_id() -> None:
+    service = AssessmentService(checkpoint_store=InMemoryCheckpointStore(), outbox=InMemoryOutboxStore())
+    service.queue_run(run_id="run-1", tenant_id=TENANT, project_id=PROJECT)
+    service.advance_run("run-1", stage_fns=_build_stage_fns())
+
+    with pytest.raises(NotFoundError):
+        service.get_decision("run-1", "does-not-exist")
+
+
+def test_review_decision_persists_the_reviewed_decision_into_the_run() -> None:
+    service = AssessmentService(checkpoint_store=InMemoryCheckpointStore(), outbox=InMemoryOutboxStore())
+    service.queue_run(run_id="run-1", tenant_id=TENANT, project_id=PROJECT)
+    run = service.advance_run("run-1", stage_fns=_build_stage_fns())
+    decision = run.context.artifacts["disposition_decisions"][0]
+    audit = InMemoryAuditSink()
+
+    accepted = accept_disposition(
+        decision, reviewer_actor_id="reviewer-1", audit_sink=audit, decided_at=MOMENT
+    )
+    updated_run = service.review_decision("run-1", decision.decision_id, accepted)
+
+    assert updated_run.context.artifacts["disposition_decisions"][0].status.value == "ACCEPTED"
+    reloaded = service.get_run("run-1")
+    assert reloaded.context.artifacts["disposition_decisions"][0].status.value == "ACCEPTED"
+    # Every other decision, if any, is untouched.
+    other_decisions = reloaded.context.artifacts["disposition_decisions"][1:]
+    assert all(d.status.value == "PROPOSED" for d in other_decisions)
+
+
+def test_review_decision_raises_not_found_for_an_unknown_id() -> None:
+    service = AssessmentService(checkpoint_store=InMemoryCheckpointStore(), outbox=InMemoryOutboxStore())
+    service.queue_run(run_id="run-1", tenant_id=TENANT, project_id=PROJECT)
+    run = service.advance_run("run-1", stage_fns=_build_stage_fns())
+    decision = run.context.artifacts["disposition_decisions"][0]
+    audit = InMemoryAuditSink()
+    accepted = accept_disposition(
+        decision, reviewer_actor_id="reviewer-1", audit_sink=audit, decided_at=MOMENT
+    )
+
+    with pytest.raises(NotFoundError):
+        service.review_decision("run-1", "does-not-exist", accepted)
