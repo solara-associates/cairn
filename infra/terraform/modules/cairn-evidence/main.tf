@@ -3,6 +3,13 @@
 # ADR-008: evidence packages are hash-chained and signed with a KMS-held key.
 # The key never leaves KMS — nothing here is a long-lived exportable secret.
 
+#: UK residency commitment (R0-20 gate 11, docs/residency/uk-residency-matrix.md,
+#: Allan's decision 2026-11-14): the evidence-signing key, and any future
+#: CAIRN-held key, is created and re-provisioned only in this ring, which
+#: is always `var.region` -- never a non-UK KMS location. The only IAM
+#: binding on the key is `signer`, below, scoped to `signerVerifier`: no
+#: binding here grants export, so there is no code path by which the key
+#: material could leave this location.
 resource "google_kms_key_ring" "evidence" {
   project  = var.project_id
   name     = "cairn-${var.environment}-evidence"
