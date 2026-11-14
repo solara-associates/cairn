@@ -12,6 +12,7 @@ from cairn_modules.reporting.renderer import (
     TcoAssumptionsSection,
     VersionsSection,
     render_report,
+    with_evidence_package_hash,
 )
 
 __all__ = [
@@ -22,4 +23,5 @@ __all__ = [
     "TcoAssumptionsSection",
     "VersionsSection",
     "render_report",
+    "with_evidence_package_hash",
 ]

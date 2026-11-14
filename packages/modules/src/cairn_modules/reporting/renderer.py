@@ -13,11 +13,14 @@ evidence package exists yet at this story (R1-17 builds one); this
 module carries an explicit, named placeholder field
 (``AssessmentReport.evidence_package_hash``, always ``None`` here) for
 R1-17 to fill in, rather than inventing a reference scheme now.
+R1-17's ``cairn_modules.evidence_service`` fills it in via
+:func:`with_evidence_package_hash` below, once its signed package
+exists.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from cairn_modules.assessment import AssessmentRun, coverage_report
 
@@ -278,6 +281,21 @@ def _render_text(
     return "\n".join(lines)
 
 
+_PENDING_EVIDENCE_LINE = "Evidence package hash: PENDING -- R1-17 fills this in"
+
+
+def with_evidence_package_hash(report: AssessmentReport, package_hash: str) -> AssessmentReport:
+    """Fill in the ADR-008 placeholder with a real evidence package hash.
+
+    Replaces both the structured field and the rendered placeholder
+    line -- the two must never disagree.
+    """
+    text = report.rendered_text.replace(
+        _PENDING_EVIDENCE_LINE, f"Evidence package hash: {package_hash}"
+    )
+    return replace(report, evidence_package_hash=package_hash, rendered_text=text)
+
+
 __all__ = [
     "AssessmentReport",
     "CostCoverage",
@@ -286,4 +304,5 @@ __all__ = [
     "TcoAssumptionsSection",
     "VersionsSection",
     "render_report",
+    "with_evidence_package_hash",
 ]
