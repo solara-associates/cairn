@@ -27,6 +27,13 @@ resource "google_storage_bucket" "terraform_state" {
   versioning {
     enabled = true
   }
+
+  # checkov:skip=CKV_GCP_62: no access-log bucket exists yet in this
+  # minimal foundation (infra/terraform/modules/cairn-observability,
+  # the module that provisions one, is deliberately out of scope here —
+  # see README.md). Wire `logging { log_bucket = ... }` once that module
+  # is applied for `dev`, same as infra/terraform/modules/cairn-data's
+  # buckets do.
 }
 
 # UK residency commitment (docs/residency/uk-residency-matrix.md, Allan's
