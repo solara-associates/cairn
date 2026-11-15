@@ -261,3 +261,14 @@ rules:
       - docs/adr/ADR-010-gated-writes.md
       - docs/adr/ADR-012-tenant-isolation.md
       - tests/conformance/test_adr_acceptance.py
+
+  - id: R-VER-01
+    title: Diagram, plan and IaC share model/mapping/pattern versions
+    owner: design
+    mandatory: true
+    check: uv run pytest tests/conformance/test_design_version_consistency.py -q
+    evidence:
+      - tests/conformance/test_design_version_consistency.py
+      - packages/modules/src/cairn_modules/design/diagram.py
+      - packages/modules/src/cairn_modules/planning/roadmap.py
+      - packages/modules/src/cairn_modules/planning/iac_plan.py
