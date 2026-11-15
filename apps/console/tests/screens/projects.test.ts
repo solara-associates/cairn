@@ -40,6 +40,23 @@ describe("renderProjects", () => {
     await vi.waitFor(() => expect(container.textContent).toBe("connect screen"));
   });
 
+  it("selecting a project for design routes to the pattern-select screen", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse([{ project_id: "p-1", tenant_id: "t-1", name: "Acme Migration", customer_name: null, created_at: "now", updated_at: "now" }]));
+    vi.stubGlobal("fetch", fetchMock);
+
+    document.body.innerHTML = '<div id="app"></div>';
+    const container = document.querySelector<HTMLElement>("#app")!;
+    const router = new Router(container, "projects");
+    router.register({ name: "patterns", render: (c) => { c.textContent = "patterns screen"; } });
+
+    await renderProjects(container, router);
+
+    container.querySelector<HTMLElement>("[data-action='select-project-for-design']")!.click();
+    await vi.waitFor(() => expect(container.textContent).toBe("patterns screen"));
+  });
+
   it("creates a project and refreshes the list", async () => {
     const fetchMock = vi
       .fn()

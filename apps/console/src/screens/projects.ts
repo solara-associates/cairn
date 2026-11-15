@@ -8,7 +8,10 @@ function projectRow(project: Project): string {
     <li>
       <span>${project.name}</span>
       <button type="button" data-action="select-project" data-project-id="${project.project_id}">
-        Select
+        Assess (connect/ingest)
+      </button>
+      <button type="button" data-action="select-project-for-design" data-project-id="${project.project_id}">
+        Design target architecture
       </button>
     </li>
   `;
@@ -66,6 +69,14 @@ export async function renderProjects(container: HTMLElement, router: Router): Pr
     if (projectId) {
       setProjectId(projectId);
       void router.go("connect");
+    }
+  });
+
+  onClick(container, "select-project-for-design", (_event, target) => {
+    const projectId = target.dataset.projectId;
+    if (projectId) {
+      setProjectId(projectId);
+      void router.go("patterns");
     }
   });
 
