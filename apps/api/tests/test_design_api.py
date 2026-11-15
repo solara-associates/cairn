@@ -276,6 +276,10 @@ def test_get_design_returns_the_full_export_bundle_with_consistent_versions(
             "target_provider": "gcp",
         }
     assert body["plan"]["plan_id"] == PLAN_ID
+    # R2-09 fix: ``version_stamps_consistent`` is a ``@property`` on the
+    # domain dataclass, not a field, so a plain ``jsonable_encoder``
+    # drops it silently -- this route puts it back on the wire.
+    assert body["version_stamps_consistent"] is True
 
 
 def test_get_design_diagram_returns_the_rendered_diagram(client: TestClient) -> None:
