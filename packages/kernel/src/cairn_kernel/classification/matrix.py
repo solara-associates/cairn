@@ -241,6 +241,53 @@ OPERATIONS: tuple[OperationEntry, ...] = (
         mutation_class=MutationClass.INTERNAL_MUTATION,
         tenancy_scope=TenancyScope.PROJECT,
     ),
+    # --- apps/api: mapping registry service, workflow and resolver (R2-01) ---
+    # Reads (list/get a release, resolve) are Class A READ_ONLY. The
+    # release content itself is global (spec 8.1), but these entries carry
+    # TENANT scope the same way ``api.GET /v1/projects`` does above: "every
+    # tenant can read this", not "this data belongs to one tenant".
+    # Proposing a mapping change is Class B INTERNAL_MUTATION, genuinely
+    # tenant-scoped -- a proposal is tenant-owned (spec 8.1) even though
+    # the release it targets is global. Publishing is Class B
+    # INTERNAL_MUTATION too, but GLOBAL: it mutates the global
+    # mapping_release/mapping_release_review tables and is gated by
+    # PLATFORM_OPERATOR (spec 12.1), never a tenant role --
+    # ``cairn_api.security.require_platform_operator``, not ``get_principal``.
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.GET /v1/mappings",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.TENANT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.GET /v1/mappings/{version}",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.TENANT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.POST /v1/mappings/resolve",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.TENANT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.POST /v1/mappings/proposals",
+        operation_class=OperationClass.WORKSPACE_MUTATION,
+        mutation_class=MutationClass.INTERNAL_MUTATION,
+        tenancy_scope=TenancyScope.TENANT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.POST /v1/mappings/{version}:publish",
+        operation_class=OperationClass.WORKSPACE_MUTATION,
+        mutation_class=MutationClass.INTERNAL_MUTATION,
+        tenancy_scope=TenancyScope.GLOBAL,
+    ),
     # --- cairn_contracts.events: declared event envelopes (R0-05) ---
     # Every event below records a CAIRN-workspace fact or state change; none
     # of them is produced by a wired publisher yet (no EventPublisher adapter

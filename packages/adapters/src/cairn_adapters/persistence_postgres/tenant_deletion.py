@@ -58,15 +58,28 @@ ERASED_TABLES: tuple[str, ...] = ("execution_record", "approval", "role_grant", 
 #: scrubbed of tenant-identifying content and tombstoned.
 SCRUBBED_TABLES: tuple[str, ...] = ("project", "tenant")
 
-#: Append-only by migration-level trigger (ADR-009). Never touched by this
-#: or any procedure.
-PRESERVED_AUDIT_TABLES: tuple[str, ...] = ("ledger_entry", "subject_revision")
+#: Append-only by migration-level trigger (ADR-009, and R2-01's identical
+#: ``mapping_proposal_append_only`` trigger). Never touched by this or any
+#: procedure. ``mapping_proposal`` references ``tenant(tenant_id)`` the
+#: same way ``ledger_entry`` does, which is why ``tenant`` rows are
+#: scrubbed rather than deleted below -- the same reason that already
+#: applied to ``ledger_entry``/``subject_revision``.
+PRESERVED_AUDIT_TABLES: tuple[str, ...] = (
+    "ledger_entry",
+    "subject_revision",
+    "mapping_proposal",
+)
 
 #: Classified GLOBAL: no per-tenant rows exist in these tables at all.
+#: mapping_release/mapping_release_review (R2-01) are global mapping
+#: registry content and workflow history -- CAIRN-operated, not owned by
+#: any one tenant (spec 8.1) -- so a tenant deletion never touches them.
 NO_TENANT_DATA_TABLES: tuple[str, ...] = (
     "schema_migration",
     "schema_migration_history",
     "tenant_context_secret",
+    "mapping_release",
+    "mapping_release_review",
 )
 
 _ALL_CLASSIFIED_TABLES = frozenset(

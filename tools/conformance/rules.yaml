@@ -77,7 +77,12 @@ rules:
     title: Approximate/unavailable never rendered as exact
     owner: mapping
     mandatory: true
-    pending_story: R2-01
+    check: >-
+      uv run pytest packages/modules/tests/test_mapping_workflow.py
+      tests/integration/test_mapping_release_schema.py -q
+    evidence:
+      - packages/modules/src/cairn_modules/mappings/resolver.py
+      - packages/modules/tests/test_mapping_workflow.py
 
   - id: R-REV-01
     title: Approvals/executions bind to immutable revision rows and exact hashes

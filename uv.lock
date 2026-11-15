@@ -173,6 +173,7 @@ source = { editable = "packages/modules" }
 dependencies = [
     { name = "cairn-contracts" },
     { name = "cairn-kernel" },
+    { name = "psycopg", extra = ["binary"] },
     { name = "pyyaml" },
 ]
 
@@ -180,6 +181,7 @@ dependencies = [
 requires-dist = [
     { name = "cairn-contracts", editable = "packages/contracts" },
     { name = "cairn-kernel", editable = "packages/kernel" },
+    { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
     { name = "pyyaml", specifier = ">=6.0.3" },
 ]
 
