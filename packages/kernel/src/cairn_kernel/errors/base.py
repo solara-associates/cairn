@@ -21,6 +21,7 @@ class ErrorCode(str, Enum):
     COVERAGE_INCOMPLETE = "COVERAGE_INCOMPLETE"
     INVALID_STATE_TRANSITION = "INVALID_STATE_TRANSITION"
     SEPARATION_OF_DUTIES_VIOLATION = "SEPARATION_OF_DUTIES_VIOLATION"
+    DEPENDENCY_CYCLE = "DEPENDENCY_CYCLE"
     INTERNAL = "INTERNAL"
 
 
@@ -129,6 +130,11 @@ class InvalidStateTransitionError(CairnError):
 class SeparationOfDutiesError(CairnError):
     code = ErrorCode.SEPARATION_OF_DUTIES_VIOLATION
     title = "Separation of duties violation"
+
+
+class DependencyCycleError(CairnError):
+    code = ErrorCode.DEPENDENCY_CYCLE
+    title = "Dependency cycle"
 
 
 class ConfigurationError(CairnError):
