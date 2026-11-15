@@ -22,3 +22,8 @@ f0747d2953345156c5fbda2eb463df0c6e393ca8:packages/adapters/tests/test_auth_oidc.
 # HTTP-layer test fixtures. Confirmed R1-18 (2026-11-14).
 f7d0b76bbf5321d39ebe73e165a81fce2ba95a29:apps/api/tests/test_connections_api.py:generic-api-key:17
 f7d0b76bbf5321d39ebe73e165a81fce2ba95a29:apps/api/tests/test_assessment_console_api.py:generic-api-key:20
+
+# Same dummy HS256 test secret constant, reused in the new
+# _default_authenticator env-wiring test added while preparing this
+# repository for open-source publication. Confirmed (2026-11-15).
+692eacd00b46dfc961074c3def3805945c7ab712:apps/api/tests/test_default_authenticator.py:generic-api-key:14

@@ -1,5 +1,5 @@
 variable "project_id" {
-  description = "GCP project ID. Must be solara-cairn-dev -- see README.md."
+  description = "GCP project ID for this dev foundation -- see README.md."
   type        = string
 }
 

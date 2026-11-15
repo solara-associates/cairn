@@ -133,7 +133,7 @@ needs Allan's decision before a real pilot can run this unaided.
    `_LocalEvidenceSigner` (`FAKE_HMAC_SHA256`, process-local, does not
    survive a restart) unless `CAIRN_KMS_*` env vars are set. A real
    Cloud KMS signing key (`cairn-dev-evidence-signing`, `europe-west2`,
-   software protection) now exists in `solara-cairn-dev`, and
+   software protection) now exists in `your-dev-project-id`, and
    `cairn_adapters.evidence_kms` implements the signing/verification
    ports against it (no longer a docstring stub) -- proven in
    `tools/ops/kms_signing_proof.py` against the real key. **Still needs
