@@ -29,6 +29,7 @@ from cairn_api.errors import problem_from_error
 from cairn_api.middleware import AuthMiddleware, CairnErrorMiddleware
 from cairn_api.routes_assessment import register_assessment_routes
 from cairn_api.routes_connections import register_connections_routes
+from cairn_api.routes_design import DesignRegistry, register_design_routes
 from cairn_api.routes_mappings import register_mapping_routes
 from cairn_api.routes_projects import register_projects_routes
 
@@ -189,6 +190,7 @@ def create_app(
     evidence_signer: EvidenceSigner | None = None,
     mapping_repository: MappingRepository | None = None,
     mapping_outbox: OutboxStore | None = None,
+    design_registry: DesignRegistry | None = None,
 ) -> FastAPI:
     service_version = _service_version()
     probe = readiness or (dict)
@@ -245,6 +247,8 @@ def create_app(
         outbox=mapping_outbox or InMemoryOutboxStore(),
     )
     register_mapping_routes(app, service=mapping_service)
+
+    register_design_routes(app, registry=design_registry or DesignRegistry())
 
     app.add_exception_handler(CairnError, _cairn_error_handler)
     app.add_middleware(
