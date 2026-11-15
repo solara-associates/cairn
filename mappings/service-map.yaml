@@ -1,7 +1,8 @@
-version: "2026.11.1"
-released_at: "2026-11-09T00:00:00Z"
-status: PUBLISHED
+version: "2026.11.2"
+released_at: "2026-11-15T00:00:00Z"
+status: DRAFT
 entries:
+  # --- AWS -> GCP (primary pilot pair; top-40 seed per ADR-004) -----------
   - id: s3-to-gcs
     source_provider: aws
     source_service: s3
@@ -10,17 +11,17 @@ entries:
     equivalence: APPROXIMATE
     caveat: "Consistency, lifecycle transition and access-control semantics differ"
     regions: [europe-west2, us-central1, asia-south1]
-    evidence: "CAIRN service map seed; AWS S3 and Google Cloud Storage documentation"
-    effective_from: "2026-11-01"
+    evidence: "AWS S3 User Guide; Google Cloud Storage documentation"
+    effective_from: "2026-11-15"
   - id: dynamodb-to-bigtable
     source_provider: aws
     source_service: dynamodb
     target_provider: gcp
     target_service: bigtable
     equivalence: APPROXIMATE
-    caveat: "Access patterns and secondary indexes require redesign"
+    caveat: "Access patterns and secondary indexes require redesign; Bigtable has no native secondary-index equivalent to DynamoDB GSIs/LSIs"
     regions: [europe-west2, us-central1]
-    evidence: "CAIRN service map seed; AWS DynamoDB and Google Cloud Bigtable documentation"
+    evidence: "AWS DynamoDB Developer Guide; Google Cloud Bigtable documentation"
   - id: step-functions-to-workflows
     source_provider: aws
     source_service: step-functions
@@ -29,33 +30,24 @@ entries:
     equivalence: APPROXIMATE
     caveat: "State language, retry semantics and connector coverage differ"
     regions: [europe-west2, us-central1]
-    evidence: "CAIRN service map seed; AWS Step Functions and Google Cloud Workflows documentation"
-  - id: sagemaker-to-vertex
+    evidence: "AWS Step Functions Developer Guide; Google Cloud Workflows documentation"
+  - id: sagemaker-to-vertex-ai
     source_provider: aws
     source_service: sagemaker
     target_provider: gcp
     target_service: vertex-ai
     equivalence: APPROXIMATE
-    caveat: "Notebook, pipeline and endpoint behaviour require revalidation"
+    caveat: "Notebook, pipeline and endpoint behaviour require revalidation; managed algorithm catalogues do not align 1:1"
     regions: [europe-west2, us-central1]
-    evidence: "CAIRN service map seed; AWS SageMaker and Google Cloud Vertex AI documentation"
-  - id: azure-openai-to-vertex
-    source_provider: azure
-    source_service: openai
-    target_provider: gcp
-    target_service: vertex-ai-gemini
-    equivalence: APPROXIMATE
-    caveat: "Model behaviour and API contracts differ; prompt and evaluation migration required"
-    regions: [europe-west2, us-central1]
-    evidence: "CAIRN service map seed; Azure OpenAI and Google Cloud Vertex AI documentation"
+    evidence: "AWS SageMaker Developer Guide; Google Cloud Vertex AI documentation"
   - id: s3-object-lock-to-gcs-retention
     source_provider: aws
     source_service: s3-object-lock
     target_provider: gcp
     target_service: gcs-retention-policy
     equivalence: UNAVAILABLE
-    caveat: "Legal-hold semantics have no exact equivalent in this registry version"
-    evidence: "CAIRN service map seed; AWS S3 Object Lock and Google Cloud Storage retention documentation"
+    caveat: "Legal-hold semantics (indefinite hold independent of retention period, governance-mode bypass permissions) have no exact equivalent in GCS retention policies/Bucket Lock"
+    evidence: "AWS S3 Object Lock documentation; Google Cloud Storage retention policy and Bucket Lock documentation"
   - id: lambda-to-cloud-functions
     source_provider: aws
     source_service: lambda
@@ -64,7 +56,7 @@ entries:
     equivalence: APPROXIMATE
     caveat: "Runtime, concurrency, event-source and packaging models differ"
     regions: [europe-west2, us-central1, asia-south1]
-    evidence: "CAIRN service map seed; AWS Lambda and Google Cloud Functions documentation"
+    evidence: "AWS Lambda Developer Guide; Google Cloud Functions documentation"
   - id: cloudwatch-to-cloud-monitoring
     source_provider: aws
     source_service: cloudwatch
@@ -73,4 +65,383 @@ entries:
     equivalence: APPROXIMATE
     caveat: "Metric, alarm and dashboard definitions require translation"
     regions: [europe-west2, us-central1]
-    evidence: "CAIRN service map seed; AWS CloudWatch and Google Cloud Monitoring documentation"
+    evidence: "AWS CloudWatch User Guide; Google Cloud Monitoring documentation"
+  - id: ec2-to-compute-engine
+    source_provider: aws
+    source_service: ec2
+    target_provider: gcp
+    target_service: compute-engine
+    equivalence: APPROXIMATE
+    caveat: "Instance-family naming, sustained-use/committed-use discounting and default live-migration behaviour differ"
+    regions: [europe-west2, us-central1]
+    evidence: "AWS EC2 User Guide; Google Cloud Compute Engine documentation"
+  - id: ebs-to-persistent-disk
+    source_provider: aws
+    source_service: ebs
+    target_provider: gcp
+    target_service: persistent-disk
+    equivalence: APPROXIMATE
+    caveat: "Provisioned-IOPS purchasing model and snapshot incrementality differ"
+    regions: [europe-west2, us-central1]
+    evidence: "AWS EBS User Guide; Google Cloud Persistent Disk documentation"
+  - id: vpc-to-vpc
+    source_provider: aws
+    source_service: vpc
+    target_provider: gcp
+    target_service: vpc
+    equivalence: APPROXIMATE
+    caveat: "AWS VPCs are regional with per-AZ subnets; GCP VPCs are global with regional subnets -- the addressing and routing model does not translate 1:1"
+    regions: [europe-west2, us-central1]
+    evidence: "AWS VPC User Guide; Google Cloud VPC documentation"
+  - id: alb-to-cloud-load-balancing
+    source_provider: aws
+    source_service: elastic-load-balancing-alb
+    target_provider: gcp
+    target_service: cloud-load-balancing
+    equivalence: APPROXIMATE
+    caveat: "ALB is regional; Cloud Load Balancing's HTTP(S) product is global by default -- failover and anycast behaviour differ"
+    regions: [europe-west2, us-central1]
+    evidence: "AWS Elastic Load Balancing (ALB) documentation; Google Cloud Load Balancing documentation"
+  - id: route53-to-cloud-dns
+    source_provider: aws
+    source_service: route53
+    target_provider: gcp
+    target_service: cloud-dns
+    equivalence: APPROXIMATE
+    caveat: "Routing-policy catalogues (latency, geolocation, weighted, failover) and health-check mechanics differ"
+    evidence: "AWS Route 53 Developer Guide; Google Cloud DNS documentation"
+  - id: rds-to-cloud-sql
+    source_provider: aws
+    source_service: rds
+    target_provider: gcp
+    target_service: cloud-sql
+    equivalence: APPROXIMATE
+    caveat: "Supported engine-version matrix, multi-region replica topology and maintenance-window mechanics differ"
+    regions: [europe-west2, us-central1]
+    evidence: "AWS RDS User Guide; Google Cloud SQL documentation"
+  - id: aurora-to-alloydb
+    source_provider: aws
+    source_service: aurora
+    target_provider: gcp
+    target_service: alloydb
+    equivalence: APPROXIMATE
+    caveat: "Aurora supports a MySQL- and a PostgreSQL-compatible edition; AlloyDB is PostgreSQL-compatible only, and the storage/replication architecture differs"
+    regions: [europe-west2, us-central1]
+    evidence: "AWS Aurora User Guide; Google Cloud AlloyDB for PostgreSQL documentation"
+  - id: redshift-to-bigquery
+    source_provider: aws
+    source_service: redshift
+    target_provider: gcp
+    target_service: bigquery
+    equivalence: APPROXIMATE
+    caveat: "Redshift is a provisioned-cluster warehouse with its own SQL dialect; BigQuery is serverless with a different pricing and dialect model -- query and cost behaviour both require revalidation"
+    regions: [europe-west2, us-central1]
+    evidence: "AWS Redshift Database Developer Guide; Google Cloud BigQuery documentation"
+  - id: emr-to-dataproc
+    source_provider: aws
+    source_service: emr
+    target_provider: gcp
+    target_service: dataproc
+    equivalence: APPROXIMATE
+    caveat: "Cluster lifecycle, autoscaling policy and default component versions differ"
+    regions: [europe-west2, us-central1]
+    evidence: "AWS EMR Management Guide; Google Cloud Dataproc documentation"
+  - id: glue-to-dataflow
+    source_provider: aws
+    source_service: glue
+    target_provider: gcp
+    target_service: dataflow
+    equivalence: APPROXIMATE
+    caveat: "Glue bundles a managed data catalogue with its ETL jobs; Dataflow is a pure Apache Beam execution engine with no built-in catalogue -- a catalogue (e.g. Dataproc Metastore/Data Catalog) must be paired separately"
+    regions: [europe-west2, us-central1]
+    evidence: "AWS Glue Developer Guide; Google Cloud Dataflow documentation"
+  - id: kinesis-data-streams-to-pubsub
+    source_provider: aws
+    source_service: kinesis-data-streams
+    target_provider: gcp
+    target_service: pubsub
+    equivalence: APPROXIMATE
+    caveat: "Kinesis's shard-based ordering and manual resharding have no direct equivalent in Pub/Sub's ordering-key model"
+    regions: [europe-west2, us-central1]
+    evidence: "AWS Kinesis Data Streams Developer Guide; Google Cloud Pub/Sub documentation"
+  - id: sqs-to-pubsub
+    source_provider: aws
+    source_service: sqs
+    target_provider: gcp
+    target_service: pubsub
+    equivalence: APPROXIMATE
+    caveat: "SQS standard/FIFO queue semantics and visibility timeouts map only approximately onto Pub/Sub's pull/push subscription and ordering-key model"
+    regions: [europe-west2, us-central1]
+    evidence: "AWS SQS Developer Guide; Google Cloud Pub/Sub documentation"
+  - id: sns-to-pubsub
+    source_provider: aws
+    source_service: sns
+    target_provider: gcp
+    target_service: pubsub
+    equivalence: APPROXIMATE
+    caveat: "SNS's push-subscription fan-out (including SMS/email endpoints) is broader than Pub/Sub's topic/subscription model, which targets application subscribers only"
+    regions: [europe-west2, us-central1]
+    evidence: "AWS SNS Developer Guide; Google Cloud Pub/Sub documentation"
+  - id: api-gateway-to-cloud-endpoints
+    source_provider: aws
+    source_service: api-gateway
+    target_provider: gcp
+    target_service: cloud-endpoints
+    equivalence: APPROXIMATE
+    caveat: "Usage-plan/API-key throttling and REST/HTTP/WebSocket API type distinctions differ"
+    regions: [europe-west2, us-central1]
+    evidence: "AWS API Gateway Developer Guide; Google Cloud Endpoints documentation"
+  - id: cloudfront-to-cloud-cdn
+    source_provider: aws
+    source_service: cloudfront
+    target_provider: gcp
+    target_service: cloud-cdn
+    equivalence: APPROXIMATE
+    caveat: "Edge point-of-presence footprint and cache-key/invalidation mechanics differ"
+    evidence: "AWS CloudFront Developer Guide; Google Cloud CDN documentation"
+  - id: iam-to-cloud-iam
+    source_provider: aws
+    source_service: iam
+    target_provider: gcp
+    target_service: cloud-iam
+    equivalence: APPROXIMATE
+    caveat: "AWS IAM's resource-based and identity-based policy language differs structurally from Cloud IAM's role-binding-on-resource-hierarchy model; policies do not translate mechanically"
+    evidence: "AWS IAM User Guide; Google Cloud IAM documentation"
+  - id: kms-to-cloud-kms
+    source_provider: aws
+    source_service: kms
+    target_provider: gcp
+    target_service: cloud-kms
+    equivalence: APPROXIMATE
+    caveat: "Key rotation cadence, grant model and multi-region key replication differ"
+    regions: [europe-west2, us-central1]
+    evidence: "AWS KMS Developer Guide; Google Cloud KMS documentation"
+  - id: secrets-manager-to-secret-manager
+    source_provider: aws
+    source_service: secrets-manager
+    target_provider: gcp
+    target_service: secret-manager
+    equivalence: EXACT
+    regions: [europe-west2, us-central1]
+    evidence: "AWS Secrets Manager User Guide; Google Cloud Secret Manager documentation"
+  - id: cloudtrail-to-cloud-audit-logs
+    source_provider: aws
+    source_service: cloudtrail
+    target_provider: gcp
+    target_service: cloud-audit-logs
+    equivalence: APPROXIMATE
+    caveat: "Trail/event-selector configuration and log-delivery/retention defaults differ"
+    evidence: "AWS CloudTrail User Guide; Google Cloud Audit Logs documentation"
+  - id: config-to-cloud-asset-inventory
+    source_provider: aws
+    source_service: config
+    target_provider: gcp
+    target_service: cloud-asset-inventory
+    equivalence: APPROXIMATE
+    caveat: "Config's continuous configuration-change recording and rule-based compliance evaluation is broader than Asset Inventory's point-in-time and feed-based model; policy evaluation needs a separate product (Organization Policy/Security Command Center)"
+    evidence: "AWS Config Developer Guide; Google Cloud Asset Inventory documentation"
+  - id: cloudformation-to-infrastructure-manager
+    source_provider: aws
+    source_service: cloudformation
+    target_provider: gcp
+    target_service: infrastructure-manager
+    equivalence: APPROXIMATE
+    caveat: "CloudFormation's JSON/YAML template language is unrelated to Infrastructure Manager's Terraform/HCL basis -- templates require a rewrite, not a mechanical translation"
+    evidence: "AWS CloudFormation User Guide; Google Cloud Infrastructure Manager documentation"
+  - id: elastic-beanstalk-to-app-engine
+    source_provider: aws
+    source_service: elastic-beanstalk
+    target_provider: gcp
+    target_service: app-engine
+    equivalence: APPROXIMATE
+    caveat: "Supported language/runtime matrix and deployment-environment configuration model differ"
+    regions: [europe-west2, us-central1]
+    evidence: "AWS Elastic Beanstalk Developer Guide; Google Cloud App Engine documentation"
+  - id: ecs-to-cloud-run
+    source_provider: aws
+    source_service: ecs
+    target_provider: gcp
+    target_service: cloud-run
+    equivalence: APPROXIMATE
+    caveat: "ECS's EC2 launch type (self-managed capacity) has no Cloud Run equivalent; task-definition and service-scaling mechanics differ even for the serverless (Fargate-comparable) case"
+    regions: [europe-west2, us-central1]
+    evidence: "AWS ECS Developer Guide; Google Cloud Run documentation"
+  - id: eks-to-gke
+    source_provider: aws
+    source_service: eks
+    target_provider: gcp
+    target_service: gke
+    equivalence: APPROXIMATE
+    caveat: "Control-plane version-support windows, node-pool autoscaling defaults and add-on ecosystems (EKS add-ons vs GKE Autopilot/Standard) differ"
+    regions: [europe-west2, us-central1]
+    evidence: "AWS EKS User Guide; Google Cloud GKE documentation"
+  - id: fargate-to-cloud-run
+    source_provider: aws
+    source_service: fargate
+    target_provider: gcp
+    target_service: cloud-run
+    equivalence: APPROXIMATE
+    caveat: "Fargate's per-task vCPU/memory combinations and Cloud Run's per-service concurrency/request-based scaling model differ; cost behaviour under bursty load is not equivalent"
+    regions: [europe-west2, us-central1]
+    evidence: "AWS Fargate Developer Guide; Google Cloud Run documentation"
+  - id: elasticache-redis-to-memorystore-redis
+    source_provider: aws
+    source_service: elasticache-redis
+    target_provider: gcp
+    target_service: memorystore-redis
+    equivalence: APPROXIMATE
+    caveat: "Cluster-mode sharding limits and supported Redis version matrix differ"
+    regions: [europe-west2, us-central1]
+    evidence: "AWS ElastiCache for Redis User Guide; Google Cloud Memorystore for Redis documentation"
+  - id: msk-to-managed-kafka
+    source_provider: aws
+    source_service: msk
+    target_provider: gcp
+    target_service: managed-service-for-apache-kafka
+    equivalence: APPROXIMATE
+    caveat: "Google Cloud's managed Kafka offering is newer than MSK; broker-version support and MSK Connect-equivalent connector tooling have not reached feature parity"
+    regions: [europe-west2, us-central1]
+    evidence: "AWS MSK Developer Guide; Google Cloud Managed Service for Apache Kafka documentation"
+  - id: athena-to-bigquery
+    source_provider: aws
+    source_service: athena
+    target_provider: gcp
+    target_service: bigquery
+    equivalence: APPROXIMATE
+    caveat: "Athena is a serverless query engine over data left in S3; BigQuery's native-storage model and federated-query feature set are both architecturally different"
+    regions: [europe-west2, us-central1]
+    evidence: "AWS Athena User Guide; Google Cloud BigQuery documentation"
+  - id: x-ray-to-cloud-trace
+    source_provider: aws
+    source_service: x-ray
+    target_provider: gcp
+    target_service: cloud-trace
+    equivalence: APPROXIMATE
+    caveat: "Trace retention windows and service-map visualization features differ"
+    evidence: "AWS X-Ray Developer Guide; Google Cloud Trace documentation"
+  - id: cognito-to-identity-platform
+    source_provider: aws
+    source_service: cognito
+    target_provider: gcp
+    target_service: identity-platform
+    equivalence: APPROXIMATE
+    caveat: "User-pool federation providers, MFA option set and hosted-UI customization differ"
+    evidence: "AWS Cognito Developer Guide; Google Cloud Identity Platform documentation"
+  - id: aws-backup-to-backup-dr
+    source_provider: aws
+    source_service: aws-backup
+    target_provider: gcp
+    target_service: backup-and-dr-service
+    equivalence: APPROXIMATE
+    caveat: "Backup-plan/vault policy model and the set of supported resource types differ"
+    regions: [europe-west2, us-central1]
+    evidence: "AWS Backup Developer Guide; Google Cloud Backup and DR Service documentation"
+  - id: waf-to-cloud-armor
+    source_provider: aws
+    source_service: waf
+    target_provider: gcp
+    target_service: cloud-armor
+    equivalence: APPROXIMATE
+    caveat: "Managed rule-set catalogues and rule-language syntax differ"
+    evidence: "AWS WAF Developer Guide; Google Cloud Armor documentation"
+  - id: shield-to-cloud-armor
+    source_provider: aws
+    source_service: shield
+    target_provider: gcp
+    target_service: cloud-armor
+    equivalence: APPROXIMATE
+    caveat: "Shield Advanced's cost-protection and DDoS-response-team SLA has no direct Cloud Armor equivalent; Cloud Armor's DDoS protection is a feature of one product rather than a separate tiered service"
+    evidence: "AWS Shield Developer Guide; Google Cloud Armor documentation"
+  - id: acm-to-certificate-manager
+    source_provider: aws
+    source_service: acm
+    target_provider: gcp
+    target_service: certificate-manager
+    equivalence: EXACT
+    evidence: "AWS Certificate Manager User Guide; Google Cloud Certificate Manager documentation"
+  - id: aws-outposts-to-unresolved
+    source_provider: aws
+    source_service: aws-outposts
+    target_provider: gcp
+    equivalence: UNSUPPORTED
+    caveat: "No honest equivalence judgement can be made yet: Outposts' fully-managed, AWS-operated on-premises rack and the closest GCP offerings (Google Distributed Cloud) have not been feature-compared by this registry version -- labelled as a gap rather than guessed"
+    evidence: "AWS Outposts documentation; Google Distributed Cloud documentation (comparison not yet performed)"
+
+  # --- Azure -> GCP (secondary pilot pair; partial seed, not yet top-40) --
+  - id: azure-openai-to-vertex
+    source_provider: azure
+    source_service: openai
+    target_provider: gcp
+    target_service: vertex-ai-gemini
+    equivalence: APPROXIMATE
+    caveat: "Model behaviour and API contracts differ; prompt and evaluation migration required"
+    regions: [europe-west2, us-central1]
+    evidence: "Azure OpenAI Service documentation; Google Cloud Vertex AI documentation"
+  - id: azure-blob-storage-to-gcs
+    source_provider: azure
+    source_service: blob-storage
+    target_provider: gcp
+    target_service: cloud-storage
+    equivalence: APPROXIMATE
+    caveat: "Access-tier (hot/cool/archive) lifecycle rules and rehydration-time behaviour differ"
+    regions: [europe-west2, us-central1]
+    evidence: "Azure Blob Storage documentation; Google Cloud Storage documentation"
+  - id: azure-sql-database-to-cloud-sql
+    source_provider: azure
+    source_service: sql-database
+    target_provider: gcp
+    target_service: cloud-sql
+    equivalence: APPROXIMATE
+    caveat: "Azure SQL Database's DTU/vCore purchasing model and built-in failover-group topology have no direct Cloud SQL equivalent"
+    regions: [europe-west2, us-central1]
+    evidence: "Azure SQL Database documentation; Google Cloud SQL documentation"
+  - id: azure-functions-to-cloud-functions
+    source_provider: azure
+    source_service: functions
+    target_provider: gcp
+    target_service: cloud-functions
+    equivalence: APPROXIMATE
+    caveat: "Consumption-plan cold-start/billing behaviour and trigger-binding declaration model differ"
+    regions: [europe-west2, us-central1]
+    evidence: "Azure Functions documentation; Google Cloud Functions documentation"
+  - id: aks-to-gke
+    source_provider: azure
+    source_service: kubernetes-service
+    target_provider: gcp
+    target_service: gke
+    equivalence: APPROXIMATE
+    caveat: "Node-pool upgrade channels and the managed add-on ecosystem differ"
+    regions: [europe-west2, us-central1]
+    evidence: "Azure Kubernetes Service documentation; Google Cloud GKE documentation"
+  - id: azure-ad-to-cloud-identity
+    source_provider: azure
+    source_service: active-directory
+    target_provider: gcp
+    target_service: cloud-identity
+    equivalence: APPROXIMATE
+    caveat: "Conditional-access policy engine and the hybrid-join/federation model differ substantially from Cloud Identity"
+    evidence: "Microsoft Entra ID (Azure Active Directory) documentation; Google Cloud Identity documentation"
+  - id: azure-monitor-to-cloud-monitoring
+    source_provider: azure
+    source_service: monitor
+    target_provider: gcp
+    target_service: cloud-monitoring
+    equivalence: APPROXIMATE
+    caveat: "Query languages differ (KQL vs MQL/PromQL) and alerting-rule structure does not translate mechanically"
+    evidence: "Azure Monitor documentation; Google Cloud Monitoring documentation"
+  - id: azure-key-vault-to-cloud-kms
+    source_provider: azure
+    source_service: key-vault
+    target_provider: gcp
+    target_service: cloud-kms
+    equivalence: APPROXIMATE
+    caveat: "Key Vault stores keys, secrets and certificates in one service; GCP splits this across Cloud KMS, Secret Manager and Certificate Manager -- no single GCP service is a 1:1 replacement"
+    regions: [europe-west2, us-central1]
+    evidence: "Azure Key Vault documentation; Google Cloud KMS, Secret Manager and Certificate Manager documentation"
+  - id: azure-arc-to-unresolved
+    source_provider: azure
+    source_service: arc
+    target_provider: gcp
+    equivalence: UNSUPPORTED
+    caveat: "No honest equivalence judgement can be made yet: Arc's hybrid/multicloud resource-management model and the closest GCP offering (Google Kubernetes Engine Enterprise / Anthos) have not been feature-compared by this registry version -- labelled as a gap rather than guessed"
+    evidence: "Azure Arc documentation; Google Kubernetes Engine Enterprise (Anthos) documentation (comparison not yet performed)"
