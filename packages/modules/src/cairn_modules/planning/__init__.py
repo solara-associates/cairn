@@ -5,6 +5,9 @@ accept/amend/reject review flow for a human reviewer's decision.
 
 R2-06: migration roadmap and wave sequencing, consuming R1-14's accepted
 dispositions and R2-04's target model.
+
+R2-07: Terraform plan preview, consuming R2-04's target model (plan
+only; no apply -- ADR-010).
 """
 
 from cairn_modules.planning.classification import (
@@ -15,6 +18,17 @@ from cairn_modules.planning.classification import (
     classify_workload,
     propose_disposition,
     reject_disposition,
+)
+from cairn_modules.planning.iac_plan import (
+    IAC_PLAN_ARTEFACT_KIND,
+    IAC_PLAN_DISCLAIMER,
+    IaCGeneratorPort,
+    IaCPlanArtefact,
+    IaCPlanModel,
+    IaCResourcePlan,
+    IaCResourceStatus,
+    build_iac_plan_model,
+    generate_iac_plan,
 )
 from cairn_modules.planning.roadmap import (
     PLAN_SUBJECT_KIND,
@@ -32,8 +46,15 @@ from cairn_modules.planning.roadmap import (
 __all__ = [
     "ALLOWED_DECISION_TRANSITIONS",
     "CLASSIFIER_VERSION",
+    "IAC_PLAN_ARTEFACT_KIND",
+    "IAC_PLAN_DISCLAIMER",
     "PLAN_SUBJECT_KIND",
     "FakePlanRevisionRepository",
+    "IaCGeneratorPort",
+    "IaCPlanArtefact",
+    "IaCPlanModel",
+    "IaCResourcePlan",
+    "IaCResourceStatus",
     "MigrationRoadmap",
     "MigrationWave",
     "PlanRevisionRepository",
@@ -43,7 +64,9 @@ __all__ = [
     "WaveWorkload",
     "accept_disposition",
     "amend_disposition",
+    "build_iac_plan_model",
     "classify_workload",
+    "generate_iac_plan",
     "generate_roadmap",
     "propose_disposition",
     "reject_disposition",
