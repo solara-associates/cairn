@@ -1,0 +1,69 @@
+id: migration
+name: "6R migration wave"
+category: migration
+description: >
+  Ingest estate data, classify each workload under one of the six 6R
+  strategies, compute a TCO comparison where relevant, and sequence the
+  workload into a migration wave whose dependencies are respected.
+  Grounded in P20 ("Migration assessment and 6R planning") and evidenced
+  by `agent-assess`, `infracc`, `anytoany` and `cloudshift`.
+evidence: >
+  CLOUD-ARCHITECTURE-PATTERNS.md P20 ("Ingest estate data (RVTools,
+  HVTools, AWS CUR, BOM, CSV, APIs), classify workloads, map services,
+  apply 6R strategies (rehost, replatform, refactor, repurchase, retire,
+  retain), compute TCO, and produce a roadmap") and `infracc`'s entry
+  ("rehost/replatform/refactor/repurchase/retire/retain model").
+parameters:
+  - name: strategy
+    type: enum
+    description: The 6R disposition assigned to this workload.
+    required: true
+    allowed_values: [rehost, replatform, refactor, repurchase, retire, retain]
+  - name: source_ingestion_format
+    type: enum
+    description: The source estate data format this workload was ingested from.
+    required: true
+    allowed_values: [rvtools, hvtools, aws_cur, bom_csv]
+  - name: wave_number
+    type: integer
+    description: The migration wave this workload is scheduled into.
+    required: true
+  - name: requires_tco_comparison
+    type: boolean
+    description: Whether a source-vs-target TCO comparison is computed for this workload.
+    required: false
+    default: true
+preconditions:
+  - The canonical estate model already contains the workload, its
+    resources and dependencies before a strategy is assigned (depends on
+    R0-04's canonical estate model).
+  - A target-provider service-map resolution exists for every resource
+    the workload depends on, or the workload's strategy is retain or
+    retire (P20; spec 7 -- mapping registry).
+outputs:
+  - capability: strategy_assignment
+    description: The 6R disposition recorded against the workload.
+  - capability: tco_comparison
+    description: Source-vs-target total cost of ownership comparison, when applicable.
+  - capability: wave_assignment
+    description: The migration wave and its position relative to dependent workloads.
+  - capability: migration_roadmap_entry
+    description: One row in the generated migration roadmap.
+validation_rules:
+  - id: migration-retained-or-retired-skip-tco
+    description: >
+      strategy=retire or strategy=retain must set
+      requires_tco_comparison=false; a workload that is not moving has no
+      destination cost to compare (P20 6R definitions).
+    severity: error
+  - id: migration-wave-respects-dependencies
+    description: >
+      wave_number must not schedule a workload earlier than any workload
+      it depends on (spec R2-06: "dependencies respected").
+    severity: error
+  - id: migration-ingestion-format-matches-estate-kind
+    description: >
+      source_ingestion_format=rvtools or hvtools applies only to VMware/
+      Hyper-V estates; aws_cur or bom_csv applies to AWS estates
+      (`agent-assess` vs `infracc` ingestion).
+    severity: error
