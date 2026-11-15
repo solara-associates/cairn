@@ -1,0 +1,75 @@
+id: event-driven
+name: "Event-driven service mesh"
+category: event_driven
+description: >
+  Services communicate asynchronously through Pub/Sub topics using the
+  platform's versioned event envelope, with an outbox pattern for
+  exactly-once-effect publish, idempotent consumers keyed by event_id,
+  and dead-letter replay for exhausted retries. Grounded in the event-
+  driven signature called out for `martech`, `prism` and `msm`, and in
+  the spec's own event rules.
+evidence: >
+  CLOUD-ARCHITECTURE-PATTERNS.md cluster E/F entries for `martech`,
+  `prism` and `msm` ("Pattern signature: ... event-driven") and
+  CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md 11.2 ("State changes and their
+  outbox rows commit in the same database transaction... Consumers are
+  idempotent by event_id... Failed deliveries retry with backoff, then
+  move to a dead-letter subscription").
+parameters:
+  - name: topic_count
+    type: integer
+    description: Number of distinct Pub/Sub topics this service mesh publishes to.
+    required: true
+  - name: uses_outbox_pattern
+    type: boolean
+    description: Whether publish is committed transactionally via an outbox row.
+    required: false
+    default: true
+  - name: dead_letter_enabled
+    type: boolean
+    description: Whether a dead-letter subscription receives messages that exhaust retries.
+    required: false
+    default: true
+  - name: max_delivery_attempts
+    type: integer
+    description: Maximum delivery attempts before a message is dead-lettered.
+    required: true
+  - name: ordering_required
+    type: boolean
+    description: Whether consumers require in-order delivery within a topic.
+    required: false
+    default: false
+preconditions:
+  - State changes and their outbox rows commit in the same database
+    transaction before any publish is attempted (spec 11.2).
+  - Every consumer deduplicates by event_id, because the transport may
+    redeliver a message (spec 11.2 outbox failure semantics).
+outputs:
+  - capability: messaging_topic
+    description: Pub/Sub topic(s) carrying the versioned event envelope.
+  - capability: outbox_table
+    description: Transactional outbox table paired with an asynchronous dispatcher.
+  - capability: dead_letter_subscription
+    description: Dead-letter subscription with alerting and a replay runbook.
+  - capability: idempotent_consumer_contract
+    description: Consumer contract guaranteeing at-most-once effect per event_id.
+validation_rules:
+  - id: event-driven-ordering-not-supported-by-default
+    description: >
+      ordering_required=true is not supported by this pattern's default
+      Pub/Sub topology without an explicit ordering key; a different
+      pattern or an ordering-key design is required.
+    severity: error
+  - id: event-driven-dead-letter-required-with-finite-retries
+    description: >
+      dead_letter_enabled must be true whenever max_delivery_attempts is
+      finite; otherwise messages that exhaust retries are lost silently
+      (spec 11.2: "retry with backoff, then move to a dead-letter
+      subscription").
+    severity: error
+  - id: event-driven-outbox-recommended
+    description: >
+      uses_outbox_pattern=false requires a separately documented
+      at-least-once publish guarantee; "commit then publish" without a
+      transactional outbox risks event loss on a crash between the two.
+    severity: warning
