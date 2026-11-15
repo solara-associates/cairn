@@ -78,6 +78,13 @@ def _default_authenticator() -> JwtAuthenticator | _ClosedAuthenticator:
     if not issuer or not audience or not (secret or jwks_url):
         return _ClosedAuthenticator()
     algorithms = ("HS256",) if secret else ("RS256",)
+    # Overridable because not every OIDC provider puts the tenant/role
+    # claims under CAIRN's own default names -- a provider's own claim
+    # mapping rules usually make this unnecessary in production, but
+    # the bundled local dex quickstart (see docs/identity.md) needs it
+    # pointed at whatever claim it actually populates.
+    tenant_claim = os.environ.get("CAIRN_OIDC_TENANT_CLAIM", "tenant_id")
+    roles_claim = os.environ.get("CAIRN_OIDC_ROLES_CLAIM", "roles")
     return JwtAuthenticator(
         OidcSettings(
             issuer=issuer,
@@ -85,6 +92,8 @@ def _default_authenticator() -> JwtAuthenticator | _ClosedAuthenticator:
             algorithms=algorithms,
             secret=secret,
             jwks_url=jwks_url,
+            tenant_claim=tenant_claim,
+            roles_claim=roles_claim,
         )
     )
 

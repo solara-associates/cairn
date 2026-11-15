@@ -1,0 +1,21 @@
+CAIRN
+Copyright 2026 Solara Associates
+
+Licensed under the Apache License, Version 2.0 (the "License");
+see LICENSE for the full text.
+
+This distribution does not include source code from any third-party
+repository or project. Everything under `packages/`, `apps/`, `infra/`
+and `controls/` is original to this project (see ADR-017,
+`docs/adr/ADR-017-clean-room.md`).
+
+Direct runtime dependencies are listed with their licences in
+`docs/third-party-licenses.md`. Two carry weak-copyleft licences, used
+unmodified as libraries and not bundled or redistributed by this
+project:
+
+- `psycopg` (LGPL-3.0-only) -- PostgreSQL database driver.
+- `certifi` (MPL-2.0) -- CA certificate bundle.
+
+Neither is modified by this project. Their own source is available
+from their respective upstream projects.

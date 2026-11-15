@@ -40,3 +40,8 @@ Follow `SECURITY.md`. Do not open a public issue for a vulnerability.
 ## Conduct
 
 Be direct, specific and respectful. Critique the work, not the person.
+See `CODE_OF_CONDUCT.md`.
+
+## Governance
+
+See `GOVERNANCE.md` for how decisions are made.
