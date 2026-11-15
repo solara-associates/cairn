@@ -1,6 +1,6 @@
 """Unit coverage for `cairn_adapters.evidence_kms` against a fake KMS
 client -- the real client is proven once, locally, by
-`tools/ops/kms_signing_proof.py` against the real `solara-cairn-dev` key
+`tools/ops/kms_signing_proof.py` against the real `your-dev-project-id` key
 (not runnable in CI, which has no GCP credentials). This file proves the
 adapter's own logic deterministically: digest construction, DER-signature
 pass-through, key_id/algorithm matching, and fail-closed error handling --
