@@ -1,7 +1,7 @@
 """Real Cloud KMS evidence-signing proof, for the dev cloud foundation.
 
 Proves `cairn_adapters.evidence_kms.{KmsEvidenceSigner,KmsEvidenceVerifier}`
-against the real `cairn-dev-evidence-signing` key in `solara-cairn-dev`
+against the real `cairn-dev-evidence-signing` key in `your-dev-project-id`
 (europe-west2), not a fake/local signer: seals a real evidence envelope
 through `cairn_kernel.evidence.seal_evidence` with the real KMS signer, then
 verifies it through the real, unmodified `cairn_kernel.evidence.verify_envelope`
@@ -40,8 +40,9 @@ from cairn_kernel.evidence import (
 from google.cloud import kms
 from google.oauth2.credentials import Credentials
 
+# Edit project_id to the real GCP project before running this locally.
 KEY_VERSION = KmsKeyVersion(
-    project_id="solara-cairn-dev",
+    project_id="your-dev-project-id",
     location="europe-west2",
     key_ring="cairn-dev-evidence",
     key_name="cairn-dev-evidence-signing",

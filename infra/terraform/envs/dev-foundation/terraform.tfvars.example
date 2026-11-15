@@ -1,2 +1,2 @@
-# Copy to terraform.tfvars. project_id must be solara-cairn-dev -- see README.md.
-project_id = "solara-cairn-dev"
+# Copy to terraform.tfvars and set project_id to your own GCP project -- see README.md.
+project_id = "your-dev-project-id"

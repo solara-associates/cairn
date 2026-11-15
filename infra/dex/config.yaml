@@ -1,0 +1,53 @@
+# Local-only dex configuration for `docker compose up` sign-in. Not for
+# any deployment beyond a single developer's own machine: a fixed
+# demo identity with no password (see docs/identity.md).
+#
+# issuer is the console's own origin (http://localhost:3000/dex), proxied
+# to this service by apps/console/nginx.conf, so the browser's OIDC
+# discovery/token calls are same-origin and need no CORS headers (dex
+# v2.41.1 does not send any). The API container instead reaches dex
+# directly over the compose network at http://dex:5556/dex (see
+# compose.yaml's CAIRN_OIDC_JWKS_URL) for its own, server-side JWKS
+# fetch, which isn't subject to CORS.
+issuer: http://localhost:3000/dex
+
+storage:
+  type: memory
+
+web:
+  http: 0.0.0.0:5556
+
+oauth2:
+  skipApprovalScreen: true
+
+expiry:
+  idTokens: 24h
+  signingKeys: 6h
+  authRequests: 24h
+
+staticClients:
+  - id: cairn-console
+    public: true
+    redirectURIs:
+      - "http://localhost:3000/"
+    name: "CAIRN Console (local)"
+
+# A single connector, so dex redirects straight to it with no connector
+# chooser screen. "authproxy" trusts whoever is in front of dex to have
+# already authenticated the caller and to assert the identity via
+# headers -- the same mechanism CAIRN's own OIDC integration test uses
+# (apps/api/tests/test_oidc_dex_integration.py). For this quickstart,
+# apps/console/'s nginx (see infra/dex/console-dev.nginx.conf) plays
+# that trusted-proxy role, unconditionally asserting one fixed local
+# demo identity so you can click through the console with no password
+# prompt. A real deployment puts a real authenticating proxy there, or
+# uses a different connector (LDAP, SAML, a real OIDC upstream) --
+# see docs/identity.md.
+connectors:
+  - type: authproxy
+    id: proxy
+    name: Local demo user
+    config:
+      userHeader: X-Remote-User
+      emailHeader: X-Remote-Email
+      groupHeader: X-Remote-Group

@@ -1,11 +1,11 @@
 # SLO baseline -- proposal, not a commitment
 
-Status: R1-20. Numbers below are derived from this session's own
-measurements against the real `cairn_api` app (R0-12's `cairn.red.*`
-signals are the production equivalent of what was timed here --
-`packages/kernel/src/cairn_kernel/observability/red.py`), not invented
-targets. **These are a proposal for Allan to accept, adjust, or
-replace -- nothing here is a commitment to a pilot customer.**
+Numbers below are derived from real measurements against the `cairn_api`
+app (`cairn.red.*` signals are the production equivalent of what was
+timed here -- `packages/kernel/src/cairn_kernel/observability/red.py`),
+not invented targets. **These are a starting point for whoever operates
+a deployment to accept, adjust, or replace -- nothing here is a
+commitment to any customer.**
 
 ## How these numbers were produced
 
@@ -37,16 +37,16 @@ representative steady-state figure.)
 - **Does not prove**: anything about a real deployment. No real
   Postgres connection, no network hop between services, no concurrent
   load, no realistically sized estate file (hundreds or thousands of
-  resources, not three), and no real GCP provider round-trip (R1-02's
+  resources, not three), and no real GCP provider round-trip (the
   connection validate step used the default always-succeeds validator,
   never a live API call) were part of this measurement.
 
-## Proposed baseline (pending Allan)
+## Proposed baseline
 
-Framed as a starting point for a pilot, deliberately generous given
-the gap between what was measured and a real deployment:
+Framed as a starting point, deliberately generous given the gap
+between what was measured and a real deployment:
 
-- **API availability**: `[ALLAN: decide]` -- no uptime commitment
+- **API availability**: `[ADOPTER TO DECIDE]` -- no uptime commitment
   should be proposed from a local benchmark; this needs an actual
   SLA/support-tier decision, not an engineering number.
 - **Read-path latency** (project list, run results, report): propose
@@ -54,20 +54,19 @@ the gap between what was measured and a real deployment:
   accounted for -- roughly 150-250x the measured in-memory figure, to
   leave real headroom for Postgres round-trips and TLS.
 - **Assessment-run completion**: propose "completes within the same
-  pilot session" rather than a fixed number -- this session's own
-  measurement (a few milliseconds for a 3-row CSV) does not generalise
-  to a pilot's real estate size, and no load test against a realistic
-  file has been run.
+  session" rather than a fixed number -- the measurement above (a few
+  milliseconds for a 3-row CSV) does not generalise to a real estate's
+  size, and no load test against a realistic file has been run.
 - **Evidence-package export**: propose p95 < 1s once a real KMS-backed
-  signer (not yet built, see `docs/runbooks/pilot-onboarding.md`'s
-  Finding 5) replaces today's local HMAC signer -- a real KMS call
-  adds network latency this measurement cannot predict.
+  signer (see `docs/identity.md` and `docs/runbooks/pilot-onboarding.md`)
+  replaces the default local signer -- a real KMS call adds network
+  latency this measurement cannot predict.
 
-## Needs Allan
+## Needs a decision before quoting any SLO to a customer
 
 1. Accept, adjust, or replace every number above -- these are
    engineering-derived starting points, not commitments.
-2. Decide what uptime/support-tier commitment (if any) accompanies a
-   pilot.
+2. Decide what uptime/support-tier commitment (if any) accompanies an
+   engagement.
 3. Decide whether a load test against a realistically sized estate
-   file is required before any SLO is quoted to a pilot customer.
+   file is required before any SLO is quoted to a customer.

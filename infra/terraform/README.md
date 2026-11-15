@@ -40,18 +40,11 @@ needs a Terraform module to satisfy R0-16's acceptance criteria.
   ID, an email address), not credentials.
 - `terraform.tfvars`, `*.tfstate` and `.terraform/` are gitignored.
 
-These checks were authored and are wired into CI, but **could not be run
-locally in this session**: the Architectural Rules command guard
-(`A7.agent-credentials`) denies every `terraform` invocation other than
-`plan`/`show`/`validate`/`output` when it can't resolve a `--project` flag,
-which it never can for a plain local-backend command — including `init`
-(required before `validate` can resolve the provider schema) and `fmt`. This
-is the guard working as designed, not a bug; it does not run inside the
-GitHub Actions runner, so the CI job above is the real, authoritative
-verification of this story, consistent with the repo's own `A9.ci-build` rule
-that builds are verified in CI, not locally.
+These checks are the authoritative verification for this directory: they run
+in CI against every module and the `dev` environment, independent of any
+individual contributor's local setup or local cloud credentials.
 
-## What Allan must provide before `terraform plan` can run for real
+## What a maintainer must provide before `terraform plan` can run for real
 
 The acceptance criterion "`terraform plan` clean in dev" needs a real GCP
 project and is **not done** by this story — it needs:
@@ -88,5 +81,6 @@ terraform init
 terraform plan
 ```
 
-This criterion is left **outstanding** — it is Allan's to run, not something
-this story attempted or claims.
+This criterion is left **outstanding** — it is for whoever provisions a real
+`dev` environment to run, not something this repository claims to have
+verified.
