@@ -32,10 +32,17 @@ from cairn_kernel.security import AuditEntry
 from conftest import signed_assertion
 
 
-def _seed_tenant(dsn: str, *, tenant_id: uuid.UUID, project_id: uuid.UUID) -> uuid.UUID:
+def _seed_tenant(
+    dsn: str, *, tenant_id: uuid.UUID, project_id: uuid.UUID, mapping_version: str
+) -> uuid.UUID:
     """Create one row in every classified tenant/project table for
     ``tenant_id``, and return the ``user_id`` that row's FKs are anchored
-    to."""
+    to.
+
+    ``mapping_version`` seeds a global ``mapping_release`` row (R2-01) this
+    tenant's ``mapping_proposal`` row references -- a distinct version per
+    call, since ``mapping_release.version`` is globally unique.
+    """
     subject_id = uuid.uuid4()
     user_id = uuid.uuid4()
     with psycopg.connect(dsn, autocommit=True) as connection:
@@ -92,6 +99,17 @@ def _seed_tenant(dsn: str, *, tenant_id: uuid.UUID, project_id: uuid.UUID) -> uu
             "  'bob', 'corr-1')",
             (tenant_id, project_id, approval_id, revision_id),
         )
+        connection.execute(
+            "INSERT INTO mapping_release"
+            " (version, content_hash, released_at, entries, proposed_by)"
+            " VALUES (%s, 'sha256:test', now(), '[]'::jsonb, 'alice')",
+            (mapping_version,),
+        )
+        connection.execute(
+            "INSERT INTO mapping_proposal (tenant_id, version, proposer_actor_id, rationale)"
+            " VALUES (%s, %s, 'alice', 'pilot gap')",
+            (tenant_id, mapping_version),
+        )
     sink = PostgresAuditSink(dsn, signed_assertion(tenant_id, project_id))
     sink.append(
         AuditEntry(
@@ -141,8 +159,18 @@ def test_tenant_deletion_erases_operational_data_and_preserves_the_audit_trail(
     control_tenant = uuid.uuid4()
     control_project = uuid.uuid4()
 
-    _seed_tenant(migrated_database, tenant_id=deleted_tenant, project_id=deleted_project)
-    _seed_tenant(migrated_database, tenant_id=control_tenant, project_id=control_project)
+    _seed_tenant(
+        migrated_database,
+        tenant_id=deleted_tenant,
+        project_id=deleted_project,
+        mapping_version="2099.01.1",
+    )
+    _seed_tenant(
+        migrated_database,
+        tenant_id=control_tenant,
+        project_id=control_project,
+        mapping_version="2099.01.2",
+    )
 
     control_before = _counts_for_tenant(migrated_database, control_tenant)
     for table in ERASED_TABLES + PRESERVED_AUDIT_TABLES:
