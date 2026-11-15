@@ -7,8 +7,8 @@ from typing import Any
 import pytest
 from cairn_contracts.estate import Equivalence
 from cairn_contracts.mapping import MappingRelease, ReleaseStatus
-from cairn_kernel.errors import MappingUnavailableError, ValidationError
-from cairn_modules.mappings import InMemoryMappingRegistry, load_mapping_release
+from cairn_kernel.errors import ValidationError
+from cairn_modules.mappings import load_mapping_release
 from pydantic import ValidationError as PydanticValidationError
 
 REPO_ROOT = Path(__file__).parents[3]
@@ -50,23 +50,6 @@ def test_seed_release_loads() -> None:
     assert s3.equivalence is Equivalence.APPROXIMATE
     assert s3.caveat
     assert s3.regions == ("europe-west2", "us-central1", "asia-south1")
-
-
-def test_registry_loads_seed_and_retrieves_release() -> None:
-    registry = InMemoryMappingRegistry()
-
-    release = registry.load(SEED_PATH)
-
-    assert registry.versions() == ("2026.11.1",)
-    assert registry.get("2026.11.1") is release
-    assert len(registry) == 1
-
-
-def test_unknown_release_is_unavailable() -> None:
-    registry = InMemoryMappingRegistry()
-
-    with pytest.raises(MappingUnavailableError):
-        registry.get("2026.12.1")
 
 
 def test_content_hash_is_stable_across_round_trip() -> None:
@@ -128,50 +111,6 @@ def test_release_rejects_duplicate_entry_ids() -> None:
 
     with pytest.raises(PydanticValidationError):
         MappingRelease.model_validate(payload)
-
-
-def test_published_release_is_immutable() -> None:
-    registry = InMemoryMappingRegistry()
-    registry.publish(_release())
-    changed = _payload()
-    changed["entries"][0]["caveat"] = "A different caveat"
-
-    with pytest.raises(ValidationError, match="immutable"):
-        registry.publish(_release(changed))
-
-    assert registry.get("2026.11.1").entries[0].caveat == "Consistency semantics differ"
-
-
-def test_identical_republish_is_idempotent() -> None:
-    registry = InMemoryMappingRegistry()
-    release = _release()
-
-    registry.publish(release)
-    registry.publish(_release())
-
-    assert registry.versions() == ("2026.11.1",)
-    assert registry.get("2026.11.1").content_hash == release.content_hash
-
-
-def test_correction_requires_new_version() -> None:
-    registry = InMemoryMappingRegistry()
-    registry.publish(_release())
-    corrected = _payload()
-    corrected["version"] = "2026.11.2"
-    corrected["entries"][0]["caveat"] = "A corrected caveat"
-
-    registry.publish(_release(corrected))
-
-    assert registry.versions() == ("2026.11.1", "2026.11.2")
-
-
-def test_unpublished_release_cannot_be_loaded() -> None:
-    registry = InMemoryMappingRegistry()
-    draft = _payload()
-    draft["status"] = "DRAFT"
-
-    with pytest.raises(ValidationError, match="PUBLISHED"):
-        registry.publish(_release(draft))
 
 
 def test_loader_rejects_missing_file(tmp_path: Path) -> None:

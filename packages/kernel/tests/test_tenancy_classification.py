@@ -26,6 +26,7 @@ def test_tenancy_baseline_tables_are_classified() -> None:
         "app_user",
         "role_grant",
         "ledger_entry",
+        "mapping_proposal",
     }
     assert set(PROJECT_OWNED_TABLES) == {
         "project",
