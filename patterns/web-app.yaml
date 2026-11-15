@@ -1,0 +1,71 @@
+id: web-app
+name: "Three-tier web application"
+category: web_app
+description: >
+  A stateless web/API tier on managed compute, backed by a relational OLTP
+  store and an optional cache, fronted by a CDN, API gateway and identity
+  provider. This is the baseline pattern underlying most of the estate's
+  customer-facing services (spec 5.4 canonical reference stack: Cloud Run
+  for stateless compute, Cloud SQL/AlloyDB for OLTP, Memorystore for cache,
+  Cloud CDN for edge delivery, Workload Identity/OAuth for identity).
+evidence: >
+  CLOUD-ARCHITECTURE-PATTERNS.md 5.4 "Canonical reference stack" (Runtime,
+  Data, Identity rows) and P15 "Infrastructure as code and runtime
+  topology" ("Cloud Run for stateless services and jobs... Workload
+  Identity instead of keys").
+parameters:
+  - name: compute_platform
+    type: enum
+    description: Target compute platform for the stateless application tier.
+    required: true
+    allowed_values: [cloud_run, gke]
+  - name: database_engine
+    type: enum
+    description: Relational OLTP engine backing the application tier.
+    required: true
+    allowed_values: [cloud_sql_postgres, alloydb]
+  - name: enable_cache
+    type: boolean
+    description: Whether a managed cache sits in front of the database.
+    required: false
+    default: false
+  - name: custom_domain
+    type: string
+    description: Optional customer-facing domain served through Cloud CDN.
+    required: false
+    default: null
+preconditions:
+  - The application tier is stateless; session state is externalized to the
+    cache or the database, not held in process memory.
+  - A relational schema and OLTP access pattern are already defined for the
+    workload before this pattern is applied.
+  - TLS termination and identity-provider integration are available through
+    the platform's API gateway.
+outputs:
+  - capability: compute
+    description: Managed, horizontally scalable application runtime (Cloud Run or GKE).
+  - capability: relational_database
+    description: Managed OLTP database (Cloud SQL for PostgreSQL or AlloyDB).
+  - capability: cdn
+    description: Edge caching and TLS termination for customer-facing traffic.
+  - capability: identity
+    description: Workload Identity for service-to-service auth; OAuth/JWT at the edge.
+validation_rules:
+  - id: web-app-gke-is-portability-only
+    description: >
+      compute_platform=gke should only be chosen for internal portability
+      needs; Cloud Run is the default stateless runtime in this estate's
+      reference stack (spec 5.4).
+    severity: warning
+  - id: web-app-custom-domain-requires-cdn
+    description: >
+      custom_domain may only be set when the pattern's CDN output is
+      provisioned; a bare compute endpoint cannot terminate a customer
+      domain.
+    severity: error
+  - id: web-app-cache-is-read-path-only
+    description: >
+      enable_cache=true is intended for read-heavy workloads; write-heavy
+      workloads should rely on database connection pooling rather than a
+      cache layer that must be kept consistent on every write.
+    severity: warning
