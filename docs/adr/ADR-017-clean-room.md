@@ -7,7 +7,7 @@
 
 ## Context
 
-CAIRN was initially planned on the premise that the 43 archived repositories in `the author's earlier archived work` could supply reusable code. On review that premise does not hold:
+CAIRN was initially planned on the premise that the 43 repositories in the author's earlier archived work could supply reusable code. On review that premise does not hold:
 
 - The repositories are archived prototypes. The source analysis already flags one empty repository, a frontend-only prototype, missing READMEs and several POCs.
 - Licence, provenance and quality are unresolved for most of them, so lifting code would require a due-diligence pass per repository before any benefit.
