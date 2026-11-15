@@ -72,6 +72,7 @@ V0_RULE_TITLES: dict[str, str] = {
         " Status header must read Accepted or Accepted (amended), and the two"
         " must agree"
     ),
+    "R-VER-01": "Diagram, plan and IaC share model/mapping/pattern versions",
 }
 
 
