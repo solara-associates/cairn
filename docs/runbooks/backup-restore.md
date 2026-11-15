@@ -16,9 +16,8 @@ automatic one, the restore and verification steps below are unchanged.
 | Evidence package bucket (ADR-008) — signed JSON evidence packages | Object versioning, access logging, and a retention policy (unlocked until the residency matrix in spec §13.6 is approved — see gate 11) | `infra/terraform/modules/cairn-evidence/main.tf`, `google_storage_bucket.evidence` |
 | BigQuery (raw/curated/consumption analytics; ADR-007) | Derived from Postgres/events, not an independent source of truth — no backup/restore procedure of its own is needed; re-deriving from Postgres is the recovery path | `infra/terraform/modules/cairn-data/main.tf`, `google_bigquery_dataset.cairn` |
 
-**Checked during this unit:** PITR was already `enabled = true` in
-`cairn-data`'s Terraform before this change — nothing needed fixing there.
-See `~/solara/lz2026/s652-handover.md` for the full note to Allan.
+PITR was already `enabled = true` in `cairn-data`'s Terraform before this
+runbook was written — nothing needed fixing there.
 
 ## Pre-flight checks before a restore
 
