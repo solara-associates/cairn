@@ -29,7 +29,9 @@ of date.
 | `tenant` | TENANT | Kept, scrubbed (`name` overwritten) and tombstoned (`status = 'DELETED'`), never deleted. |
 | `subject_revision` | PROJECT | **Preserved unchanged.** Append-only by migration trigger; cannot be deleted by any role. |
 | `ledger_entry` | TENANT | **Preserved unchanged.** Append-only by migration trigger; cannot be deleted by any role. |
+| `mapping_proposal` | TENANT | **Preserved unchanged.** Append-only by migration trigger (R2-01); cannot be deleted by any role. References `tenant(tenant_id)` the same way `ledger_entry` does, which is part of why `tenant` rows are scrubbed rather than deleted. |
 | `schema_migration`, `schema_migration_history`, `tenant_context_secret` | GLOBAL | Not tenant data; not touched. |
+| `mapping_release`, `mapping_release_review` | GLOBAL | Global mapping registry content and workflow history (R2-01, spec 8.1); not tenant data, not touched. |
 
 ## Why `tenant` and `project` rows are not deleted
 

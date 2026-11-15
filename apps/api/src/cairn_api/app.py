@@ -19,6 +19,7 @@ from cairn_kernel.security import AuditSink, InMemoryAuditSink, Principal
 from cairn_modules.assessment import AssessmentService, CheckpointStore, InMemoryCheckpointStore
 from cairn_modules.connections import ConnectionRegistry
 from cairn_modules.finops import load_price_list_release
+from cairn_modules.mappings import FakeMappingRepository, MappingRepository, MappingService
 from cairn_modules.posture import load_control_catalogue_release
 from cairn_modules.projects import InMemoryProjectRepository, ProjectRepository, ProjectService
 from fastapi import FastAPI, Request
@@ -28,6 +29,7 @@ from cairn_api.errors import problem_from_error
 from cairn_api.middleware import AuthMiddleware, CairnErrorMiddleware
 from cairn_api.routes_assessment import register_assessment_routes
 from cairn_api.routes_connections import register_connections_routes
+from cairn_api.routes_mappings import register_mapping_routes
 from cairn_api.routes_projects import register_projects_routes
 
 ReadinessProbe = Callable[[], Mapping[str, bool]]
@@ -185,6 +187,8 @@ def create_app(
     connection_registry: ConnectionRegistry | None = None,
     audit_sink: AuditSink | None = None,
     evidence_signer: EvidenceSigner | None = None,
+    mapping_repository: MappingRepository | None = None,
+    mapping_outbox: OutboxStore | None = None,
 ) -> FastAPI:
     service_version = _service_version()
     probe = readiness or (dict)
@@ -235,6 +239,12 @@ def create_app(
     register_connections_routes(
         app, registry=connection_registry or ConnectionRegistry(audit_sink=sink)
     )
+
+    mapping_service = MappingService(
+        mapping_repository or FakeMappingRepository(),
+        outbox=mapping_outbox or InMemoryOutboxStore(),
+    )
+    register_mapping_routes(app, service=mapping_service)
 
     app.add_exception_handler(CairnError, _cairn_error_handler)
     app.add_middleware(
