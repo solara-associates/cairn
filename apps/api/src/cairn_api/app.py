@@ -4,13 +4,18 @@ import os
 import secrets
 import uuid
 from collections.abc import Callable, Mapping
+from datetime import UTC, datetime
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Any
 
 from cairn_adapters.auth_oidc import JwtAuthenticator, OidcSettings
+from cairn_adapters.diagram_drawio import DrawioXmlDiagramRenderer
 from cairn_adapters.evidence_kms import KmsEvidenceSigner, KmsKeyVersion
+from cairn_adapters.iac_terraform import TerraformHclGenerator
 from cairn_contracts.finops import PriceListRelease
+from cairn_contracts.mapping import MappingRelease
+from cairn_contracts.mapping.pattern import PatternCatalogueRelease
 from cairn_contracts.posture import ControlCatalogueRelease
 from cairn_kernel.errors import CairnError, UnauthenticatedError
 from cairn_kernel.evidence import FAKE_ALGORITHM, EvidenceSigner
@@ -18,8 +23,10 @@ from cairn_kernel.outbox import InMemoryOutboxStore, OutboxStore
 from cairn_kernel.security import AuditSink, InMemoryAuditSink, Principal
 from cairn_modules.assessment import AssessmentService, CheckpointStore, InMemoryCheckpointStore
 from cairn_modules.connections import ConnectionRegistry
+from cairn_modules.design import load_pattern_catalogue
 from cairn_modules.finops import load_price_list_release
 from cairn_modules.mappings import FakeMappingRepository, MappingRepository, MappingService
+from cairn_modules.mappings.seed import load_mapping_release
 from cairn_modules.posture import load_control_catalogue_release
 from cairn_modules.projects import InMemoryProjectRepository, ProjectRepository, ProjectService
 from fastapi import FastAPI, Request
@@ -50,6 +57,18 @@ def _default_control_catalogue() -> ControlCatalogueRelease:
 
 def _default_price_list() -> PriceListRelease:
     return load_price_list_release(_REPO_ROOT / "pricing" / "gcp-price-list-seed.yaml")
+
+
+def _default_pattern_catalogue() -> PatternCatalogueRelease:
+    return load_pattern_catalogue(
+        _REPO_ROOT / "patterns",
+        version="2026.11.1",
+        released_at=datetime(2026, 11, 15, tzinfo=UTC),
+    )
+
+
+def _default_mapping_release() -> MappingRelease:
+    return load_mapping_release(_REPO_ROOT / "mappings" / "service-map.yaml")
 
 
 def _service_version() -> str:
@@ -191,6 +210,8 @@ def create_app(
     mapping_repository: MappingRepository | None = None,
     mapping_outbox: OutboxStore | None = None,
     design_registry: DesignRegistry | None = None,
+    pattern_catalogue: PatternCatalogueRelease | None = None,
+    design_mapping_release: MappingRelease | None = None,
 ) -> FastAPI:
     service_version = _service_version()
     probe = readiness or (dict)
@@ -248,7 +269,14 @@ def create_app(
     )
     register_mapping_routes(app, service=mapping_service)
 
-    register_design_routes(app, registry=design_registry or DesignRegistry())
+    register_design_routes(
+        app,
+        registry=design_registry or DesignRegistry(),
+        pattern_catalogue=pattern_catalogue or _default_pattern_catalogue(),
+        mapping_release=design_mapping_release or _default_mapping_release(),
+        diagram_renderer=DrawioXmlDiagramRenderer(),
+        iac_generator=TerraformHclGenerator(),
+    )
 
     app.add_exception_handler(CairnError, _cairn_error_handler)
     app.add_middleware(

@@ -330,6 +330,61 @@ OPERATIONS: tuple[OperationEntry, ...] = (
         mutation_class=MutationClass.READ_ONLY,
         tenancy_scope=TenancyScope.PROJECT,
     ),
+    # --- apps/api: design console screens (R2-09) -- generating/
+    # regenerating a design, and reading the pattern catalogue, per-
+    # revision history and IaC preview text those screens need ---
+    # Generating/regenerating a design produces CAIRN's own workspace
+    # artefacts only (a target model, diagram and IaC *preview*, a
+    # roadmap) -- it never applies anything and never crosses into a
+    # customer environment (ADR-010), so each write below is Class B
+    # INTERNAL_MUTATION with no compensation contract, the same
+    # reasoning the assessment-run and connection routes above already
+    # use. Regenerating never deletes or overwrites the previous
+    # revision (it only appends one), so it carries no rollback/
+    # compensation contract either -- the prior revision is simply still
+    # there.
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.GET /v1/patterns",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.GLOBAL,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.POST /v1/projects/{project_id}/designs",
+        operation_class=OperationClass.WORKSPACE_MUTATION,
+        mutation_class=MutationClass.INTERNAL_MUTATION,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.POST /v1/designs/{design_id}/regenerate",
+        operation_class=OperationClass.WORKSPACE_MUTATION,
+        mutation_class=MutationClass.INTERNAL_MUTATION,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.GET /v1/designs/{design_id}/revisions",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.GET /v1/designs/{design_id}/revisions/{revision_number}",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.GET /v1/designs/{design_id}/iac",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
     # --- cairn_contracts.events: declared event envelopes (R0-05) ---
     # Every event below records a CAIRN-workspace fact or state change; none
     # of them is produced by a wired publisher yet (no EventPublisher adapter

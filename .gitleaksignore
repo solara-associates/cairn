@@ -35,3 +35,7 @@ e3251ac63c6e28cf2e73eff71c511d98390f8d5a:apps/api/tests/test_mappings_api.py:gen
 # Same dummy HS256 test secret constant, reused in R2-08's design/plan
 # export HTTP-layer test fixture. Confirmed R2-08 (2026-11-15).
 bfeffba49dd8f4cd207330311ff00b3777e77ad5:apps/api/tests/test_design_api.py:generic-api-key:45
+
+# Same dummy HS256 test secret constant, reused in R2-09's design-
+# generation HTTP-layer test fixture. Confirmed R2-09 (2026-11-15).
+dcfd8b6a816e4d202a2c15962f0672a90e1d9023:apps/api/tests/test_design_generation_api.py:generic-api-key:27
