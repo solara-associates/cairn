@@ -1,9 +1,9 @@
 # Cloud Architecture Patterns
 
-### A pattern catalogue and platform blueprint distilled from the 43 archived repositories in the `the author's earlier archived work` GitHub organization
+### A pattern catalogue and platform blueprint distilled from the author's earlier archived work
 
 Prepared: 9 November 2026
-Source of truth: `github.com/the author's earlier archived work` (43 repositories, all archived at time of analysis)
+Source of truth: the author's earlier archived work (43 repositories, all archived at time of analysis)
 Local analysis clone: shallow clones of every repository, README/architecture docs/manifests/IaC inspected
 
 > **Greenfield note (9 November 2026).** CAIRN is a clean-room build. No source code, assets or configuration from these repositories is reused (ADR-017). This catalogue is design evidence only. Words such as "reuse", "lift" and "consolidate" describe relationships between the source repositories, not what CAIRN will copy. See the technical specification section 17.
@@ -14,7 +14,7 @@ Local analysis clone: shallow clones of every repository, README/architecture do
 
 You asked for two things:
 
-1. A cloud architecture pattern catalogue covering every solution in the archived `the author's earlier archived work` organization.
+1. A cloud architecture pattern catalogue covering every solution in the author's earlier archived work.
 2. A basis for a new **cloud modernization platform** informed by the architecture platforms built in those repositories, without reusing their code.
 
 This document delivers both:
@@ -675,7 +675,7 @@ Trying to collapse all four into a single UI too early is the main architectural
 
 ### 6.1 Coverage check
 
-All 43 repositories in `the author's earlier archived work` were cloned and inspected. Every repository appears in the catalogue:
+All 43 repositories in the author's earlier archived work were cloned and inspected. Every repository appears in the catalogue:
 
 - Cluster A: `gcp-cost-posture-foundation`, `Meridian`, `infracc`, `aws_to_gcp_cost`, `cloud-cost-genius-convert`
 - Cluster B: `autoinfra`, `autoinfra_aws`, `vuln-reduction-platform`, `consent-ledger-compliance-poc`, `nelc`
