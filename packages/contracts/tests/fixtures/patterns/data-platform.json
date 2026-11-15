@@ -1,0 +1,86 @@
+{
+  "id": "data-platform",
+  "name": "Ingestion and lakehouse data platform",
+  "category": "data_platform",
+  "description": "A layered data platform on BigQuery with raw, curated and consumption layers, processed by Dataflow or Airflow/Composer, with lineage and PII classification on ingest. Grounded in the portfolio's P11 pattern (\"Data and analytics lakehouse\") and module M6 (\"Data platform\").",
+  "parameters": [
+    {
+      "name": "ingestion_mode",
+      "type": "enum",
+      "description": "Whether source data arrives as batch extracts or a continuous stream.",
+      "required": true,
+      "default": null,
+      "allowed_values": [
+        "batch",
+        "streaming"
+      ]
+    },
+    {
+      "name": "orchestrator",
+      "type": "enum",
+      "description": "Processing orchestrator for the raw-to-curated transform.",
+      "required": true,
+      "default": null,
+      "allowed_values": [
+        "dataflow",
+        "airflow_composer"
+      ]
+    },
+    {
+      "name": "enable_pii_classification",
+      "type": "boolean",
+      "description": "Whether ingested columns are scanned and tagged for PII on load.",
+      "required": false,
+      "default": true,
+      "allowed_values": []
+    },
+    {
+      "name": "retention_days_raw",
+      "type": "integer",
+      "description": "Number of days raw-layer data is retained before deletion.",
+      "required": true,
+      "default": null,
+      "allowed_values": []
+    }
+  ],
+  "preconditions": [
+    "Source systems deliver data as batch extracts or publish to a messaging topic; the data platform does not accept direct synchronous reads from source systems.",
+    "A canonical schema for the curated layer has been agreed before the first load (P11 -- \"raw/curated/consumption layers\")."
+  ],
+  "outputs": [
+    {
+      "capability": "warehouse",
+      "description": "BigQuery raw, curated and consumption layers."
+    },
+    {
+      "capability": "batch_orchestration",
+      "description": "Scheduled Dataflow or Airflow/Composer pipelines moving raw to curated."
+    },
+    {
+      "capability": "lineage",
+      "description": "Column- and table-level lineage recorded for every transform."
+    },
+    {
+      "capability": "pii_classification",
+      "description": "PII tags attached to ingested columns, when enabled."
+    }
+  ],
+  "validation_rules": [
+    {
+      "id": "data-platform-streaming-requires-dataflow",
+      "description": "ingestion_mode=streaming requires orchestrator=dataflow; Airflow/ Composer in this reference stack is a batch orchestrator only (spec 5.4: \"Streaming | Pub/Sub; Dataflow or Airflow for batch\").",
+      "severity": "error"
+    },
+    {
+      "id": "data-platform-retention-is-positive",
+      "description": "retention_days_raw must be at least 1 day.",
+      "severity": "error"
+    },
+    {
+      "id": "data-platform-retention-meets-jurisdiction",
+      "description": "retention_days_raw should meet or exceed the longest retention window required by any jurisdiction pack selected for the tenant.",
+      "severity": "warning"
+    }
+  ],
+  "evidence": "CLOUD-ARCHITECTURE-PATTERNS.md P11 (\"Ingest to BigQuery, process with Dataflow or Airflow/Composer... keep raw and curated layers... a data-platform module with ingestion contracts, raw/curated/consumption layers, lineage, PII classification\") and 5.2 M6 (\"Ingestion, lakehouse, reconciliation, schema generation, lineage\"), evidenced by `reconciliation_framework`, `taa`, `prior_work_accelerator`, `fhir-omop`, `msm`."
+}
