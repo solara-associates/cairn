@@ -171,6 +171,190 @@ export type EvidencePackageResponse = {
   report: AssessmentReport;
 };
 
+// --- R2-09: design console (pattern select -> parameterize -> generate ->
+// regenerate -> inspect caveats -> export) ---
+
+export type PatternParameter = {
+  name: string;
+  type: "string" | "integer" | "boolean" | "enum" | "string_list";
+  description: string;
+  required: boolean;
+  default: unknown;
+  allowed_values: string[] | null;
+};
+
+export type Pattern = {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  parameters: PatternParameter[];
+};
+
+export type ResourceInput = {
+  resource_id: string;
+  provider: string;
+  service: string;
+  account_id?: string;
+  region?: string;
+  resource_type?: string;
+  native_id?: string | null;
+  name?: string | null;
+};
+
+export type WorkloadInput = {
+  workload_id: string;
+  name: string;
+  environment?: string;
+  resource_ids: string[];
+};
+
+export type DecisionInput = {
+  workload_id: string;
+  disposition: string;
+  rationale?: string;
+  confidence?: number;
+};
+
+export type CreateDesignRequest = {
+  pattern_id: string;
+  target_provider: string;
+  parameters: Record<string, unknown>;
+  resources: ResourceInput[];
+  workloads: WorkloadInput[];
+  decisions: DecisionInput[];
+};
+
+/** A target-model resource's resolution outcome, visibly distinguished:
+ * ``marker`` is always exactly one of ``EXACT``/``APPROXIMATE``/
+ * ``UNAVAILABLE``/``UNRESOLVED`` (704's own distinct-marker rule) --
+ * never collapsed into a single generic "not exact" state. */
+export type ResourceMarker = "EXACT" | "APPROXIMATE" | "UNAVAILABLE" | "UNRESOLVED";
+
+export type ResourceResolution = {
+  shape_id: string;
+  source_provider: string;
+  source_service: string;
+  target_provider: string;
+  target_service: string | null;
+  marker: ResourceMarker;
+  detail: string | null;
+};
+
+export type DesignSummary = {
+  design_id: string;
+  plan_id: string;
+  revision_number: number;
+  content_hash: string;
+  pattern_id: string;
+  target_provider: string;
+  parameters: Record<string, unknown>;
+  resources: ResourceResolution[];
+  wave_count: number;
+  blocked_workload_ids: string[];
+};
+
+export type DesignRevisionSummary = {
+  revision_id: string;
+  revision_number: number;
+  content_hash: string;
+  created_at: string;
+  parameters: Record<string, unknown>;
+};
+
+export type VersionStamp = {
+  pattern_catalogue_version: string;
+  mapping_release_version: string;
+  target_provider: string;
+};
+
+export type DesignExportBundle = {
+  tenant_id: string;
+  project_id: string;
+  design_id: string;
+  design: {
+    design_id: string;
+    revision_id: string;
+    revision_number: number;
+    content_hash: string;
+    pattern_id: string;
+    parameters: [string, unknown][];
+    versions: VersionStamp;
+  };
+  diagram: {
+    artefact_id: string;
+    revision_number: number;
+    content_hash: string;
+    shape_count: number;
+    unresolved_shape_ids: string[];
+    versions: VersionStamp;
+  };
+  plan: {
+    plan_id: string;
+    revision_number: number;
+    content_hash: string;
+    wave_count: number;
+    workload_count: number;
+    blocked_workload_ids: string[];
+    versions: VersionStamp;
+  };
+  iac: {
+    artefact_id: string;
+    revision_number: number;
+    content_hash: string;
+    gap_resource_ids: string[];
+    versions: VersionStamp;
+  };
+  version_stamps_consistent: boolean;
+};
+
+export type DiagramResponse = {
+  artefact_id: string;
+  kind: string;
+  revision_number: number;
+  content_hash: string;
+  rendered_content: string;
+  shapes: ResourceResolution[];
+};
+
+export type IacResourcePlan = {
+  resource_id: string;
+  source_provider: string;
+  source_service: string;
+  target_provider: string;
+  target_service: string | null;
+  status: "PLANNED" | "GAP";
+  approximate: boolean;
+  detail: string | null;
+};
+
+export type IacPreview = {
+  artefact_id: string;
+  revision_number: number;
+  content_hash: string;
+  disclaimer: string;
+  rendered_content: string;
+  gap_resource_ids: string[];
+  resources: IacResourcePlan[];
+};
+
+export type PlanRevision = {
+  plan_id: string;
+  revision_id: string;
+  revision_number: number;
+  content_hash: string;
+  wave_count: number;
+  waves: {
+    wave_number: number;
+    workloads: {
+      workload_id: string;
+      disposition: string | null;
+      constraints: { kind: string; detail: string }[];
+    }[];
+  }[];
+  blocked_workload_ids: string[];
+};
+
 export const api = {
   createProject(input: { name: string; customer_name?: string }): Promise<Project> {
     return request("POST", "/v1/projects", input);
@@ -244,5 +428,35 @@ export const api = {
       "POST",
       `/v1/projects/${projectId}/assessment-runs/${runId}/evidence-package`,
     );
+  },
+  listPatterns(): Promise<Pattern[]> {
+    return request("GET", "/v1/patterns");
+  },
+  createDesign(projectId: string, input: CreateDesignRequest): Promise<DesignSummary> {
+    return request("POST", `/v1/projects/${projectId}/designs`, input);
+  },
+  regenerateDesign(
+    designId: string,
+    parameters: Record<string, unknown>,
+  ): Promise<DesignSummary> {
+    return request("POST", `/v1/designs/${designId}/regenerate`, { parameters });
+  },
+  listDesignRevisions(designId: string): Promise<DesignRevisionSummary[]> {
+    return request("GET", `/v1/designs/${designId}/revisions`);
+  },
+  getDesignRevision(designId: string, revisionNumber: number): Promise<DesignExportBundle> {
+    return request("GET", `/v1/designs/${designId}/revisions/${revisionNumber}`);
+  },
+  getDesign(designId: string): Promise<DesignExportBundle> {
+    return request("GET", `/v1/designs/${designId}`);
+  },
+  getDesignDiagram(designId: string): Promise<DiagramResponse> {
+    return request("GET", `/v1/designs/${designId}/diagram`);
+  },
+  getDesignIac(designId: string): Promise<IacPreview> {
+    return request("GET", `/v1/designs/${designId}/iac`);
+  },
+  getPlanRevision(planId: string, revisionNumber: number): Promise<PlanRevision> {
+    return request("GET", `/v1/plans/${planId}/revisions/${revisionNumber}`);
   },
 };
