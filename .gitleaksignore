@@ -27,3 +27,7 @@ f7d0b76bbf5321d39ebe73e165a81fce2ba95a29:apps/api/tests/test_assessment_console_
 # _default_authenticator env-wiring test added while preparing this
 # repository for open-source publication. Confirmed (2026-11-15).
 692eacd00b46dfc961074c3def3805945c7ab712:apps/api/tests/test_default_authenticator.py:generic-api-key:14
+
+# Same dummy HS256 test secret constant, reused in R2-01's mapping
+# registry HTTP-layer test fixture. Confirmed R2-01 (2026-11-15).
+e3251ac63c6e28cf2e73eff71c511d98390f8d5a:apps/api/tests/test_mappings_api.py:generic-api-key:21

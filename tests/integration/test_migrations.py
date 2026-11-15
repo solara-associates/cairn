@@ -70,7 +70,7 @@ def app_role_session(
 
 def test_migrations_up_and_down_round_trip(migration_database: str) -> None:
     migrator = Migrator(migration_database)
-    assert migrator.up() == ("0001", "0002", "0003", "0004", "0005", "0006")
+    assert migrator.up() == ("0001", "0002", "0003", "0004", "0005", "0006", "0007")
     with psycopg.connect(migration_database) as connection:
         assert _public_tables(connection) == {
             "tenant",
@@ -84,17 +84,20 @@ def test_migrations_up_and_down_round_trip(migration_database: str) -> None:
             "schema_migration",
             "schema_migration_history",
             "tenant_context_secret",
+            "mapping_release",
+            "mapping_release_review",
+            "mapping_proposal",
         }
     assert migrator.up() == ()
     assert migrator.down(
         BASELINE, allow_multiple=True, allow_destructive=True
-    ) == ("0006", "0005", "0004", "0003", "0002", "0001")
+    ) == ("0007", "0006", "0005", "0004", "0003", "0002", "0001")
     with psycopg.connect(migration_database) as connection:
         assert _public_tables(connection) == {
             "schema_migration",
             "schema_migration_history",
         }
-    assert migrator.up() == ("0001", "0002", "0003", "0004", "0005", "0006")
+    assert migrator.up() == ("0001", "0002", "0003", "0004", "0005", "0006", "0007")
 
 
 def test_every_table_is_classified_with_required_rls(migrated_database: str) -> None:

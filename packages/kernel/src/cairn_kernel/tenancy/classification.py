@@ -38,6 +38,14 @@ TABLE_CLASSIFICATIONS: tuple[TableClassification, ...] = (
     TableClassification(table="schema_migration", scope=TenancyScope.GLOBAL),
     TableClassification(table="schema_migration_history", scope=TenancyScope.GLOBAL),
     TableClassification(table="tenant_context_secret", scope=TenancyScope.GLOBAL),
+    # R2-01: mapping releases are CAIRN-operated control data (spec 8.1),
+    # global and never tenant/project-scoped.
+    TableClassification(table="mapping_release", scope=TenancyScope.GLOBAL),
+    TableClassification(table="mapping_release_review", scope=TenancyScope.GLOBAL),
+    # R2-01: a mapping proposal is Tenant-owned (spec 8.1 lists "tenant
+    # mapping proposals" on the Tenant-owned row), even though the release
+    # content it carries becomes global the moment it is proposed.
+    TableClassification(table="mapping_proposal", scope=TenancyScope.TENANT),
 )
 
 TENANCY_CLASSIFICATION: dict[str, TenancyScope] = {

@@ -28,7 +28,7 @@ def test_up_waits_for_the_migration_lock(migration_database: str) -> None:
             _release(holder)
             holder = None
             applied = future.result(timeout=30)
-        assert applied == ("0001", "0002", "0003", "0004", "0005", "0006")
+        assert applied == ("0001", "0002", "0003", "0004", "0005", "0006", "0007")
     finally:
         if holder is not None:
             _release(holder)
@@ -46,6 +46,7 @@ def test_concurrent_up_applies_each_migration_once(migration_database: str) -> N
         "0004",
         "0005",
         "0006",
+        "0007",
     ]
     assert Migrator(migration_database).applied_versions() == (
         "0001",
@@ -54,6 +55,7 @@ def test_concurrent_up_applies_each_migration_once(migration_database: str) -> N
         "0004",
         "0005",
         "0006",
+        "0007",
     )
 
 
@@ -64,13 +66,13 @@ def test_down_waits_for_the_migration_lock(migration_database: str) -> None:
     try:
         with ThreadPoolExecutor(max_workers=1) as pool:
             future = pool.submit(
-                migrator.down, "0005", allow_destructive=True
+                migrator.down, "0005", allow_multiple=True, allow_destructive=True
             )
             threading.Event().wait(0.5)
             assert not future.done()
             _release(holder)
             holder = None
-            assert future.result(timeout=30) == ("0006",)
+            assert future.result(timeout=30) == ("0007", "0006")
     finally:
         if holder is not None:
             _release(holder)
