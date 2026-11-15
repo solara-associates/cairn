@@ -8,6 +8,12 @@ import { renderRun } from "./screens/run";
 import { renderResults } from "./screens/results";
 import { renderReport } from "./screens/report";
 import { renderEvidence } from "./screens/evidence";
+import { renderPatterns } from "./screens/patterns";
+import { renderParameterize } from "./screens/parameterize";
+import { renderDesignResults } from "./screens/design-results";
+import { renderRoadmap } from "./screens/roadmap";
+import { renderIac } from "./screens/iac";
+import { renderDesignExport } from "./screens/design-export";
 
 const statusElement = document.querySelector<HTMLParagraphElement>("#status");
 
@@ -46,6 +52,12 @@ export function buildRouter(container: HTMLElement): Router {
   router.register({ name: "results", render: (c) => renderResults(c, router) });
   router.register({ name: "report", render: (c) => renderReport(c, router) });
   router.register({ name: "evidence", render: (c) => renderEvidence(c, router) });
+  router.register({ name: "patterns", render: (c) => renderPatterns(c, router) });
+  router.register({ name: "parameterize", render: (c) => renderParameterize(c, router) });
+  router.register({ name: "design-results", render: (c) => renderDesignResults(c, router) });
+  router.register({ name: "roadmap", render: (c) => renderRoadmap(c, router) });
+  router.register({ name: "iac", render: (c) => renderIac(c, router) });
+  router.register({ name: "design-export", render: (c) => renderDesignExport(c, router) });
   return router;
 }
 
