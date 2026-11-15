@@ -1,0 +1,83 @@
+{
+  "id": "landing-zone",
+  "name": "Sovereign landing zone",
+  "category": "landing_zone",
+  "description": "A foundational, multi-environment landing zone -- network, IAM, data, runtime and observability modules -- deployed through Terraform plan/apply/drift pipelines, with a region allowlist and a residency sweep that raises on an empty result, enforced before any resource is created. Grounded in P14 (\"Sovereignty and residency\"), P15 (\"Infrastructure as code and runtime topology\") and module M5.",
+  "parameters": [
+    {
+      "name": "allowed_regions",
+      "type": "string_list",
+      "description": "The region allowlist this landing zone's residency sweep enforces.",
+      "required": true,
+      "default": null,
+      "allowed_values": []
+    },
+    {
+      "name": "environments",
+      "type": "string_list",
+      "description": "The environment tiers this landing zone provisions (e.g. dev, staging, prod).",
+      "required": true,
+      "default": null,
+      "allowed_values": []
+    },
+    {
+      "name": "residency_sweep_on_apply",
+      "type": "boolean",
+      "description": "Whether a residency sweep runs and blocks apply on any out-of-region resource.",
+      "required": true,
+      "default": null,
+      "allowed_values": []
+    },
+    {
+      "name": "network_topology",
+      "type": "enum",
+      "description": "The network topology composed across environments.",
+      "required": true,
+      "default": null,
+      "allowed_values": [
+        "single_vpc",
+        "hub_spoke"
+      ]
+    }
+  ],
+  "preconditions": [
+    "A jurisdiction pack naming the allowed regions and residency rule has already been selected for the tenant (P14).",
+    "A Terraform module library exists for network, IAM, data, runtime and observability composition (P15)."
+  ],
+  "outputs": [
+    {
+      "capability": "network_module",
+      "description": "Composed VPC/subnet/firewall topology for the declared environments."
+    },
+    {
+      "capability": "iam_baseline",
+      "description": "Baseline IAM roles and Workload Identity bindings."
+    },
+    {
+      "capability": "plan_apply_drift_pipeline",
+      "description": "Cloud Build pipeline running Terraform plan, apply and drift detection."
+    },
+    {
+      "capability": "residency_sweep_evidence",
+      "description": "Signed evidence that every provisioned resource is in an allowed region."
+    }
+  ],
+  "validation_rules": [
+    {
+      "id": "landing-zone-regions-non-empty",
+      "description": "allowed_regions must be non-empty; a landing zone with no declared region allowlist cannot pass the residency sweep (P14: \"residency sweep that raises on empty results\").",
+      "severity": "error"
+    },
+    {
+      "id": "landing-zone-sweep-required-when-published",
+      "description": "residency_sweep_on_apply must be true in every PUBLISHED release; disabling the sweep is only permitted in a DRAFT release used for local testing.",
+      "severity": "error"
+    },
+    {
+      "id": "landing-zone-hub-spoke-needs-multiple-environments",
+      "description": "network_topology=hub_spoke should only be chosen when environments has at least two entries; a single environment does not justify hub-spoke's shared-services overhead.",
+      "severity": "warning"
+    }
+  ],
+  "evidence": "CLOUD-ARCHITECTURE-PATTERNS.md P14 (\"`uk-landing-zone-accelerator`: UK-sovereign landing zone in a declared region; residency sweep that raises on empty results\") and P15 (\"a Terraform module library (landing zone, network, IAM, data, runtime, observability, guardrails) ... Cloud Build for plan/apply/drift\")."
+}

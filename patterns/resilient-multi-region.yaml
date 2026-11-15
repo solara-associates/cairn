@@ -1,0 +1,68 @@
+id: resilient-multi-region
+name: "Multi-region resilience and failover"
+category: resilient_multi_region
+description: >
+  An active-active or active-passive topology across two or more regions
+  with scripted failover, scheduled DR drills, and a single sovereignty
+  rule consulted by every surface so that a failover is itself a
+  compliance event, not only an availability event. Grounded in `raas`
+  ("Resilience as a Service") and pattern P14.
+evidence: >
+  CLOUD-ARCHITECTURE-PATTERNS.md P14 ("`raas`: failover is a compliance
+  event; the sovereignty rule cannot live in one adapter; it is one rule
+  every surface consults") and `raas`'s cluster-G entry ("workload/
+  incident/failover/DR-drill/SLA/compliance aggregates; DAG failover
+  orchestration").
+parameters:
+  - name: topology
+    type: enum
+    description: The multi-region deployment topology.
+    required: true
+    allowed_values: [active_active, active_passive]
+  - name: regions
+    type: string_list
+    description: The regions this topology spans.
+    required: true
+  - name: failover_trigger
+    type: enum
+    description: Whether failover fires automatically or waits on manual approval.
+    required: true
+    allowed_values: [automatic, manual_approval]
+  - name: dr_drill_frequency_days
+    type: integer
+    description: Number of days between scheduled DR drills.
+    required: true
+preconditions:
+  - Every region in regions is present in the tenant's allowed-region
+    list from its landing zone's jurisdiction pack (P14 -- "one
+    sovereignty rule consulted by every surface").
+  - A failover runbook and a DR-drill schedule exist and are evidenced
+    (`raas`'s workload/incident/failover/DR-drill aggregates).
+outputs:
+  - capability: failover_orchestration
+    description: DAG-driven failover orchestration across the declared regions.
+  - capability: dr_drill_schedule
+    description: Scheduled, evidenced disaster-recovery drills.
+  - capability: compliance_event_on_failover
+    description: A compliance-event record emitted whenever failover occurs.
+  - capability: multi_region_topology
+    description: The provisioned active-active or active-passive region topology.
+validation_rules:
+  - id: resilient-multi-region-needs-two-regions
+    description: >
+      regions must contain at least two distinct regions; a single-region
+      deployment cannot satisfy this pattern.
+    severity: error
+  - id: resilient-multi-region-automatic-requires-active-active
+    description: >
+      failover_trigger=automatic requires topology=active_active;
+      active-passive failover in this reference design requires
+      manual_approval because failover is itself a compliance event
+      (P14).
+    severity: error
+  - id: resilient-multi-region-drill-frequency-positive
+    description: >
+      dr_drill_frequency_days must be a positive integer, and at least
+      one evidenced DR drill is required before a release reaches
+      PUBLISHED status.
+    severity: warning
