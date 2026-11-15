@@ -288,6 +288,48 @@ OPERATIONS: tuple[OperationEntry, ...] = (
         mutation_class=MutationClass.INTERNAL_MUTATION,
         tenancy_scope=TenancyScope.GLOBAL,
     ),
+    # --- apps/api: design/plan export (R2-08), reading 703-706's already-
+    # generated target model, diagram, IaC preview and migration roadmap ---
+    # Every route below only reads CAIRN's own workspace artefacts (a
+    # design's target model/diagram/IaC preview, a plan's roadmap
+    # revisions); none of it crosses into a customer environment
+    # (ADR-010), so each is Class A READ_ONLY, project-scoped the same
+    # way the assessment-run inspection routes above are.
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.GET /v1/designs/{design_id}",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.GET /v1/designs/{design_id}/diagram",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.GET /v1/designs/{design_id}/report",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.GET /v1/projects/{project_id}/plans",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.GET /v1/plans/{plan_id}/revisions/{revision_number}",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
     # --- cairn_contracts.events: declared event envelopes (R0-05) ---
     # Every event below records a CAIRN-workspace fact or state change; none
     # of them is produced by a wired publisher yet (no EventPublisher adapter
