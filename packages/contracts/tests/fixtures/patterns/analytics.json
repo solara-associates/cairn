@@ -1,0 +1,85 @@
+{
+  "id": "analytics",
+  "name": "Configuration-driven analytics and reconciliation",
+  "category": "analytics",
+  "description": "Declarative, config-table-driven SQL generation for reconciliation and reporting over an existing warehouse, scheduled on a fixed cadence, with jurisdiction-specific compliance report output -- no code change is required when a reconciliation or reporting rule changes. Grounded in `barq`'s config-driven reconciliation framework and `taa`'s per- jurisdiction compliance report generation.",
+  "parameters": [
+    {
+      "name": "rule_source",
+      "type": "enum",
+      "description": "Where reconciliation and reporting rules are defined.",
+      "required": true,
+      "default": null,
+      "allowed_values": [
+        "config_table"
+      ]
+    },
+    {
+      "name": "reconciliation_frequency",
+      "type": "enum",
+      "description": "How often the reconciliation job runs.",
+      "required": true,
+      "default": null,
+      "allowed_values": [
+        "hourly",
+        "daily",
+        "weekly"
+      ]
+    },
+    {
+      "name": "jurisdiction_packs",
+      "type": "string_list",
+      "description": "The jurisdiction packs this pattern's compliance reports are generated for.",
+      "required": true,
+      "default": null,
+      "allowed_values": []
+    },
+    {
+      "name": "compliance_report_format",
+      "type": "enum",
+      "description": "Output format for the generated compliance report.",
+      "required": true,
+      "default": null,
+      "allowed_values": [
+        "pdf",
+        "csv"
+      ]
+    }
+  ],
+  "preconditions": [
+    "Reconciliation and reporting rules are expressed as rows in a config table, not as hardcoded SQL or application code (`barq`'s config- driven rules and generators).",
+    "The warehouse already contains the curated tables this pattern reports against; this pattern depends on a data-platform pattern instance for ingestion, it does not ingest raw data itself."
+  ],
+  "outputs": [
+    {
+      "capability": "reconciliation_job",
+      "description": "Scheduled, config-driven SQL generator matching source transactions."
+    },
+    {
+      "capability": "compliance_report",
+      "description": "Generated compliance report, one per configured jurisdiction pack."
+    },
+    {
+      "capability": "config_rule_table",
+      "description": "Table of accounts/rules/joins/filters/transformations driving the job."
+    }
+  ],
+  "validation_rules": [
+    {
+      "id": "analytics-jurisdiction-packs-non-empty",
+      "description": "jurisdiction_packs must be non-empty, and each entry must match a jurisdiction pack already selected for the tenant (spec 7.4: UK, Saudi, UAE, India launch pack).",
+      "severity": "error"
+    },
+    {
+      "id": "analytics-rule-source-is-config-table",
+      "description": "rule_source must equal config_table; this pattern assumes no code change is required when a reconciliation or reporting rule evolves (`barq`).",
+      "severity": "error"
+    },
+    {
+      "id": "analytics-report-format-matches-regulator",
+      "description": "compliance_report_format should be confirmed against each jurisdiction pack's own regulator-facing format requirement before a release reaches PUBLISHED status.",
+      "severity": "warning"
+    }
+  ],
+  "evidence": "CLOUD-ARCHITECTURE-PATTERNS.md cluster F (\"`barq`: Configuration-driven financial reconciliation framework on BigQuery. Matches core-banking against third-party processor transactions with no code change when rules evolve... Config tables for accounts/rules/joins/filters/ transformations, dynamic CTE SQL generator\") and (\"`taa`: Telco Analytics Accelerator. Turns BSS/OSS configuration into BigQuery DDL... and compliance reports for ten jurisdictions\")."
+}

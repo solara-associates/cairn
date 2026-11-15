@@ -1,0 +1,91 @@
+{
+  "id": "ai-app",
+  "name": "AI/LLM application with governed model gateway",
+  "category": "ai_app",
+  "description": "An application whose reasoning calls go exclusively through a ``ModelPort`` adapter, with per-call cost and latency logging, a deterministic guardrail that can reject a model's output independently of the model's own confidence, and drift monitoring. Grounded in module M7 (\"AI/ML platform\"), pattern P6 (\"AI advisory, deterministic bounds\") and P17's per-AI-call cost log.",
+  "parameters": [
+    {
+      "name": "model_provider",
+      "type": "enum",
+      "description": "The model provider behind this pattern's ModelPort adapter.",
+      "required": true,
+      "default": null,
+      "allowed_values": [
+        "vertex_gemini",
+        "bedrock",
+        "azure_openai"
+      ]
+    },
+    {
+      "name": "task_type",
+      "type": "enum",
+      "description": "The kind of model task this application performs.",
+      "required": true,
+      "default": null,
+      "allowed_values": [
+        "generation",
+        "classification",
+        "retrieval_grounded"
+      ]
+    },
+    {
+      "name": "guardrail_mode",
+      "type": "enum",
+      "description": "Whether the deterministic guardrail blocks or only advises on a rejection.",
+      "required": true,
+      "default": null,
+      "allowed_values": [
+        "fail_closed",
+        "advisory"
+      ]
+    },
+    {
+      "name": "max_tokens_per_call",
+      "type": "integer",
+      "description": "Upper bound on tokens per model call, used to bound per-call cost.",
+      "required": true,
+      "default": null,
+      "allowed_values": []
+    }
+  ],
+  "preconditions": [
+    "All model calls are routed through a ModelPort adapter; no direct SDK call to a model provider exists outside that adapter (spec 5.4 port catalogue).",
+    "A deterministic guardrail or evaluator exists that can reject an output independently of the model's own confidence score (P6)."
+  ],
+  "outputs": [
+    {
+      "capability": "model_gateway",
+      "description": "ModelPort adapter for the selected provider (Vertex, Bedrock or Azure OpenAI)."
+    },
+    {
+      "capability": "per_call_cost_log",
+      "description": "Per-AI-call log of prompt hash, token counts, latency and micro-USD cost."
+    },
+    {
+      "capability": "drift_monitoring",
+      "description": "Statistical drift detection on model inputs/outputs over time."
+    },
+    {
+      "capability": "guardrail_boundary",
+      "description": "Deterministic check that can reject a model output before it is used."
+    }
+  ],
+  "validation_rules": [
+    {
+      "id": "ai-app-advisory-guardrail-cannot-gate-writes",
+      "description": "guardrail_mode=advisory is not permitted when task_type would mutate persisted state; only fail_closed may gate a write (architectural rule A5.7: controls fail closed).",
+      "severity": "error"
+    },
+    {
+      "id": "ai-app-max-tokens-is-positive",
+      "description": "max_tokens_per_call must be a positive integer.",
+      "severity": "error"
+    },
+    {
+      "id": "ai-app-non-default-provider-needs-contract-tests",
+      "description": "model_provider=bedrock or azure_openai requires that provider's ModelPort contract tests have been run before first use; Vertex/ Gemini is this stack's default (spec 5.4 AI row).",
+      "severity": "warning"
+    }
+  ],
+  "evidence": "CLOUD-ARCHITECTURE-PATTERNS.md 5.2 M7 (\"MLOps, LLMOps gateway, model registry, drift, governance\"; `mlops`, `mlops-aws`, `llmops`), P17 (\"a per-AI-call log recording prompt hash, token counts, latency and integer-micro-USD cost\") and 5.4's port catalogue row `ModelPort | adapters/model | Gemini, fake`."
+}
