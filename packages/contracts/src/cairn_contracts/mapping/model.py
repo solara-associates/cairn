@@ -22,7 +22,19 @@ RequiredText = Annotated[str, StringConstraints(strip_whitespace=True, min_lengt
 
 
 class ReleaseStatus(str, Enum):
+    """ADR-004's "propose, review, approve, publish, retire" sequence.
+
+    ``DRAFT`` -> ``IN_REVIEW`` -> ``APPROVED`` -> ``PUBLISHED`` -> ``RETIRED``,
+    with ``IN_REVIEW`` -> ``DRAFT`` the only legal step backwards (a
+    reviewer sends a proposal back to its author). Once a release reaches
+    ``PUBLISHED`` the only legal further transition is to ``RETIRED``, and
+    ``RETIRED`` is terminal. R2-01's workflow repository and migration
+    0007 enforce this identical sequence at the database.
+    """
+
     DRAFT = "DRAFT"
+    IN_REVIEW = "IN_REVIEW"
+    APPROVED = "APPROVED"
     PUBLISHED = "PUBLISHED"
     RETIRED = "RETIRED"
 
@@ -98,9 +110,65 @@ class MappingRelease(BaseModel):
         return self.status is ReleaseStatus.PUBLISHED
 
 
+class MappingProposal(BaseModel):
+    """ADR-004's "propose" step: a tenant-scoped request to introduce a new
+    mapping release version, before any review has happened.
+
+    Tenant-scoped (spec 8.1: "tenant mapping proposals" is a Tenant-owned
+    entity) even though the release it targets, once published, is global
+    -- a proposal records who at which tenant asked for a change and why;
+    the release content it carries becomes global only once published.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    tenant_id: RequiredText
+    release: MappingRelease
+    proposer_actor_id: RequiredText
+    rationale: RequiredText
+    proposed_at: datetime
+
+    @field_validator("proposed_at")
+    @classmethod
+    def _proposed_at_is_aware(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("proposed_at must include a timezone")
+        return value
+
+    @model_validator(mode="after")
+    def _release_is_draft(self) -> MappingProposal:
+        if self.release.status is not ReleaseStatus.DRAFT:
+            raise ValueError("a proposal must carry a release in DRAFT status")
+        return self
+
+
+class ReviewDecision(BaseModel):
+    """ADR-004's "review" step: a reviewer's approve/reject decision on a
+    release version already submitted for review (``IN_REVIEW``), with the
+    audit record ADR-004 requires -- actor, timestamp and rationale.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    version: MappingVersion
+    approved: bool
+    reviewer_actor_id: RequiredText
+    rationale: RequiredText
+    decided_at: datetime
+
+    @field_validator("decided_at")
+    @classmethod
+    def _decided_at_is_aware(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("decided_at must include a timezone")
+        return value
+
+
 __all__ = [
     "MappingEntry",
+    "MappingProposal",
     "MappingRelease",
     "MappingVersion",
     "ReleaseStatus",
+    "ReviewDecision",
 ]
