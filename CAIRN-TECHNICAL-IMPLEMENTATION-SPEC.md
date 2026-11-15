@@ -731,8 +731,8 @@ entries:
 | Dataset | Source repos | Minimum seed |
 |---|---|---|
 | Service map | `cloudshift` (134 patterns), `infracc`, `mlops-aws`, `Meridian` | Top 40 services per provider pair used in pilot |
-| Region catalogue | `tda-uk-accelerator`, `nelc` | UK, GCC/MENA, India, EU, US |
-| Jurisdiction packs | `taa`, `temenos_ldm_accelerator`, `fhir-omop`, `dpdp` | UK, Saudi, UAE, India (initial launch pack chosen in ADR) |
+| Region catalogue | `uk-landing-zone-accelerator`, `nelc` | UK, GCC/MENA, India, EU, US |
+| Jurisdiction packs | `taa`, `temenos_ldm_accelerator`, `fhir-omop`, `consent-ledger-compliance-poc` | UK, Saudi, UAE, India (initial launch pack chosen in ADR) |
 | Pattern catalogue | `drawio-gen` | 8-12 patterns: web app, data platform, AI app, landing zone, event-driven, analytics, migration, resilient multi-region |
 
 ---
@@ -1991,7 +1991,7 @@ No production data in non-production environments. De-identification is mandator
 - `tools/conformance/rules.yaml` maps rule ID to check command and owner.
 - `make conformance` runs all checks and emits machine-readable results.
 - CI fails on any mandatory failure; the harness self-tests that every mandatory rule has a check.
-- Start from the `punjab` conformance map and the `tda-uk-accelerator` gate semantics.
+- Start from the `punjab` conformance map and the `uk-landing-zone-accelerator` gate semantics.
 
 ---
 
@@ -2162,13 +2162,13 @@ CAIRN is greenfield (ADR-017). The reference repositories are evidence for how p
 | Hex/DDD scaffolding | `Meridian`, `punjab`, `barq` | Four-layer separation and explicit ports, enforced in CI | New `kernel/hex` and `contracts`, `import-linter` |
 | Provider ports | `Meridian`, `mlops-aws`, `raas` | One contract per provider capability; a fake adapter for tests | New `provider-core` protocols; GCP adapter first |
 | MCP kit | `punjab`, `byomcp`, `raas` | One server per bounded context; gateway auth and audit | New `kits/mcp`, `apps/mcp-gateway` |
-| Evidence and ledger | `tda-uk-accelerator`, `dpdp`, `feedback` | Audit-before-effect; signed artefacts; offline verification | New `kernel/evidence` |
-| Posture | `autoinfra`, `autoinfra_aws`, `clearvue-foundation` | One Finding model; scanner adapters | New `modules/posture` |
+| Evidence and ledger | `uk-landing-zone-accelerator`, `consent-ledger-compliance-poc`, `feedback` | Audit-before-effect; signed artefacts; offline verification | New `kernel/evidence` |
+| Posture | `autoinfra`, `autoinfra_aws`, `gcp-cost-posture-foundation` | One Finding model; scanner adapters | New `modules/posture` |
 | Assessment and 6R | `agent-assess`, `infracc`, `anytoany` | Canonical estate model; explicit coverage and confidence | New `modules/estate` |
 | Mapping registry | `cloudshift`, `drawio-gen`, `infracc` | Equivalence semantics; immutable releases | New `modules/mappings` |
 | Design and diagrams | `drawio-gen` | One model drives diagram, plan and IaC | New `modules/design` |
 | Transformation | `cloudshift_v2` (reference only) | Parse, detect, diff and validate as separate deterministic stages | New `transform-core` in Rust (ADR-015) |
-| FinOps | `clearvue-foundation`, `Meridian` | Graded remediation; attribution and unallocated spend | New `modules/finops` |
+| FinOps | `gcp-cost-posture-foundation`, `Meridian` | Graded remediation; attribution and unallocated spend | New `modules/finops` |
 | Loop kit | `Meridian`, `llmops`, `mlops` | Observe/Decide/Act with policy and evidence | New `kits/loop` |
 | Observability | `llmops`, `punjab`, `raas` | OTel plus RED plus per-AI-call cost log | New `kernel/observability` |
 | Console | `infracc`, `cockpit` | Assessment-first information architecture | New `apps/console` |
