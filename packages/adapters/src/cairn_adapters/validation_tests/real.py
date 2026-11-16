@@ -26,19 +26,26 @@ one (the created temp directory does not exist once ``validate`` returns).
 
 No network call from this module's own code -- see the module docstring
 discipline this repository already uses elsewhere (``cairn_adapters.
-transform_core``'s ``no_network_imports_in_cli_source``): whatever the
-*declared test command itself* does once invoked (a test suite reaching
-the network) is that test suite's own business, sandboxing it is 731's
-job ("731's sandbox wraps these adapters next"), not this unit's.
+transform_core``'s ``no_network_imports_in_cli_source``). What the
+*declared test command itself* does once invoked is no longer left to that
+test suite's own business, as of 731 (R3-08): the actual execution step
+below now runs through ``cairn_adapters.sandbox_runner.run_sandboxed``
+rather than a bare ``subprocess.run`` -- CPU/memory/wall-clock limits and
+no network egress by default, enforced by the OS, not merely requested of
+the child. See ``cairn_modules.transformation.sandbox`` and
+``cairn_adapters.sandbox_runner`` for the mechanism and exactly why this
+is the one adapter among 729's three that needs it.
 """
 
 from __future__ import annotations
 
-import subprocess
 import tempfile
 from pathlib import Path
 
+from cairn_modules.transformation.sandbox import SandboxLimits
 from cairn_modules.transformation.validation import ValidationRequest, ValidationResult
+
+from cairn_adapters.sandbox_runner import SandboxBuildError, run_sandboxed
 
 TEST_SUITE_CHECK_ID = "tests"
 
@@ -116,8 +123,22 @@ class TestSuiteValidationAdapter:
     # stops pytest's default collection heuristic from warning about it.
     __test__ = False
 
-    def __init__(self, *, timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS) -> None:
+    def __init__(
+        self,
+        *,
+        timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
+        sandbox_limits: SandboxLimits | None = None,
+    ) -> None:
         self._timeout_seconds = timeout_seconds
+        # ``timeout_seconds`` is this adapter's own long-standing wall-clock
+        # knob (predates 731); folded into the sandbox's wall-clock bound
+        # rather than kept as a second, competing timeout. An explicit
+        # ``sandbox_limits`` overrides it entirely, including the
+        # wall-clock field, for a caller that wants the sandbox's own
+        # defaults untouched by this adapter's constructor arg.
+        self._sandbox_limits = sandbox_limits or SandboxLimits(
+            wall_clock_seconds=timeout_seconds
+        )
 
     def validate(self, request: ValidationRequest) -> tuple[ValidationResult, ...]:
         with tempfile.TemporaryDirectory(prefix=_TEMP_DIR_PREFIX) as tmp:
@@ -137,29 +158,35 @@ class TestSuiteValidationAdapter:
                     ),
                 )
             try:
-                completed = subprocess.run(
-                    command,
-                    cwd=root,
-                    capture_output=True,
-                    text=True,
-                    timeout=self._timeout_seconds,
-                    check=False,
-                )
-            except (OSError, subprocess.SubprocessError) as exc:
+                sandboxed = run_sandboxed(command, cwd=root, limits=self._sandbox_limits)
+            except SandboxBuildError as exc:
                 return (
                     ValidationResult(
                         check_id=TEST_SUITE_CHECK_ID,
                         passed=False,
-                        reason=f"declared test command {command!r} failed to run: {exc}",
+                        reason=f"declared test command {command!r} could not be sandboxed: {exc}",
                     ),
                 )
 
-            passed = completed.returncode == 0
+            if sandboxed.timed_out:
+                return (
+                    ValidationResult(
+                        check_id=TEST_SUITE_CHECK_ID,
+                        passed=False,
+                        reason=(
+                            f"declared test command {command!r} exceeded its sandboxed "
+                            f"wall-clock limit of {self._sandbox_limits.wall_clock_seconds}s "
+                            "and was killed"
+                        ),
+                    ),
+                )
+
+            passed = sandboxed.returncode == 0
             reason = None
             if not passed:
                 reason = (
-                    f"declared test command {command!r} exited {completed.returncode}: "
-                    f"{_tail(completed.stdout, completed.stderr)}"
+                    f"declared test command {command!r} exited {sandboxed.returncode}: "
+                    f"{_tail(sandboxed.stdout, sandboxed.stderr)}"
                 )
             return (ValidationResult(check_id=TEST_SUITE_CHECK_ID, passed=passed, reason=reason),)
 
