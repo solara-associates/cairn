@@ -13,6 +13,9 @@ function projectRow(project: Project): string {
       <button type="button" data-action="select-project-for-design" data-project-id="${project.project_id}">
         Design target architecture
       </button>
+      <button type="button" data-action="select-project-for-transform" data-project-id="${project.project_id}">
+        Review a transformation
+      </button>
     </li>
   `;
 }
@@ -77,6 +80,14 @@ export async function renderProjects(container: HTMLElement, router: Router): Pr
     if (projectId) {
       setProjectId(projectId);
       void router.go("patterns");
+    }
+  });
+
+  onClick(container, "select-project-for-transform", (_event, target) => {
+    const projectId = target.dataset.projectId;
+    if (projectId) {
+      setProjectId(projectId);
+      void router.go("transform-run");
     }
   });
 

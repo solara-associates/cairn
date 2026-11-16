@@ -7,6 +7,11 @@ export type Session = {
   patternId: string | null;
   designId: string | null;
   planId: string | null;
+  // R3-07: the diff review and validation console's own run id -- kept
+  // separate from `runId` (R1-15/R1-18's assessment run) since the two
+  // journeys are independent and a console session could in principle
+  // hold one of each.
+  transformRunId: string | null;
 };
 
 const session: Session = {
@@ -18,6 +23,7 @@ const session: Session = {
   patternId: null,
   designId: null,
   planId: null,
+  transformRunId: null,
 };
 
 export function getSession(): Session {
@@ -42,6 +48,10 @@ export function setRunId(runId: string | null): void {
   session.runId = runId;
 }
 
+export function setTransformRunId(transformRunId: string | null): void {
+  session.transformRunId = transformRunId;
+}
+
 export function setPatternId(patternId: string | null): void {
   session.patternId = patternId;
 }
@@ -63,4 +73,5 @@ export function resetSession(): void {
   session.patternId = null;
   session.designId = null;
   session.planId = null;
+  session.transformRunId = null;
 }
