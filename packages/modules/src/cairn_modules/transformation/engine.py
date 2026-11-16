@@ -155,6 +155,64 @@ def _edit_from_raw(raw_edit: Mapping[str, Any]) -> ManifestEdit:
     )
 
 
+PARSE_INCOMPLETE_RULE_ID = "cairn-transform-core/parse-incomplete"
+"""Unit 727's sentinel ``rule_id`` for a synthesized manifest entry (see
+``_parse_failure_entry`` below). Never a real detector rule id (724's
+``rule_ids`` module), so a reader of the manifest can always tell this
+entry apart from an actual detection/skipped-candidate outcome -- it
+records a parse-stage failure, not a rule judgement."""
+
+
+def _parse_failure_entry(
+    *, source_file_id: str, pattern_version: str, raw_output: Mapping[str, Any]
+) -> ManifestEntry | None:
+    """Unit 727's fix for a real gap its end-to-end golden-corpus pass
+    found: 722's ``ParseOutput::Error`` cases (e.g. an unterminated HCL
+    block) and 723's ``ParseOutput::Unsupported`` cases (e.g. an
+    f-string) both produce an empty ``DetectionSet`` (724's own
+    documented behaviour), so ``change_set.entries`` is empty -- with
+    nothing else recorded, that file's manifest line was indistinguishable
+    from a file that parsed cleanly and had nothing to flag, exactly the
+    "swallowed by a later stage" failure mode ADR-015's manifest exists
+    to prevent.
+
+    Unit 726's Rust CLI did not carry the parse stage's own outcome
+    anywhere a Python-side manifest could read it. Unit 727 added
+    ``CliOutput.parse_status`` (``packages/transform-core/cli/src/
+    main.rs``) for exactly this. ``raw_output.get("parse_status")`` is
+    read defensively (``.get``, not ``[...]``) rather than required, so
+    the pre-existing hand-written fixtures in
+    ``packages/adapters/tests/test_transform_core_contract.py`` (which
+    predate this field and never set it) keep working unmodified -- a
+    missing ``parse_status`` is read as the implicit ``"PARSED"`` status
+    those fixtures always represent, not a new required field every
+    caller must now populate.
+
+    Returns ``None`` when the parse succeeded (status ``"PARSED"``) --
+    there is nothing to synthesize; the real ``change_set.entries`` (if
+    any) carry the whole story for that file.
+    """
+
+    parse_status = raw_output.get("parse_status", {"status": "PARSED", "reason": None})
+    status = parse_status.get("status", "PARSED")
+    if status == "PARSED":
+        return None
+
+    reason = parse_status.get("reason") or "no reason recorded"
+    stage_label = "parse error" if status == "ERROR" else "parse declined (unsupported construct)"
+    return ManifestEntry(
+        source_file_id=source_file_id,
+        rule_id=PARSE_INCOMPLETE_RULE_ID,
+        outcome=ManifestOutcome.UNSUPPORTED,
+        reason=f"{stage_label}: {reason}",
+        edits=(),
+        detector_version=raw_output["detector_version"],
+        pattern_version=pattern_version,
+        patcher_version=raw_output["patcher_version"],
+        mapping_release_version=None,
+    )
+
+
 def _entry_from_raw_change_entry(
     *, source_file_id: str, pattern_version: str, raw_entry: Mapping[str, Any]
 ) -> ManifestEntry:
@@ -209,6 +267,13 @@ def build_manifest(cli_outputs: Sequence[tuple[str, Mapping[str, Any]]]) -> Tran
                     raw_entry=raw_entry,
                 )
             )
+        parse_failure_entry = _parse_failure_entry(
+            source_file_id=source_file_id,
+            pattern_version=pattern_version,
+            raw_output=raw_output,
+        )
+        if parse_failure_entry is not None:
+            entries.append(parse_failure_entry)
     return TransformationManifest(
         source_file_ids=tuple(source_file_ids),
         entries=tuple(entries),
@@ -216,6 +281,7 @@ def build_manifest(cli_outputs: Sequence[tuple[str, Mapping[str, Any]]]) -> Tran
 
 
 __all__ = [
+    "PARSE_INCOMPLETE_RULE_ID",
     "ManifestEdit",
     "ManifestEntry",
     "ManifestOutcome",
