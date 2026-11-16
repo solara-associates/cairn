@@ -19,6 +19,7 @@ import { renderTransformDiff } from "./screens/transform-diff";
 import { renderTransformValidate } from "./screens/transform-validate";
 import { renderTransformEvidence } from "./screens/transform-evidence";
 import { renderTransformReview } from "./screens/transform-review";
+import { renderPlanApproval } from "./screens/plan-approval";
 
 const statusElement = document.querySelector<HTMLParagraphElement>("#status");
 
@@ -74,6 +75,7 @@ export function buildRouter(container: HTMLElement): Router {
     render: (c) => renderTransformEvidence(c, router),
   });
   router.register({ name: "transform-review", render: (c) => renderTransformReview(c, router) });
+  router.register({ name: "plan-approval", render: (c) => renderPlanApproval(c, router) });
   return router;
 }
 

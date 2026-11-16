@@ -467,6 +467,48 @@ OPERATIONS: tuple[OperationEntry, ...] = (
         mutation_class=MutationClass.READ_ONLY,
         tenancy_scope=TenancyScope.PROJECT,
     ),
+    # --- apps/api: approval and execution console (R4-05/792) ---
+    # Proposing a design's Terraform plan revision for approval
+    # orchestrates 787's `orchestrate_terraform_plan` against
+    # `FakeProviderExecutionAdapter` only (this unit is "no cloud") and
+    # records the result (plus any recovery plan the proposer attached)
+    # as CAIRN's own workspace annotation -- the same "dry-run preview,
+    # never an apply" discipline 787's own module docstring establishes,
+    # and the same reasoning the create-transformation route above
+    # already uses for its own Class B write. Posting an approval
+    # decision is likewise CAIRN's own workspace annotation, attached to
+    # an already-registered plan revision -- Class B WORKSPACE_MUTATION/
+    # INTERNAL_MUTATION, same reasoning the review-comment route above
+    # already uses; reading either the approver's view or the decision
+    # thread is Class A READ_ONLY, same as every other read route above.
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.POST /v1/designs/{design_id}/approval",
+        operation_class=OperationClass.WORKSPACE_MUTATION,
+        mutation_class=MutationClass.INTERNAL_MUTATION,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.GET /v1/plans/{revision_id}/approval",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.POST /v1/plans/{revision_id}/approval-comments",
+        operation_class=OperationClass.WORKSPACE_MUTATION,
+        mutation_class=MutationClass.INTERNAL_MUTATION,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.GET /v1/plans/{revision_id}/approval-comments",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
     # --- cairn_contracts.events: declared event envelopes (R0-05) ---
     # Every event below records a CAIRN-workspace fact or state change; none
     # of them is produced by a wired publisher yet (no EventPublisher adapter

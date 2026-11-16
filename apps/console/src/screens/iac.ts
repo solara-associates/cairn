@@ -1,5 +1,5 @@
 import { api, ApiError, IacResourcePlan } from "../api";
-import { setHtml, showError } from "../dom";
+import { onClick, setHtml, showError } from "../dom";
 import { Router } from "../router";
 import { getSession } from "../state";
 
@@ -31,6 +31,7 @@ export async function renderIac(container: HTMLElement, router: Router): Promise
       <ul data-slot="resources"></ul>
       <h2>Rendered preview</h2>
       <pre data-slot="rendered"></pre>
+      <button type="button" data-action="view-approval">Propose for approval</button>
       <p data-slot="error" role="alert" hidden></p>
     </section>
     `,
@@ -39,6 +40,10 @@ export async function renderIac(container: HTMLElement, router: Router): Promise
   const disclaimerSlot = container.querySelector<HTMLElement>("[data-slot='disclaimer']");
   const resourcesSlot = container.querySelector<HTMLElement>("[data-slot='resources']");
   const renderedSlot = container.querySelector<HTMLElement>("[data-slot='rendered']");
+
+  onClick(container, "view-approval", () => {
+    void router.go("plan-approval");
+  });
 
   try {
     const iac = await api.getDesignIac(designId);
