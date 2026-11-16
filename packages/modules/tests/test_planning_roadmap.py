@@ -31,9 +31,10 @@ from cairn_contracts.estate import (
     FactStatus,
     Workload,
 )
-from cairn_kernel.errors import DependencyCycleError
+from cairn_kernel.errors import DependencyCycleError, ValidationError
 from cairn_kernel.hex import TenantId
 from cairn_kernel.tenancy import TenantContext, tenant_scope
+from cairn_modules.approvals.model import RevisionRecord
 from cairn_modules.design.target_model import TargetModel, TargetResourceEntry, TargetResourceStatus
 from cairn_modules.planning import (
     PLAN_SUBJECT_KIND,
@@ -266,6 +267,104 @@ def test_dependency_to_an_unknown_workload_is_ignored_not_fatal() -> None:
     )
     assert len(roadmap.waves) == 1
     assert roadmap.waves[0].workloads[0].workload_id == "a"
+
+
+def _revision(
+    *,
+    tenant_id: str = TENANT,
+    project_id: str = PROJECT,
+    content_hash: str,
+) -> RevisionRecord:
+    return RevisionRecord(
+        revision_id="99999999-9999-9999-9999-999999999999",
+        tenant_id=tenant_id,
+        project_id=project_id,
+        subject_kind="design",
+        subject_id="design-1",
+        revision_number=1,
+        content_hash=content_hash,
+        input_versions=(),
+        created_by="alice",
+        created_at=datetime(2026, 11, 14, tzinfo=UTC),
+    )
+
+
+# --- revision/target-model consistency guard (720, mirroring 704/706) ------
+
+
+def test_mismatched_revision_and_target_model_content_hash_raises_before_waves_are_computed() -> None:
+    workload = _workload("app")
+    target_model = _target_model()
+    revision = _revision(content_hash="sha256:does-not-match")
+    assert revision.content_hash != target_model.content_hash
+
+    with pytest.raises(ValidationError) as exc_info:
+        generate_roadmap(
+            tenant_id=TENANT,
+            project_id=PROJECT,
+            plan_id=PLAN_ID,
+            # A workload whose dependency would be a cycle: if the guard
+            # did not fire before wave computation, this would instead
+            # raise DependencyCycleError, not ValidationError -- proving
+            # the content-hash check happens first, not merely somewhere
+            # before the function returns.
+            workloads=(workload,),
+            dependencies=(_dependency("app", "app"),),
+            dispositions=_accepted_dispositions("app"),
+            target_model=target_model,
+            revision=revision,
+        )
+    assert "content_hash" in str(exc_info.value)
+
+
+def test_revision_for_a_different_tenant_or_project_raises() -> None:
+    target_model = _target_model()
+    revision = _revision(
+        project_id="99999999-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        content_hash=target_model.content_hash,
+    )
+    with pytest.raises(ValidationError) as exc_info:
+        generate_roadmap(
+            tenant_id=TENANT,
+            project_id=PROJECT,
+            plan_id=PLAN_ID,
+            workloads=(_workload("app"),),
+            dispositions=_accepted_dispositions("app"),
+            target_model=target_model,
+            revision=revision,
+        )
+    assert "tenant/project" in str(exc_info.value)
+
+
+def test_matching_revision_and_target_model_raises_nothing() -> None:
+    target_model = _target_model()
+    revision = _revision(content_hash=target_model.content_hash)
+    roadmap = generate_roadmap(
+        tenant_id=TENANT,
+        project_id=PROJECT,
+        plan_id=PLAN_ID,
+        workloads=(_workload("app"),),
+        dispositions=_accepted_dispositions("app"),
+        target_model=target_model,
+        revision=revision,
+    )
+    assert roadmap.waves[0].workloads[0].workload_id == "app"
+
+
+def test_revision_without_a_target_model_is_not_checked_and_behaves_as_before() -> None:
+    # Passing only ``revision`` (no ``target_model``) is exactly today's
+    # behaviour for every existing caller that doesn't pass a revision at
+    # all -- the guard never fires with only one side present.
+    revision = _revision(content_hash="sha256:anything-at-all")
+    roadmap = generate_roadmap(
+        tenant_id=TENANT,
+        project_id=PROJECT,
+        plan_id=PLAN_ID,
+        workloads=(_workload("app"),),
+        dispositions=_accepted_dispositions("app"),
+        revision=revision,
+    )
+    assert roadmap.waves[0].workloads[0].workload_id == "app"
 
 
 # --- constraints and risks are surfaced, never silently swallowed ----------

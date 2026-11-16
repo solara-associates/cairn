@@ -273,6 +273,7 @@ def generate_roadmap(
     dependencies: Sequence[Dependency] = (),
     dispositions: Mapping[str, DispositionDecision] | None = None,
     target_model: TargetModel | None = None,
+    revision: RevisionRecord | None = None,
 ) -> MigrationRoadmap:
     """Generate one deterministic ``MigrationRoadmap``.
 
@@ -286,9 +287,30 @@ def generate_roadmap(
     blocks the workload(s) that carry it, surfaced by resource id and the
     resolver's own reason.
 
+    ``revision`` is the design revision (703's ``subject_revision`` row)
+    ``target_model`` was recorded under -- the same revision-binding
+    guard 704's ``build_diagram_model`` and 706's ``build_iac_plan_model``
+    already enforce. When both ``revision`` and ``target_model`` are
+    given, this fails fast with ``ValidationError`` if they don't belong
+    to the same tenant/project or don't share a ``content_hash``, rather
+    than silently sequencing a roadmap against a target model that isn't
+    the one its own design revision actually records -- the exact
+    artefact-level drift ``R-VER-01`` (708) can otherwise only catch
+    after the fact. Passing only one of the two, or neither, behaves
+    exactly as before this guard existed.
+
     Raises ``DependencyCycleError`` if the declared dependencies cannot be
     sequenced at all.
     """
+    if revision is not None and target_model is not None:
+        if revision.tenant_id != target_model.tenant_id or revision.project_id != target_model.project_id:
+            raise ValidationError("revision does not belong to this target model's tenant/project")
+        if revision.content_hash != target_model.content_hash:
+            raise ValidationError(
+                "revision.content_hash does not match target_model.content_hash -- "
+                "the revision does not record this exact target model"
+            )
+
     dispositions = dispositions or {}
     workload_ids = sorted(workload.workload_id for workload in workloads)
     edges = _dependency_edges(workload_ids, dependencies)
