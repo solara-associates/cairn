@@ -385,6 +385,38 @@ OPERATIONS: tuple[OperationEntry, ...] = (
         mutation_class=MutationClass.READ_ONLY,
         tenancy_scope=TenancyScope.PROJECT,
     ),
+    # --- apps/api: unified diff artefact and preview API (R3-04) ---
+    # Scanning and producing a preview triggers 721's RepositorySourcePort
+    # (reads a customer repository, never writes to it -- ADR-010/R3-01's
+    # own "no write-back" discipline) and 726's TransformationPort (computes
+    # a manifest, applies nothing), then records that manifest as CAIRN's
+    # own workspace state -- it never crosses into a customer environment
+    # with a write, so it is Class B WORKSPACE_MUTATION/INTERNAL_MUTATION
+    # with no compensation contract, the same reasoning the design-console
+    # write routes above already use. Reading a recorded run's summary or
+    # its rendered diff is Class A READ_ONLY, same as every other read
+    # route in this app.
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.POST /v1/projects/{project_id}/transformations",
+        operation_class=OperationClass.WORKSPACE_MUTATION,
+        mutation_class=MutationClass.INTERNAL_MUTATION,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.GET /v1/transformations/{run_id}",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.GET /v1/transformations/{run_id}/diff",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
     # --- cairn_contracts.events: declared event envelopes (R0-05) ---
     # Every event below records a CAIRN-workspace fact or state change; none
     # of them is produced by a wired publisher yet (no EventPublisher adapter

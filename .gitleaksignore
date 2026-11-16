@@ -39,3 +39,8 @@ bfeffba49dd8f4cd207330311ff00b3777e77ad5:apps/api/tests/test_design_api.py:gener
 # Same dummy HS256 test secret constant, reused in R2-09's design-
 # generation HTTP-layer test fixture. Confirmed R2-09 (2026-11-15).
 dcfd8b6a816e4d202a2c15962f0672a90e1d9023:apps/api/tests/test_design_generation_api.py:generic-api-key:27
+
+# Same dummy HS256 test secret constant, reused in R3-04's unified
+# diff artefact / transformation preview API HTTP-layer test fixture.
+# Confirmed R3-04 (2026-11-16).
+c86fa9245549db82388d5d73f8e3ff6a5edfd363:apps/api/tests/test_transformations_api.py:generic-api-key:26
