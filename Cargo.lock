@@ -54,6 +54,12 @@ dependencies = [
 [[package]]
 name = "cairn-transform-validator"
 version = "0.1.0"
+dependencies = [
+ "cairn-transform-contract",
+ "cairn-transform-parser",
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "itoa"

@@ -6,3 +6,17 @@ license.workspace = true
 
 [lints]
 workspace = true
+
+[lib]
+name = "cairn_transform_validator"
+path = "src/lib.rs"
+
+[[bin]]
+name = "cairn-transform-validator-cli"
+path = "src/bin/validator_cli.rs"
+
+[dependencies]
+cairn-transform-contract = { path = "../contract" }
+cairn-transform-parser = { path = "../parser" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

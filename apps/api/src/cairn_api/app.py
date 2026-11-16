@@ -18,6 +18,12 @@ from cairn_adapters.transform_core.subprocess_adapter import (
     SubprocessTransformationPort,
     TransformCliUnavailableError,
 )
+from cairn_adapters.validation_deps import DependencyValidationAdapter
+from cairn_adapters.validation_static.subprocess_adapter import (
+    StaticValidationAdapter,
+    ValidatorCliUnavailableError,
+)
+from cairn_adapters.validation_tests import TestSuiteValidationAdapter
 from cairn_contracts.finops import PriceListRelease
 from cairn_contracts.mapping import MappingRelease
 from cairn_contracts.mapping.pattern import PatternCatalogueRelease
@@ -40,6 +46,7 @@ from cairn_modules.transformation.runs import (
     TransformationRunRepository,
 )
 from cairn_modules.transformation.source import RepositorySourcePort
+from cairn_modules.transformation.validation import ValidationPort, ValidationRequest
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
@@ -203,6 +210,36 @@ def _default_transformation_port() -> TransformationPort:
         return _ClosedTransformationPort()
 
 
+class _ClosedStaticValidationAdapter:
+    """Fails closed: no ``cairn-transform-validator-cli`` binary is
+    configured or built yet in this process. Mirrors
+    ``_ClosedTransformationPort`` above -- the app still starts, and the
+    failure only surfaces if a caller actually asks for validation."""
+
+    def validate(self, request: ValidationRequest) -> Any:
+        raise ValidatorCliUnavailableError(
+            "cairn-transform-validator-cli is not configured or built in this process; "
+            "set CAIRN_TRANSFORM_VALIDATOR_CLI_BIN or run "
+            "`cargo build --release -p cairn-transform-validator` first"
+        )
+
+
+def _default_validation_checks() -> tuple[ValidationPort, ...]:
+    """729/R3-05's three configured ``ValidationPort`` checks, in the
+    order ``cairn_modules.transformation.validation.run_validation``
+    reports them: static (fails closed the same way
+    ``_default_transformation_port`` does if its Rust binary is not
+    built), the repo's own declared test suite, and the dependency-
+    manifest check (neither of the latter two depends on a compiled
+    binary, so both are always constructible)."""
+
+    try:
+        static_check: ValidationPort = StaticValidationAdapter()
+    except ValidatorCliUnavailableError:
+        static_check = _ClosedStaticValidationAdapter()
+    return (static_check, TestSuiteValidationAdapter(), DependencyValidationAdapter())
+
+
 def _default_assertion_secret() -> bytes:
     configured = os.environ.get("CAIRN_TENANT_ASSERTION_SECRET")
     if configured:
@@ -251,6 +288,7 @@ def create_app(
     transformation_source_port: RepositorySourcePort | None = None,
     transformation_port: TransformationPort | None = None,
     transformation_run_repository: TransformationRunRepository | None = None,
+    transformation_validation_checks: tuple[ValidationPort, ...] | None = None,
 ) -> FastAPI:
     service_version = _service_version()
     probe = readiness or (dict)
@@ -323,6 +361,9 @@ def create_app(
         source_port=transformation_source_port or GitSourceAdapter(),
         transformation_port=transformation_port or _default_transformation_port(),
         run_repository=transformation_run_repository or FakeTransformationRunRepository(),
+        validation_checks=transformation_validation_checks
+        if transformation_validation_checks is not None
+        else _default_validation_checks(),
     )
 
     app.add_exception_handler(CairnError, _cairn_error_handler)
