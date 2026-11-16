@@ -2,20 +2,20 @@
 
 CAIRN is a cloud modernization platform. It assesses an estate, applies 6R dispositions, designs a target architecture, modernizes code and infrastructure, and records every governed change as signed evidence.
 
-**Status: R0 (foundation) and R1 (assessment) are complete. R2 through R5 are planned, not built.** CAIRN today can ingest an estate, run a 6R assessment, compute cost/TCO, check posture against a control catalogue, and produce a signed evidence package -- all read-only against any customer environment. It cannot yet design a target architecture, transform infrastructure or code, run FinOps loops, or write anything back to a customer's cloud account. There is no hosted service and no supported release; nothing here should be pointed at a production environment.
+**Status: R0 (foundation), R1 (assessment), R2 (design) and R3 (modernize) are complete. R4 (govern) is partially built; R5 is planned, not built.** CAIRN today can ingest an estate, run a 6R assessment, compute cost/TCO, check posture against a control catalogue, design a target architecture with equivalence mappings and migration plans, and transform Terraform and Python source under a clean-room transformation engine with diff review and signed evidence -- all read-only or workspace-only against any customer environment. R4's policy, approval-console and recovery-engine layers are built and tested against a fake/deterministic cloud adapter; **no production adapter has yet executed a real write against a customer cloud account** -- that requires a real GCP project, IAM bindings and Allan's own plan approval, none of which exist yet (see Roadmap). There is no hosted service and no supported release; nothing here should be pointed at a production environment.
 
-## What's built (R0-R1) vs. planned (R2-R5)
+## What's built (R0-R3, partial R4) vs. planned (R5)
 
 | Capability | Status |
 |---|---|
 | **CAIRN Kernel** -- domain model, provider ports, evidence, audit, tenancy, conformance | Built (R0) |
 | **CAIRN Assess** -- estate ingestion, posture, cost/TCO, 6R classification, signed evidence | Built (R1) |
-| **CAIRN Design** -- target architecture, patterns and migration plans from one model | Planned (R2) |
-| **CAIRN Modernize** -- clean-room transformation of Terraform and Python | Planned (R3) |
+| **CAIRN Design** -- target architecture, patterns and migration plans from one model | Built (R2) |
+| **CAIRN Modernize** -- clean-room transformation of Terraform and Python | Built (R3) |
+| **CAIRN Govern** -- policy, approval and immutable evidence for customer-environment writes | Partial (R4) -- risk-tier policy engine, `ProviderExecutionPort` contract and GCP adapter skeleton, Terraform plan orchestration, rollback/compensation engine, approval console and fake-adapter failure-mode tests are built and merged, all tested against a fake adapter; no real adapter has executed a real customer-environment write |
 | **CAIRN Operate** -- FinOps and operational loops | Planned (R5) |
-| **CAIRN Govern** -- policy, approval and immutable evidence for customer-environment writes | Planned (R4) |
 
-CAIRN is read-only against customer environments through R1 -- R1 does assessment, workspace decisions and evidence, with no write or execute credential ever requested or stored. Governed customer-environment writes start only in R4, through a kernel execution gate with policy, immutable revision approval, audit-before-effect, evidence and a recovery plan that matches the mutation class.
+CAIRN is read-only or workspace-only against customer environments through R3 -- assessment, design and transformation, with no write or execute credential ever requested or stored. R4 adds the kernel execution gate's policy, approval and recovery layers, but by design (spec §5.4: "no production provider adapter before R4") the only production adapter built so far is deliberately *not yet reachable* through the gate -- R1's existing guard rejects it unconditionally until a later unit wires a real credential in. Governed customer-environment writes do not happen anywhere in this codebase today.
 
 ## Architecture overview
 
@@ -52,9 +52,9 @@ Open `http://localhost:3000` and sign in. The bundled dex instance gives you one
 |---|---|---|
 | **R0** | Kernel, tenancy, evidence, audit, observability, conformance | Complete |
 | **R1** | Estate ingestion, posture, cost/TCO, 6R classification, assessment console, signed evidence packages | Complete |
-| **R2** | Target architecture design, equivalence mapping, migration plans | Planned |
-| **R3** | Clean-room transformation engine (Terraform and Python first) | Planned |
-| **R4** | Kernel execution gate: policy, approval, audit-before-effect, governed customer-environment writes | Planned |
+| **R2** | Target architecture design, equivalence mapping, migration plans | Complete |
+| **R3** | Clean-room transformation engine (Terraform and Python first) | Complete |
+| **R4** | Kernel execution gate: policy, approval, audit-before-effect, governed customer-environment writes | Partial -- risk-tier policy, `ProviderExecutionPort` contract/adapter skeleton, Terraform plan orchestration, rollback/compensation engine, approval console and fake-adapter failure-mode tests are built; the real-cloud proofs (first real read, first real write/rollback, real Terraform plan/apply, real rollback via the engine, real distributed-boundary/irreversible-rollback proof) need a real GCP project, IAM bindings and plan approvals that only Allan can provide, and have not started |
 | **R5** | FinOps/operational loops, MCP/A2A surfaces | Planned |
 
 See the [technical implementation specification](CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md) for the detailed backlog and [docs/acceptance/r0-20-review.md](docs/acceptance/r0-20-review.md) for the R0 acceptance evidence.
