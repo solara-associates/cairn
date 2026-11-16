@@ -48,3 +48,9 @@ c86fa9245549db82388d5d73f8e3ff6a5edfd363:apps/api/tests/test_transformations_api
 # Same dummy HS256 test secret constant, reused in R3-05's validation
 # route HTTP-layer test fixture. Confirmed R3-05 (2026-11-16).
 968bfd09d9654fe0405409e427ee44645d1fc3e2:apps/api/tests/test_transformations_validate_api.py:generic-api-key:27
+
+# Same dummy HS256 test secret constant, reused in R3-07's review-
+# comments and evidence-package HTTP-layer test fixtures. Confirmed
+# R3-07 (2026-11-16).
+7404eed46379b6c32fde0571d1d6d5979f875cf2:apps/api/tests/test_transformations_review_api.py:generic-api-key:23
+7404eed46379b6c32fde0571d1d6d5979f875cf2:apps/api/tests/test_transformations_evidence_api.py:generic-api-key:28
