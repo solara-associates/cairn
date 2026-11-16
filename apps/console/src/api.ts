@@ -355,6 +355,114 @@ export type PlanRevision = {
   blocked_workload_ids: string[];
 };
 
+// --- R3-07: diff review and validation console (trigger transformation
+// -> inspect diff/manifest -> run validation -> leave a review comment)
+// ---
+
+export type RepositoryRef =
+  | { kind: "GIT"; url: string; ref: string }
+  | { kind: "UPLOAD"; archive_id: string };
+
+/** A manifest entry's own outcome -- visibly distinguished, never
+ * collapsed into a single generic "changed"/"not changed" state (same
+ * discipline R2-09's `ResourceMarker` already uses for its own four
+ * distinct markers). */
+export type ManifestOutcome = "APPLIED" | "SKIPPED" | "UNSUPPORTED";
+
+export type ManifestEdit = {
+  start_byte: number;
+  end_byte: number;
+  start_line: number;
+  end_line: number;
+  replacement: string;
+};
+
+export type ManifestEntry = {
+  rule_id: string;
+  outcome: ManifestOutcome;
+  reason: string | null;
+  edits: ManifestEdit[];
+  detector_version: string;
+  pattern_version: string;
+  patcher_version: string;
+  mapping_release_version: string | null;
+};
+
+export type ValidationResult = {
+  check_id: string;
+  passed: boolean;
+  reason: string | null;
+};
+
+export type ValidationSummary = {
+  run_id: string;
+  approved: boolean;
+  results: ValidationResult[];
+};
+
+export type ReviewDecision = "COMMENT" | "REQUEST_CHANGES" | "APPROVE";
+
+export type ReviewComment = {
+  reviewer_actor_id: string;
+  decision: ReviewDecision;
+  body: string;
+  created_at: string;
+};
+
+export type ReviewThread = {
+  run_id: string;
+  blocked: boolean;
+  reviewed: boolean;
+  comments: ReviewComment[];
+};
+
+export type TransformationRunSummary = {
+  run_id: string;
+  project_id: string;
+  run_number: number;
+  source_file_ids: string[];
+  applied_count: number;
+  skipped_count: number;
+  unsupported_count: number;
+  created_by: string;
+  created_at: string;
+  validation: ValidationSummary | null;
+  review: ReviewThread | null;
+};
+
+export type FileDiff = {
+  source_file_id: string;
+  changed: boolean;
+  unified_diff: string;
+  original_content: string;
+  rendered_content: string;
+  applied_count: number;
+  skipped_count: number;
+  unsupported_count: number;
+  entries: ManifestEntry[];
+};
+
+export type TransformationDiff = {
+  run_id: string;
+  source_file_ids: string[];
+  applied_count: number;
+  skipped_count: number;
+  unsupported_count: number;
+  files: FileDiff[];
+};
+
+export type TransformationEvidencePackageResponse = {
+  envelope: {
+    package_id: string;
+    payload_hash: string;
+    previous_hash: string | null;
+    outcome: string;
+    outputs: { kind: string; ref: string; hash: string }[];
+    signature: { key_id: string; algorithm: string; value: string };
+  };
+  report: TransformationRunSummary;
+};
+
 export const api = {
   createProject(input: { name: string; customer_name?: string }): Promise<Project> {
     return request("POST", "/v1/projects", input);
@@ -458,5 +566,36 @@ export const api = {
   },
   getPlanRevision(planId: string, revisionNumber: number): Promise<PlanRevision> {
     return request("GET", `/v1/plans/${planId}/revisions/${revisionNumber}`);
+  },
+  createTransformation(
+    projectId: string,
+    repositoryRef: RepositoryRef,
+  ): Promise<TransformationRunSummary> {
+    return request("POST", `/v1/projects/${projectId}/transformations`, {
+      repository_ref: repositoryRef,
+    });
+  },
+  getTransformation(runId: string): Promise<TransformationRunSummary> {
+    return request("GET", `/v1/transformations/${runId}`);
+  },
+  getTransformationDiff(runId: string): Promise<TransformationDiff> {
+    return request("GET", `/v1/transformations/${runId}/diff`);
+  },
+  validateTransformation(runId: string): Promise<ValidationSummary> {
+    return request("POST", `/v1/transformations/${runId}:validate`);
+  },
+  buildTransformationEvidencePackage(
+    runId: string,
+  ): Promise<TransformationEvidencePackageResponse> {
+    return request("POST", `/v1/transformations/${runId}/evidence-package`);
+  },
+  listReviewComments(runId: string): Promise<ReviewThread> {
+    return request("GET", `/v1/transformations/${runId}/review-comments`);
+  },
+  createReviewComment(
+    runId: string,
+    input: { decision: ReviewDecision; body: string },
+  ): Promise<ReviewThread> {
+    return request("POST", `/v1/transformations/${runId}/review-comments`, input);
   },
 };

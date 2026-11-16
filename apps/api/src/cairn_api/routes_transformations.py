@@ -34,6 +34,48 @@ first, per that unit's brief):
   caller, the same "never silently swallow a failure" discipline every
   other result shape in this codebase already uses.
 
+732/R3-07 adds two more routes to this same module (reading it as merged
+first, per that unit's brief, touching neither 728's nor 729's own
+entries):
+
+- ``POST /v1/transformations/{run_id}/evidence-package`` -- seals
+  730's ``build_transformation_evidence_package`` for this run,
+  mirroring ``cairn_api.routes_assessment.build_run_evidence_package``'s
+  own route exactly (same per-``(tenant_id, project_id)``
+  ``previous_hash`` chaining, same ``{"envelope": ..., "report": ...}``
+  response shape -- here the "report" half is this run's own summary/
+  diff/validation reflection rather than a rendered text report, since
+  R3 has no rendered-report story of its own). Not in spec §9's own
+  endpoint table (neither is the assessment route this mirrors) -- the
+  same judgement call R1-17/R1-18 already made for evidence export
+  having no dedicated spec table row of its own. Class B
+  ``WORKSPACE_MUTATION``/``INTERNAL_MUTATION`` (sealing and signing is
+  this app's own workspace action; it reads a customer repository
+  nowhere in this call path), ``ENGINEER+`` -- the same role cell as
+  every other mutation in this module.
+- ``POST /v1/transformations/{run_id}/review-comments`` / ``GET
+  /v1/transformations/{run_id}/review-comments`` -- spec S16/R3-07's own
+  acceptance text, "Engineer can review, comment, request changes", as a
+  lightweight, append-only annotation thread (``cairn_modules.
+  transformation.review``) attached to the run -- not a new approval
+  workflow of its own (spec §9 has no transformation approval route
+  yet, same scope line 729's own docstring above already draws for
+  ``:validate``). The POST route's role gate deliberately includes
+  ``Role.REVIEWER`` alongside ``CREATE_ROLES`` -- spec §12.1's own
+  ``REVIEWER`` row ("Approve/reject, accept exceptions (separation of
+  duties)") is the one role elsewhere in this spec whose entire
+  capability *is* this action, so excluding it here (just because
+  ``REVIEWER`` sits below ``ENGINEER`` in that table's listed privilege
+  order) would silently lock out the role spec §12.1 names for exactly
+  this purpose -- named explicitly as a judgement call, the same
+  discipline this module's docstring already uses for its "X+" readings
+  elsewhere. A failing (``REQUEST_CHANGES``) review visibly blocks
+  further progress, not advisory text: every response from both routes
+  carries the thread's own ``RunReviewThread.blocked`` property
+  alongside the comment list, so a console (or any other caller) never
+  has to recompute "is this run blocked by review" from raw comment
+  order itself.
+
 Classification (``cairn_kernel.classification.matrix``): the POST route
 triggers 721's ``RepositorySourcePort.fetch`` (reads a customer's
 repository, never writes to it -- ADR-010/R3-01's own "no write-back"
@@ -94,13 +136,22 @@ from __future__ import annotations
 import dataclasses
 import threading
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 
 from cairn_contracts.transformation import RepositoryRef, SourceFile
 from cairn_kernel.errors import NotFoundError, UnauthenticatedError
+from cairn_kernel.evidence import EvidenceSigner
 from cairn_kernel.security import Principal, Role, require_roles
 from cairn_modules.transformation.diff import TransformationDiff, render_transformation_diff
 from cairn_modules.transformation.engine import TransformationPort
+from cairn_modules.transformation.evidence import build_transformation_evidence_package
+from cairn_modules.transformation.review import (
+    ReviewComment,
+    ReviewDecisionKind,
+    RunReviewThread,
+    add_review_comment,
+)
 from cairn_modules.transformation.runs import TransformationRunRecord, TransformationRunRepository
 from cairn_modules.transformation.source import RepositorySourcePort
 from cairn_modules.transformation.validation import (
@@ -111,7 +162,7 @@ from cairn_modules.transformation.validation import (
 )
 from fastapi import Depends, FastAPI, Request
 from fastapi.encoders import jsonable_encoder
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 CREATE_ROLES: tuple[Role, ...] = (
     Role.TENANT_ADMIN,
@@ -135,6 +186,19 @@ VALIDATE_ROLES: tuple[Role, ...] = CREATE_ROLES
 """Spec §9's ``POST /v1/transformations/{run_id}:validate`` row is
 ``ENGINEER+`` -- the exact same role cell as the create route, so this is
 the same tuple, not a re-derivation that could silently drift from it."""
+
+EVIDENCE_ROLES: tuple[Role, ...] = CREATE_ROLES
+"""Sealing a transformation run's evidence package is this module's own
+workspace mutation, same role cell as every other mutation route here."""
+
+REVIEW_ROLES: tuple[Role, ...] = (*CREATE_ROLES, Role.REVIEWER)
+"""``ENGINEER+`` (this story's own acceptance text names ``ENGINEER`` by
+name) plus ``Role.REVIEWER`` -- spec §12.1's own capability row for
+``REVIEWER`` ("Approve/reject, accept exceptions (separation of
+duties)") is this exact action, named explicitly here rather than
+silently excluded just because that role sits below ``ENGINEER`` in
+spec §12.1's listed privilege order. See this module's own docstring for
+the full reasoning."""
 
 
 def get_principal(request: Request) -> Principal:
@@ -160,7 +224,9 @@ class _IndexedRun:
 
     record: TransformationRunRecord
     files: tuple[SourceFile, ...]
+    repository_ref: RepositoryRef | None = None
     validation: ValidationRun | None = None
+    review_thread: RunReviewThread | None = None
 
 
 class TransformationRegistry:
@@ -174,9 +240,20 @@ class TransformationRegistry:
         self._lock = threading.Lock()
         self._runs: dict[str, _IndexedRun] = {}
 
-    def put_run(self, record: TransformationRunRecord, files: tuple[SourceFile, ...]) -> None:
+    def put_run(
+        self,
+        record: TransformationRunRecord,
+        files: tuple[SourceFile, ...],
+        *,
+        repository_ref: RepositoryRef | None = None,
+    ) -> None:
         with self._lock:
-            self._runs[record.run_id] = _IndexedRun(record=record, files=files)
+            self._runs[record.run_id] = _IndexedRun(
+                record=record,
+                files=files,
+                repository_ref=repository_ref,
+                review_thread=RunReviewThread(run_id=record.run_id),
+            )
 
     def put_validation(self, run_id: str, validation: ValidationRun) -> None:
         """Record 729's aggregated ``ValidationRun`` against an already-
@@ -188,6 +265,20 @@ class TransformationRegistry:
             if existing is None:
                 raise NotFoundError(f"transformation run {run_id} not found")
             self._runs[run_id] = dataclasses.replace(existing, validation=validation)
+
+    def add_review_comment(self, run_id: str, comment: ReviewComment) -> RunReviewThread:
+        """Appends 732's ``ReviewComment`` to this run's own thread.
+        Raises ``NotFoundError`` if ``run_id`` is unknown -- never
+        fabricates a thread for a run that was never recorded."""
+
+        with self._lock:
+            existing = self._runs.get(run_id)
+            if existing is None:
+                raise NotFoundError(f"transformation run {run_id} not found")
+            thread = existing.review_thread or RunReviewThread(run_id=run_id)
+            thread = add_review_comment(thread, comment)
+            self._runs[run_id] = dataclasses.replace(existing, review_thread=thread)
+            return thread
 
     def get_run(self, run_id: str) -> _IndexedRun | None:
         return self._runs.get(run_id)
@@ -207,8 +298,36 @@ class CreateTransformationRequest(BaseModel):
     repository_ref: RepositoryRef
 
 
+class CreateReviewCommentRequest(BaseModel):
+    """Spec S16/R3-07's own acceptance text, "Engineer can review,
+    comment, request changes" -- ``decision`` defaults to a plain
+    ``COMMENT`` (an annotation with no decision at all is still a valid
+    review action, e.g. "nit: naming" with no blocking intent), and a
+    caller names ``REQUEST_CHANGES``/``APPROVE`` explicitly when the
+    comment also carries one of those two decisions."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    decision: ReviewDecisionKind = ReviewDecisionKind.COMMENT
+    body: str
+
+    @field_validator("body")
+    @classmethod
+    def _body_is_not_blank(cls, value: str) -> str:
+        # Caught here, at the request boundary, as a real 422 -- rather
+        # than left to surface as an unhandled 500 from
+        # ``ReviewComment.__post_init__``'s own (defense-in-depth) guard
+        # of the same invariant.
+        if not value.strip():
+            raise ValueError("a review comment must have a non-empty body")
+        return value
+
+
 def _run_summary(
-    record: TransformationRunRecord, *, validation: ValidationRun | None = None
+    record: TransformationRunRecord,
+    *,
+    validation: ValidationRun | None = None,
+    review_thread: RunReviewThread | None = None,
 ) -> dict[str, Any]:
     manifest = record.manifest
     return {
@@ -222,6 +341,7 @@ def _run_summary(
         "created_by": record.created_by,
         "created_at": record.created_at,
         "validation": _validation_summary(validation) if validation is not None else None,
+        "review": _review_summary(review_thread) if review_thread is not None else None,
     }
 
 
@@ -232,6 +352,28 @@ def _validation_summary(validation: ValidationRun) -> dict[str, Any]:
         "results": [
             {"check_id": result.check_id, "passed": result.passed, "reason": result.reason}
             for result in validation.results
+        ],
+    }
+
+
+def _review_summary(thread: RunReviewThread) -> dict[str, Any]:
+    """732's own response shape -- every response from the review routes
+    carries ``blocked``/``reviewed`` alongside the raw comment list, so a
+    caller never has to recompute "is this run blocked by review" from
+    comment order itself (see this module's own docstring)."""
+
+    return {
+        "run_id": thread.run_id,
+        "blocked": thread.blocked,
+        "reviewed": thread.reviewed,
+        "comments": [
+            {
+                "reviewer_actor_id": comment.reviewer_actor_id,
+                "decision": comment.decision.value,
+                "body": comment.body,
+                "created_at": comment.created_at,
+            }
+            for comment in thread.comments
         ],
     }
 
@@ -288,6 +430,7 @@ def register_transformation_routes(
     source_port: RepositorySourcePort,
     transformation_port: TransformationPort,
     run_repository: TransformationRunRepository,
+    evidence_signer: EvidenceSigner,
     validation_checks: tuple[ValidationPort, ...] = (),
 ) -> None:
     """Register the R3-04 transformation routes directly on ``app``.
@@ -297,6 +440,13 @@ def register_transformation_routes(
     """
 
     router = app
+    # 732/R3-07's evidence-package route: the same per-(tenant, project)
+    # ``previous_hash`` chain discipline ``cairn_api.routes_assessment.
+    # register_assessment_routes``'s own closure-local ``_evidence_chain``
+    # already uses, kept separately from that module's own dict -- a
+    # transformation run's evidence chain and an assessment run's
+    # evidence chain are two different subjects/chains, never merged.
+    _evidence_chain: dict[tuple[str, str], str] = {}
 
     def _load_indexed_run(run_id: str, principal: Principal) -> _IndexedRun:
         indexed = registry.get_run(run_id)
@@ -320,14 +470,20 @@ def register_transformation_routes(
             manifest=manifest,
             created_by=principal.subject,
         )
-        registry.put_run(record, files)
+        registry.put_run(record, files, repository_ref=payload.repository_ref)
         return jsonable_encoder(_run_summary(record))
 
     @router.get("/v1/transformations/{run_id}")
     def get_transformation(run_id: str, principal: Principal = Depends(get_principal)) -> dict:
         require_roles(principal, *READ_ROLES)
         indexed = _load_indexed_run(run_id, principal)
-        return jsonable_encoder(_run_summary(indexed.record, validation=indexed.validation))
+        return jsonable_encoder(
+            _run_summary(
+                indexed.record,
+                validation=indexed.validation,
+                review_thread=indexed.review_thread,
+            )
+        )
 
     @router.get("/v1/transformations/{run_id}/diff")
     def get_transformation_diff(
@@ -356,11 +512,77 @@ def register_transformation_routes(
         registry.put_validation(run_id, validation_run)
         return jsonable_encoder(_validation_summary(validation_run))
 
+    @router.post("/v1/transformations/{run_id}/evidence-package")
+    def build_run_evidence_package(
+        run_id: str, principal: Principal = Depends(get_principal)
+    ) -> dict[str, Any]:
+        require_roles(principal, *EVIDENCE_ROLES)
+        indexed = _load_indexed_run(run_id, principal)
+        diff = render_transformation_diff(
+            run_id=run_id, files=indexed.files, manifest=indexed.record.manifest
+        )
+        package_id = f"{indexed.record.project_id}:{indexed.record.run_id}"
+        # Keyed by (tenant_id, project_id), the same reasoning
+        # ``routes_assessment.build_run_evidence_package`` already names
+        # explicitly: project_id is never independently validated against
+        # real project ownership on this path, so two different tenants
+        # naming the same project_id must never chain their evidence
+        # packages together.
+        chain_key = (indexed.record.tenant_id, indexed.record.project_id)
+        envelope = build_transformation_evidence_package(
+            indexed.record,
+            package_id=package_id,
+            signer=evidence_signer,
+            created_at=datetime.now(UTC),
+            files=indexed.files,
+            repository_ref=indexed.repository_ref,
+            diff=diff,
+            validation=indexed.validation,
+            previous_hash=_evidence_chain.get(chain_key),
+        )
+        _evidence_chain[chain_key] = envelope.payload_hash
+        report = _run_summary(
+            indexed.record,
+            validation=indexed.validation,
+            review_thread=indexed.review_thread,
+        )
+        return jsonable_encoder({"envelope": envelope.to_dict(), "report": report})
+
+    @router.post("/v1/transformations/{run_id}/review-comments")
+    def create_review_comment(
+        run_id: str,
+        payload: CreateReviewCommentRequest,
+        principal: Principal = Depends(get_principal),
+    ) -> dict[str, Any]:
+        require_roles(principal, *REVIEW_ROLES)
+        _load_indexed_run(run_id, principal)
+        comment = ReviewComment(
+            run_id=run_id,
+            reviewer_actor_id=principal.subject,
+            decision=payload.decision,
+            body=payload.body,
+            created_at=datetime.now(UTC),
+        )
+        thread = registry.add_review_comment(run_id, comment)
+        return jsonable_encoder(_review_summary(thread))
+
+    @router.get("/v1/transformations/{run_id}/review-comments")
+    def list_review_comments(
+        run_id: str, principal: Principal = Depends(get_principal)
+    ) -> dict[str, Any]:
+        require_roles(principal, *READ_ROLES)
+        indexed = _load_indexed_run(run_id, principal)
+        thread = indexed.review_thread or RunReviewThread(run_id=run_id)
+        return jsonable_encoder(_review_summary(thread))
+
 
 __all__ = [
     "CREATE_ROLES",
+    "EVIDENCE_ROLES",
     "READ_ROLES",
+    "REVIEW_ROLES",
     "VALIDATE_ROLES",
+    "CreateReviewCommentRequest",
     "CreateTransformationRequest",
     "TransformationRegistry",
     "get_principal",
