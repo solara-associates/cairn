@@ -406,6 +406,7 @@ def _build_design(
         dependencies=dependencies,
         dispositions=dispositions,
         target_model=target_model,
+        revision=design_revision,
     )
     plan_revision = RevisionRecord(
         revision_id=str(uuid.uuid4()),
