@@ -100,6 +100,16 @@ jobs:
 
   console:
     runs-on: ubuntu-latest
+    env:
+      # 732 (R3-07): the diff review and validation console's own
+      # end-to-end test triggers a real transformation run (and real
+      # validation) against the real backend spawned below, which needs
+      # the same two compiled Rust binaries the `python` job's own
+      # identically-named env vars already point at -- built in this
+      # job's own steps, since the `rust`/`python` jobs' build artifacts
+      # are not shared with this one.
+      CAIRN_TRANSFORM_CLI_BIN: ${{ github.workspace }}/target/release/cairn-transform-cli
+      CAIRN_TRANSFORM_VALIDATOR_CLI_BIN: ${{ github.workspace }}/target/release/cairn-transform-validator-cli
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -115,7 +125,11 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
       - run: uv sync --all-packages
+      - run: cargo build --release -p cairn-transform-cli
+      - run: cargo build --release -p cairn-transform-validator
       - run: pnpm -r run test
 
   sbom-sign:

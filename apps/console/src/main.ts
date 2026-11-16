@@ -14,6 +14,11 @@ import { renderDesignResults } from "./screens/design-results";
 import { renderRoadmap } from "./screens/roadmap";
 import { renderIac } from "./screens/iac";
 import { renderDesignExport } from "./screens/design-export";
+import { renderTransformRun } from "./screens/transform-run";
+import { renderTransformDiff } from "./screens/transform-diff";
+import { renderTransformValidate } from "./screens/transform-validate";
+import { renderTransformEvidence } from "./screens/transform-evidence";
+import { renderTransformReview } from "./screens/transform-review";
 
 const statusElement = document.querySelector<HTMLParagraphElement>("#status");
 
@@ -58,6 +63,17 @@ export function buildRouter(container: HTMLElement): Router {
   router.register({ name: "roadmap", render: (c) => renderRoadmap(c, router) });
   router.register({ name: "iac", render: (c) => renderIac(c, router) });
   router.register({ name: "design-export", render: (c) => renderDesignExport(c, router) });
+  router.register({ name: "transform-run", render: (c) => renderTransformRun(c, router) });
+  router.register({ name: "transform-diff", render: (c) => renderTransformDiff(c, router) });
+  router.register({
+    name: "transform-validate",
+    render: (c) => renderTransformValidate(c, router),
+  });
+  router.register({
+    name: "transform-evidence",
+    render: (c) => renderTransformEvidence(c, router),
+  });
+  router.register({ name: "transform-review", render: (c) => renderTransformReview(c, router) });
   return router;
 }
 
