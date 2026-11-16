@@ -44,3 +44,7 @@ dcfd8b6a816e4d202a2c15962f0672a90e1d9023:apps/api/tests/test_design_generation_a
 # diff artefact / transformation preview API HTTP-layer test fixture.
 # Confirmed R3-04 (2026-11-16).
 c86fa9245549db82388d5d73f8e3ff6a5edfd363:apps/api/tests/test_transformations_api.py:generic-api-key:26
+
+# Same dummy HS256 test secret constant, reused in R3-05's validation
+# route HTTP-layer test fixture. Confirmed R3-05 (2026-11-16).
+968bfd09d9654fe0405409e427ee44645d1fc3e2:apps/api/tests/test_transformations_validate_api.py:generic-api-key:27
