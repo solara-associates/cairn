@@ -3,6 +3,11 @@ abstraction (ADR-010, spec §5.4). Provider-agnostic; see
 ``cairn_adapters.execution_gcp`` for the first (GCP) adapter skeleton.
 """
 
+from cairn_adapters.provider_execution.fake import (
+    FAKE_ADAPTER_KIND,
+    FAKE_PROVIDER,
+    FakeProviderExecutionAdapter,
+)
 from cairn_adapters.provider_execution.ports import (
     ApplyRequest,
     ApplyResult,
@@ -25,10 +30,13 @@ from cairn_adapters.provider_execution.token import (
 
 __all__ = [
     "DEFAULT_TOKEN_TTL_SECONDS",
+    "FAKE_ADAPTER_KIND",
+    "FAKE_PROVIDER",
     "MAX_TOKEN_TTL_SECONDS",
     "ApplyRequest",
     "ApplyResult",
     "ExecutionScope",
+    "FakeProviderExecutionAdapter",
     "FakeTokenProvider",
     "PlanRequest",
     "PlanResult",
