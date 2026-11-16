@@ -110,6 +110,13 @@ def _seed_tenant(
             " VALUES (%s, %s, 'alice', 'pilot gap')",
             (tenant_id, mapping_version),
         )
+        connection.execute(
+            "INSERT INTO transformation_run"
+            " (tenant_id, project_id, run_number, source_file_ids, manifest,"
+            "  applied_count, skipped_count, unsupported_count, created_by)"
+            " VALUES (%s, %s, 1, '[]'::jsonb, '{}'::jsonb, 0, 0, 0, 'alice')",
+            (tenant_id, project_id),
+        )
     sink = PostgresAuditSink(dsn, signed_assertion(tenant_id, project_id))
     sink.append(
         AuditEntry(

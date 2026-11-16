@@ -24,14 +24,24 @@ jobs:
           --health-retries 10
     env:
       CAIRN_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      # 726 (R3-03b): the real TransformationPort adapter shells out to the
+      # compiled cairn-transform-cli binary (the subprocess boundary over
+      # 722's versioned JSON contract) -- this job builds it below so its
+      # own integration test exercises the real binary, not only the fake
+      # adapter, and this env var tells the adapter exactly where it is
+      # rather than guessing a relative path.
+      CAIRN_TRANSFORM_CLI_BIN: ${{ github.workspace }}/target/release/cairn-transform-cli
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
       - run: uv sync --all-packages
       - run: uv run ruff check .
       - run: uv run lint-imports
+      - run: cargo build --release -p cairn-transform-cli
       - run: uv run pytest
       - name: Backup/restore dry run (docs/runbooks/backup-restore.md)
         env:
