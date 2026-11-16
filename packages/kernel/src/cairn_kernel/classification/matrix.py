@@ -435,6 +435,38 @@ OPERATIONS: tuple[OperationEntry, ...] = (
         mutation_class=MutationClass.INTERNAL_MUTATION,
         tenancy_scope=TenancyScope.PROJECT,
     ),
+    # --- apps/api: diff review and validation console's own two
+    # additional routes (R3-07) ---
+    # Sealing a transformation run's evidence package is this app's own
+    # workspace action (730's signed-evidence machinery, the same
+    # reasoning the assessment evidence-package route above already
+    # uses) -- it reads a customer environment nowhere in this call
+    # path, so Class B WORKSPACE_MUTATION/INTERNAL_MUTATION. The review-
+    # comment thread is likewise CAIRN's own workspace annotation,
+    # attached to an already-recorded run -- posting one is Class B
+    # WORKSPACE_MUTATION/INTERNAL_MUTATION, same reasoning; reading the
+    # thread is Class A READ_ONLY, same as every other read route above.
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.POST /v1/transformations/{run_id}/evidence-package",
+        operation_class=OperationClass.WORKSPACE_MUTATION,
+        mutation_class=MutationClass.INTERNAL_MUTATION,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.POST /v1/transformations/{run_id}/review-comments",
+        operation_class=OperationClass.WORKSPACE_MUTATION,
+        mutation_class=MutationClass.INTERNAL_MUTATION,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.GET /v1/transformations/{run_id}/review-comments",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
     # --- cairn_contracts.events: declared event envelopes (R0-05) ---
     # Every event below records a CAIRN-workspace fact or state change; none
     # of them is produced by a wired publisher yet (no EventPublisher adapter
