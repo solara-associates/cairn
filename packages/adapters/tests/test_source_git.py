@@ -39,7 +39,12 @@ from io import BytesIO
 from pathlib import Path
 
 import pytest
-from cairn_adapters.source_git import FakeRepositorySource, GitSourceAdapter, UploadSourceAdapter
+from cairn_adapters.source_git import (
+    CompositeSourceAdapter,
+    FakeRepositorySource,
+    GitSourceAdapter,
+    UploadSourceAdapter,
+)
 from cairn_adapters.source_git.git_adapter import _ALLOWED_GIT_SUBCOMMANDS
 from cairn_contracts.transformation import (
     GitRepositoryRef,
@@ -176,6 +181,42 @@ def test_upload_adapter_refuses_a_zip_slip_member() -> None:
     adapter = UploadSourceAdapter(archive_loader=lambda archive_id: buffer.getvalue())
     with pytest.raises(ValidationError):
         adapter.fetch(UploadRepositoryRef(archive_id="slip"))
+
+
+# --- 781/R4-02: composite adapter (dispatches GIT/UPLOAD by ref.kind) ------
+
+
+def test_composite_adapter_dispatches_a_git_ref_to_the_real_git_adapter(tmp_path: Path) -> None:
+    fixture_dir = FIXTURES / "terraform_only"
+    url = _make_local_git_repo(tmp_path, fixture_dir)
+    expected = _expected_files(fixture_dir)
+
+    adapter = CompositeSourceAdapter()
+    files = adapter.fetch(GitRepositoryRef(url=url, ref="main"))
+
+    assert {f.path: f for f in files} == expected
+
+
+def test_composite_adapter_dispatches_an_upload_ref_to_the_real_upload_adapter() -> None:
+    fixture_dir = FIXTURES / "terraform_only"
+    archive_bytes = _zip_bytes(fixture_dir)
+    expected = _expected_files(fixture_dir)
+
+    adapter = CompositeSourceAdapter(
+        upload_adapter=UploadSourceAdapter(archive_loader=lambda archive_id: archive_bytes)
+    )
+    files = adapter.fetch(UploadRepositoryRef(archive_id="archive-1"))
+
+    assert {f.path: f for f in files} == expected
+
+
+def test_composite_adapter_without_an_upload_adapter_raises_provider_unavailable() -> None:
+    """An ``UploadRepositoryRef`` with no upload adapter configured
+    fails fast and explicitly -- it must never silently fall through to
+    the Git adapter, which has no ``archive_id`` field to read."""
+    adapter = CompositeSourceAdapter()
+    with pytest.raises(ProviderUnavailableError):
+        adapter.fetch(UploadRepositoryRef(archive_id="archive-1"))
 
 
 # --- fake adapter ------------------------------------------------------------
