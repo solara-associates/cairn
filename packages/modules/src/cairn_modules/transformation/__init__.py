@@ -11,6 +11,10 @@ from cairn_modules.transformation.evidence import (
     PRODUCER,
     build_transformation_evidence_package,
 )
+from cairn_modules.transformation.sandbox import (
+    DEFAULT_SANDBOX_LIMITS,
+    SandboxLimits,
+)
 from cairn_modules.transformation.source import RepositorySourcePort
 from cairn_modules.transformation.validation import (
     ValidationPort,
@@ -22,10 +26,12 @@ from cairn_modules.transformation.validation import (
 )
 
 __all__ = [
+    "DEFAULT_SANDBOX_LIMITS",
     "EVIDENCE_SUBJECT_KIND",
     "PRODUCER",
     "FileDiff",
     "RepositorySourcePort",
+    "SandboxLimits",
     "TransformationDiff",
     "ValidationPort",
     "ValidationRequest",
