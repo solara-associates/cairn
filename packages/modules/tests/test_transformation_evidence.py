@@ -173,6 +173,26 @@ def test_diff_and_validation_are_optional_manifest_alone_still_seals() -> None:
     assert result.outcome == "PASS"
 
 
+def test_782_no_validation_run_seals_outcome_pass() -> None:
+    """Unit 782 regression lock, not a new behaviour test: ``docs/specs/
+    r4-inherited-judgement-calls.md`` records 730's ``_outcome(validation
+    =None) -> "PASS"`` (``cairn_modules.transformation.evidence._outcome``)
+    as a judgement call accepted pending Allan's review -- a transformation
+    run with no validation attached currently seals as if it passed, rather
+    than as ``"UNVERIFIED"``. This test exists so a later R4 unit cannot
+    silently change that sealing default without this test failing first --
+    see the doc for the exact one-line change Allan's own call would need
+    if his intent differs.
+    """
+    run = _run("run-1")
+
+    envelope = build_transformation_evidence_package(
+        run, package_id="pkg-1", signer=FakeEvidenceSigner(), created_at=MOMENT
+    )
+
+    assert envelope.outcome == "PASS"
+
+
 # --- completeness: every R3-06 acceptance field is present -------------------
 
 
