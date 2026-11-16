@@ -13,6 +13,11 @@ from cairn_adapters.auth_oidc import JwtAuthenticator, OidcSettings
 from cairn_adapters.diagram_drawio import DrawioXmlDiagramRenderer
 from cairn_adapters.evidence_kms import KmsEvidenceSigner, KmsKeyVersion
 from cairn_adapters.iac_terraform import TerraformHclGenerator
+from cairn_adapters.source_git import GitSourceAdapter
+from cairn_adapters.transform_core.subprocess_adapter import (
+    SubprocessTransformationPort,
+    TransformCliUnavailableError,
+)
 from cairn_contracts.finops import PriceListRelease
 from cairn_contracts.mapping import MappingRelease
 from cairn_contracts.mapping.pattern import PatternCatalogueRelease
@@ -29,6 +34,12 @@ from cairn_modules.mappings import FakeMappingRepository, MappingRepository, Map
 from cairn_modules.mappings.seed import load_mapping_release
 from cairn_modules.posture import load_control_catalogue_release
 from cairn_modules.projects import InMemoryProjectRepository, ProjectRepository, ProjectService
+from cairn_modules.transformation.engine import TransformationPort
+from cairn_modules.transformation.runs import (
+    FakeTransformationRunRepository,
+    TransformationRunRepository,
+)
+from cairn_modules.transformation.source import RepositorySourcePort
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
@@ -39,6 +50,7 @@ from cairn_api.routes_connections import register_connections_routes
 from cairn_api.routes_design import DesignRegistry, register_design_routes
 from cairn_api.routes_mappings import register_mapping_routes
 from cairn_api.routes_projects import register_projects_routes
+from cairn_api.routes_transformations import TransformationRegistry, register_transformation_routes
 
 ReadinessProbe = Callable[[], Mapping[str, bool]]
 
@@ -168,6 +180,29 @@ def _default_evidence_signer() -> EvidenceSigner:
     return KmsEvidenceSigner(key_version)
 
 
+class _ClosedTransformationPort:
+    """Fails closed: no ``cairn-transform-cli`` binary is configured or
+    built yet in this process. Mirrors ``_ClosedAuthenticator`` above --
+    the app still starts (route discovery, OpenAPI schema generation
+    and every other route's tests must not depend on this binary
+    existing), and the failure only surfaces if a caller actually tries
+    to run a transformation."""
+
+    def transform(self, files: Any) -> Any:
+        raise TransformCliUnavailableError(
+            "cairn-transform-cli is not configured or built in this process; "
+            "set CAIRN_TRANSFORM_CLI_BIN or run "
+            "`cargo build --release -p cairn-transform-cli` first"
+        )
+
+
+def _default_transformation_port() -> TransformationPort:
+    try:
+        return SubprocessTransformationPort()
+    except TransformCliUnavailableError:
+        return _ClosedTransformationPort()
+
+
 def _default_assertion_secret() -> bytes:
     configured = os.environ.get("CAIRN_TENANT_ASSERTION_SECRET")
     if configured:
@@ -212,6 +247,10 @@ def create_app(
     design_registry: DesignRegistry | None = None,
     pattern_catalogue: PatternCatalogueRelease | None = None,
     design_mapping_release: MappingRelease | None = None,
+    transformation_registry: TransformationRegistry | None = None,
+    transformation_source_port: RepositorySourcePort | None = None,
+    transformation_port: TransformationPort | None = None,
+    transformation_run_repository: TransformationRunRepository | None = None,
 ) -> FastAPI:
     service_version = _service_version()
     probe = readiness or (dict)
@@ -276,6 +315,14 @@ def create_app(
         mapping_release=design_mapping_release or _default_mapping_release(),
         diagram_renderer=DrawioXmlDiagramRenderer(),
         iac_generator=TerraformHclGenerator(),
+    )
+
+    register_transformation_routes(
+        app,
+        registry=transformation_registry or TransformationRegistry(),
+        source_port=transformation_source_port or GitSourceAdapter(),
+        transformation_port=transformation_port or _default_transformation_port(),
+        run_repository=transformation_run_repository or FakeTransformationRunRepository(),
     )
 
     app.add_exception_handler(CairnError, _cairn_error_handler)
