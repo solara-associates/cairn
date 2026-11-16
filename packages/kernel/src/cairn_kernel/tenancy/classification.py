@@ -46,6 +46,9 @@ TABLE_CLASSIFICATIONS: tuple[TableClassification, ...] = (
     # mapping proposals" on the Tenant-owned row), even though the release
     # content it carries becomes global the moment it is proposed.
     TableClassification(table="mapping_proposal", scope=TenancyScope.TENANT),
+    # R3-03b: a transformation run belongs to one tenant's one project,
+    # same scope as subject_revision/approval/execution_record.
+    TableClassification(table="transformation_run", scope=TenancyScope.PROJECT),
 )
 
 TENANCY_CLASSIFICATION: dict[str, TenancyScope] = {
