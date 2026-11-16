@@ -6,6 +6,7 @@ members = [
     "packages/transform-core/detector",
     "packages/transform-core/patcher",
     "packages/transform-core/validator",
+    "packages/transform-core/cli",
 ]
 
 [workspace.package]
