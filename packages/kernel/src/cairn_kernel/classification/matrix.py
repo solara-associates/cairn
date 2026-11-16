@@ -417,6 +417,24 @@ OPERATIONS: tuple[OperationEntry, ...] = (
         mutation_class=MutationClass.READ_ONLY,
         tenancy_scope=TenancyScope.PROJECT,
     ),
+    # 729/R3-05's validation route runs every configured ValidationPort
+    # check (cairn_modules.transformation.validation) against an already-
+    # recorded run's manifest/diff and records the aggregated outcome on
+    # this app's own TransformationRegistry -- it never fetches from, or
+    # writes to, a customer environment (no adapter it calls does either:
+    # the static check re-parses in-memory text, the test-suite check
+    # runs only against an isolated temp copy, the dependency check reads
+    # only the already-fetched files), so this is Class B
+    # WORKSPACE_MUTATION/INTERNAL_MUTATION with no compensation contract,
+    # the same reasoning the create-transformation route above already
+    # uses.
+    OperationEntry(
+        surface=SurfaceKind.API,
+        name="api.POST /v1/transformations/{run_id}:validate",
+        operation_class=OperationClass.WORKSPACE_MUTATION,
+        mutation_class=MutationClass.INTERNAL_MUTATION,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
     # --- cairn_contracts.events: declared event envelopes (R0-05) ---
     # Every event below records a CAIRN-workspace fact or state change; none
     # of them is produced by a wired publisher yet (no EventPublisher adapter

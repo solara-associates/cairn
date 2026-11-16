@@ -10,6 +10,30 @@ endpoint table:
 - ``GET /v1/transformations/{run_id}/diff`` -- "Unified diff artefact",
   ``VIEWER+``, Class A.
 
+729/R3-05 adds a fourth route to this same module (reading it as merged
+first, per that unit's brief):
+
+- ``POST /v1/transformations/{run_id}:validate`` -- "Run validation",
+  ``ENGINEER+``, Class B (spec §9's own row). Runs every configured
+  ``ValidationPort`` check (``cairn_modules.transformation.validation``)
+  against this run's already-recorded manifest and diff -- never against
+  a re-fetched copy of the customer repository, and never applying
+  anything to a real file either (the same "proposed, never applied"
+  discipline 726/728 already established) -- and records the aggregated
+  ``ValidationRun`` on this module's own registry. Spec S16/R3-05's
+  acceptance text, "failures block approval", is a real control, not
+  advisory text: ``cairn_modules.transformation.validation.
+  require_validation_passed`` raises when any check failed, and is the
+  gate a later unit (731's sandbox) is expected to call before treating a
+  run as safe to execute. This route itself never calls that gate to
+  refuse its own response -- "run validation" is reporting the outcome,
+  not an approval action in its own right (spec §9 has no approval route
+  for transformations yet; that is R4's ``:decide`` shape, out of this
+  unit's scope) -- so a failing run still gets a 200 here, with
+  ``approved: false`` and every failing check's reason visible to the
+  caller, the same "never silently swallow a failure" discipline every
+  other result shape in this codebase already uses.
+
 Classification (``cairn_kernel.classification.matrix``): the POST route
 triggers 721's ``RepositorySourcePort.fetch`` (reads a customer's
 repository, never writes to it -- ADR-010/R3-01's own "no write-back"
@@ -67,6 +91,7 @@ shape for.
 
 from __future__ import annotations
 
+import dataclasses
 import threading
 from dataclasses import dataclass
 from typing import Any
@@ -78,6 +103,12 @@ from cairn_modules.transformation.diff import TransformationDiff, render_transfo
 from cairn_modules.transformation.engine import TransformationPort
 from cairn_modules.transformation.runs import TransformationRunRecord, TransformationRunRepository
 from cairn_modules.transformation.source import RepositorySourcePort
+from cairn_modules.transformation.validation import (
+    ValidationPort,
+    ValidationRequest,
+    ValidationRun,
+    run_validation,
+)
 from fastapi import Depends, FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, ConfigDict
@@ -100,6 +131,11 @@ READ_ROLES: tuple[Role, ...] = tuple(Role)
 least-privileged row in spec §12.1's table, matching
 ``ProjectService.READ_ROLES``/``MappingService.READ_ROLES``."""
 
+VALIDATE_ROLES: tuple[Role, ...] = CREATE_ROLES
+"""Spec §9's ``POST /v1/transformations/{run_id}:validate`` row is
+``ENGINEER+`` -- the exact same role cell as the create route, so this is
+the same tuple, not a re-derivation that could silently drift from it."""
+
 
 def get_principal(request: Request) -> Principal:
     principal = getattr(request.state, "principal", None)
@@ -113,10 +149,18 @@ class _IndexedRun:
     """One recorded run plus the exact ``SourceFile`` sequence 721's
     port fetched for it, kept together so ``GET .../diff`` never has to
     re-fetch (and risk re-fetching something different) from the
-    customer repository to render the artefact."""
+    customer repository to render the artefact.
+
+    ``validation`` is ``None`` until 729's ``:validate`` route has been
+    called for this run at least once -- a run is not implicitly
+    "validated: passed" just because nothing has checked it yet; the
+    absence of a ``ValidationRun`` is reported as such, never silently
+    read as approval.
+    """
 
     record: TransformationRunRecord
     files: tuple[SourceFile, ...]
+    validation: ValidationRun | None = None
 
 
 class TransformationRegistry:
@@ -133,6 +177,17 @@ class TransformationRegistry:
     def put_run(self, record: TransformationRunRecord, files: tuple[SourceFile, ...]) -> None:
         with self._lock:
             self._runs[record.run_id] = _IndexedRun(record=record, files=files)
+
+    def put_validation(self, run_id: str, validation: ValidationRun) -> None:
+        """Record 729's aggregated ``ValidationRun`` against an already-
+        recorded run. Raises ``NotFoundError`` if ``run_id`` is unknown --
+        never fabricates an entry for a run that was never recorded."""
+
+        with self._lock:
+            existing = self._runs.get(run_id)
+            if existing is None:
+                raise NotFoundError(f"transformation run {run_id} not found")
+            self._runs[run_id] = dataclasses.replace(existing, validation=validation)
 
     def get_run(self, run_id: str) -> _IndexedRun | None:
         return self._runs.get(run_id)
@@ -152,7 +207,9 @@ class CreateTransformationRequest(BaseModel):
     repository_ref: RepositoryRef
 
 
-def _run_summary(record: TransformationRunRecord) -> dict[str, Any]:
+def _run_summary(
+    record: TransformationRunRecord, *, validation: ValidationRun | None = None
+) -> dict[str, Any]:
     manifest = record.manifest
     return {
         "run_id": record.run_id,
@@ -164,6 +221,18 @@ def _run_summary(record: TransformationRunRecord) -> dict[str, Any]:
         "unsupported_count": manifest.unsupported_count,
         "created_by": record.created_by,
         "created_at": record.created_at,
+        "validation": _validation_summary(validation) if validation is not None else None,
+    }
+
+
+def _validation_summary(validation: ValidationRun) -> dict[str, Any]:
+    return {
+        "run_id": validation.run_id,
+        "approved": validation.approved,
+        "results": [
+            {"check_id": result.check_id, "passed": result.passed, "reason": result.reason}
+            for result in validation.results
+        ],
     }
 
 
@@ -219,6 +288,7 @@ def register_transformation_routes(
     source_port: RepositorySourcePort,
     transformation_port: TransformationPort,
     run_repository: TransformationRunRepository,
+    validation_checks: tuple[ValidationPort, ...] = (),
 ) -> None:
     """Register the R3-04 transformation routes directly on ``app``.
 
@@ -257,7 +327,7 @@ def register_transformation_routes(
     def get_transformation(run_id: str, principal: Principal = Depends(get_principal)) -> dict:
         require_roles(principal, *READ_ROLES)
         indexed = _load_indexed_run(run_id, principal)
-        return jsonable_encoder(_run_summary(indexed.record))
+        return jsonable_encoder(_run_summary(indexed.record, validation=indexed.validation))
 
     @router.get("/v1/transformations/{run_id}/diff")
     def get_transformation_diff(
@@ -270,10 +340,27 @@ def register_transformation_routes(
         )
         return jsonable_encoder(_diff_summary(diff))
 
+    @router.post("/v1/transformations/{run_id}:validate")
+    def validate_transformation(
+        run_id: str, principal: Principal = Depends(get_principal)
+    ) -> dict:
+        require_roles(principal, *VALIDATE_ROLES)
+        indexed = _load_indexed_run(run_id, principal)
+        diff = render_transformation_diff(
+            run_id=run_id, files=indexed.files, manifest=indexed.record.manifest
+        )
+        request = ValidationRequest(
+            run_id=run_id, files=indexed.files, manifest=indexed.record.manifest, diff=diff
+        )
+        validation_run = run_validation(request, checks=validation_checks)
+        registry.put_validation(run_id, validation_run)
+        return jsonable_encoder(_validation_summary(validation_run))
+
 
 __all__ = [
     "CREATE_ROLES",
     "READ_ROLES",
+    "VALIDATE_ROLES",
     "CreateTransformationRequest",
     "TransformationRegistry",
     "get_principal",
