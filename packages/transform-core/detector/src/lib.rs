@@ -114,6 +114,13 @@ impl DetectionSet {
 pub mod rule_ids {
     pub const TF_S3_BUCKET_INLINE_ACL_DEPRECATED: &str = "tf-s3-bucket-inline-acl-deprecated";
     pub const PY_IMPORT_IMP_DEPRECATED: &str = "py-import-imp-deprecated";
+    /// Unit 780 (R4-01): the first rule whose correct remediation is a
+    /// cross-provider service-equivalence judgement, not a direct
+    /// syntactic successor rewrite. See
+    /// `rules::tf_dynamodb_table_cross_provider_equivalence` below for
+    /// why this crate deliberately never resolves that judgement itself.
+    pub const TF_DYNAMODB_TABLE_CROSS_PROVIDER_EQUIVALENCE: &str =
+        "tf-dynamodb-table-cross-provider-equivalence";
 }
 
 /// Run every fixed rule applicable to `parse_output`'s language over its AST.
@@ -140,6 +147,7 @@ pub fn detect(parse_output: &ParseOutput) -> DetectionSet {
         .starts_with("cairn-hcl-parser/")
     {
         rules::tf_s3_bucket_inline_acl_deprecated(ast, &source_file_id, &mut set);
+        rules::tf_dynamodb_table_cross_provider_equivalence(ast, &source_file_id, &mut set);
     } else if parse_output
         .parser_version()
         .starts_with("cairn-python-parser/")
@@ -268,6 +276,63 @@ mod rules {
             .children
             .iter()
             .any(dynamic_block_mentions_acl)
+    }
+
+    /// Rule: an `aws_dynamodb_table` resource block. Unlike
+    /// `tf_s3_bucket_inline_acl_deprecated` and `py_import_imp_deprecated`
+    /// (both direct, same-provider syntactic successor renames with a
+    /// fixed, documented replacement this crate can safely write itself),
+    /// DynamoDB has no same-provider or literal/direct-match replacement
+    /// at all -- the only CAIRN-correct remediation is a cross-provider
+    /// service-equivalence judgement (which target-provider service is
+    /// the real counterpart, and with what caveats), and that judgement
+    /// lives nowhere in this crate (ADR-004: no hard-coded equivalence
+    /// table; see `cairn-transform-patcher`'s "Scope note" and
+    /// `packages/modules/src/cairn_modules/mappings/resolver.py`, 700/
+    /// R2-01's resolver, the only place that judgement is allowed to come
+    /// from).
+    ///
+    /// This rule therefore only ever confirms the *trigger shape*
+    /// (an `aws_dynamodb_table` resource exists at all) -- it is always a
+    /// `Confidence::Medium` match, never `High`: this crate is certain the
+    /// shape is present, but deliberately less certain than the two
+    /// literal-rewrite rules above about what, if anything, should be
+    /// done about it, exactly because that answer depends on a lookup
+    /// this crate cannot perform. `cairn-transform-patcher`'s rewrite for
+    /// this rule id always refuses (`ChangeOutcome::Unsupported`) for the
+    /// same reason; the mapping-registry lookup, and the honest
+    /// APPROXIMATE/UNAVAILABLE-never-rendered-as-EXACT rendering R-MAP-01
+    /// requires, happens only at the Python manifest-building layer
+    /// (`cairn_modules.transformation.engine.build_manifest`), which is
+    /// the one layer allowed to call the resolver.
+    pub(super) fn tf_dynamodb_table_cross_provider_equivalence(
+        ast: &AstNode,
+        source_file_id: &str,
+        set: &mut DetectionSet,
+    ) {
+        for node in &ast.children {
+            if node.kind != "Block" || node.text != "resource" {
+                continue;
+            }
+            let Some(resource_type) = node.children.first() else {
+                continue;
+            };
+            if resource_type.kind != "Label" || resource_type.text != "aws_dynamodb_table" {
+                continue;
+            }
+            set.detections.push(Detection {
+                rule_id: rule_ids::TF_DYNAMODB_TABLE_CROSS_PROVIDER_EQUIVALENCE.to_string(),
+                source_file_id: source_file_id.to_string(),
+                span: node.span,
+                confidence: Confidence::Medium,
+                detector_version: DETECTOR_VERSION.to_string(),
+                message: "aws_dynamodb_table has no same-provider or literal remediation; \
+                          the correct cross-provider service equivalent can only be \
+                          determined by a mapping-registry lookup (700's resolver, \
+                          R-MAP-01)"
+                    .to_string(),
+            });
+        }
     }
 
     /// Rule: `import imp` (the deprecated stdlib `imp` module; removed in
@@ -438,6 +503,50 @@ resource "aws_s3_bucket" "dirty" {
             set.detections[0].rule_id,
             rule_ids::TF_S3_BUCKET_INLINE_ACL_DEPRECATED
         );
+    }
+
+    // -- Golden corpus: cross-provider mapping-dependent rule (780/R4-01) --
+
+    const DYNAMODB_TABLE: &str = r#"
+resource "aws_dynamodb_table" "sessions" {
+  name         = "cairn-demo-sessions"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "session_id"
+
+  attribute {
+    name = "session_id"
+    type = "S"
+  }
+}
+"#;
+
+    #[test]
+    fn dynamodb_table_resource_is_detected_as_needing_mapping_resolution() {
+        let output = parse_hcl(&hcl_input(DYNAMODB_TABLE));
+        let set = detect(&output);
+        assert_eq!(set.detections.len(), 1);
+        let detection = &set.detections[0];
+        assert_eq!(
+            detection.rule_id,
+            rule_ids::TF_DYNAMODB_TABLE_CROSS_PROVIDER_EQUIVALENCE
+        );
+        assert_eq!(detection.source_file_id, "fixture.tf");
+        // Deliberately Medium, not High: this crate is certain the shape is
+        // present, not that it knows the right remediation (that depends on
+        // a mapping-registry lookup this crate cannot perform).
+        assert_eq!(detection.confidence, Confidence::Medium);
+        assert!(set.skipped.is_empty());
+        assert!(detection.message.contains("mapping-registry"));
+    }
+
+    #[test]
+    fn s3_bucket_resource_alone_does_not_trigger_the_dynamodb_rule() {
+        let output = parse_hcl(&hcl_input(S3_BUCKET_WITHOUT_ACL));
+        let set = detect(&output);
+        assert!(set
+            .detections
+            .iter()
+            .all(|d| d.rule_id != rule_ids::TF_DYNAMODB_TABLE_CROSS_PROVIDER_EQUIVALENCE));
     }
 
     // -- Deliberate-break case (Terraform): dynamic block ----------------
