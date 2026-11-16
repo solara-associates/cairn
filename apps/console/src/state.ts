@@ -12,6 +12,10 @@ export type Session = {
   // journeys are independent and a console session could in principle
   // hold one of each.
   transformRunId: string | null;
+  // 792/R4-05: the approval console's own Terraform plan revision id --
+  // kept separate from `planId` (R2-07's roadmap plan id), since the
+  // revision id is what the approval routes are keyed on.
+  planRevisionId: string | null;
 };
 
 const session: Session = {
@@ -24,6 +28,7 @@ const session: Session = {
   designId: null,
   planId: null,
   transformRunId: null,
+  planRevisionId: null,
 };
 
 export function getSession(): Session {
@@ -52,6 +57,10 @@ export function setTransformRunId(transformRunId: string | null): void {
   session.transformRunId = transformRunId;
 }
 
+export function setPlanRevisionId(planRevisionId: string | null): void {
+  session.planRevisionId = planRevisionId;
+}
+
 export function setPatternId(patternId: string | null): void {
   session.patternId = patternId;
 }
@@ -74,4 +83,5 @@ export function resetSession(): void {
   session.designId = null;
   session.planId = null;
   session.transformRunId = null;
+  session.planRevisionId = null;
 }
