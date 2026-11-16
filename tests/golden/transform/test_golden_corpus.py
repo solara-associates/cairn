@@ -35,6 +35,7 @@ end-to-end pipeline is this module's entire purpose.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -45,7 +46,10 @@ from cairn_adapters.transform_core.subprocess_adapter import (
     TransformCliUnavailableError,
     resolve_transform_cli_binary,
 )
+from cairn_contracts.estate import Equivalence
+from cairn_contracts.mapping import MappingEntry, MappingRelease, ReleaseStatus
 from cairn_contracts.transformation import GitRepositoryRef, SourceFile
+from cairn_modules.mappings import load_mapping_release
 from cairn_modules.transformation.engine import (
     PARSE_INCOMPLETE_RULE_ID,
     ManifestOutcome,
@@ -53,9 +57,12 @@ from cairn_modules.transformation.engine import (
 )
 
 REPOS_ROOT = Path(__file__).parent / "repos"
+REPO_ROOT = Path(__file__).parents[3]
+SEED_MAPPING_RELEASE_PATH = REPO_ROOT / "mappings" / "service-map.yaml"
 
 ACL_DEPRECATED_RULE_ID = "tf-s3-bucket-inline-acl-deprecated"
 IMPORT_IMP_RULE_ID = "py-import-imp-deprecated"
+DYNAMODB_MAPPING_RULE_ID = "tf-dynamodb-table-cross-provider-equivalence"
 
 
 def _real_binary_available() -> bool:
@@ -95,10 +102,18 @@ def _load_repo(repo_name: str) -> tuple[SourceFile, ...]:
     return tuple(files)
 
 
-def _fetch_and_transform(repo_name: str) -> TransformationManifest:
+def _fetch_and_transform(
+    repo_name: str, *, mapping_release: MappingRelease | None = None
+) -> TransformationManifest:
     """721's fake adapter for the fetch half, the real subprocess
     adapter for the parse->detect->transform half -- the exact pipeline
-    composition this corpus exists to exercise."""
+    composition this corpus exists to exercise.
+
+    ``mapping_release`` (780/R4-01) is threaded straight to the real
+    ``SubprocessTransformationPort``, which threads it straight to
+    ``build_manifest`` -- never consulted by this helper itself. Omitting
+    it (every pre-780 caller) is unaffected: no fixture before 780 uses a
+    rule id ``build_manifest`` ever looks at a release for."""
 
     files = _load_repo(repo_name)
     ref = GitRepositoryRef(url="https://example.invalid/golden-corpus.git", ref=f"golden/{repo_name}")
@@ -108,7 +123,7 @@ def _fetch_and_transform(repo_name: str) -> TransformationManifest:
     fetched = source.fetch(ref)
     assert fetched == files, "the fake fetch adapter must return exactly what was registered"
 
-    manifest = SubprocessTransformationPort().transform(fetched)
+    manifest = SubprocessTransformationPort(mapping_release=mapping_release).transform(fetched)
     return manifest
 
 
@@ -156,6 +171,104 @@ def test_python_imp_deprecation_is_applied_end_to_end() -> None:
     entry = manifest.entries[0]
     assert entry.reason is None
     assert entry.edits[0].replacement == "importlib"
+
+
+# ---------------------------------------------------------------------------
+# Unit 780 (R4-01): the first rule whose correct remediation genuinely
+# needs a mapping-registry lookup, not a literal/direct-match rewrite --
+# ``tf-dynamodb-table-cross-provider-equivalence``. 725's Rust engine
+# always reports it ``Unsupported`` (it cannot call 700/R2-01's resolver
+# in-process, ADR-006); this corpus proves what the Python manifest
+# layer does with it once a real, published ``MappingRelease`` is
+# available, and -- the required deliberate-break cases -- what it does
+# honestly when one is not.
+# ---------------------------------------------------------------------------
+
+
+def test_dynamodb_table_resolves_cross_provider_equivalence_as_approximate_never_exact() -> None:
+    """The real seed content (``mappings/service-map.yaml``) already
+    carries a genuine ``aws:dynamodb`` -> ``gcp:bigtable`` mapping with
+    ``equivalence: APPROXIMATE`` -- a real mapping lookup through 700's
+    resolver, not a synthetic test fixture invented for this case. The
+    manifest entry must name the real resolved target honestly, as
+    APPROXIMATE, and must never render it as if it were EXACT (R-MAP-01)."""
+
+    release = load_mapping_release(SEED_MAPPING_RELEASE_PATH)
+
+    manifest = _fetch_and_transform(
+        "terraform_dynamodb_cross_provider_mapping", mapping_release=release
+    )
+
+    assert len(manifest.entries) == 1
+    entry = manifest.entries[0]
+    assert entry.source_file_id == "main.tf"
+    assert entry.rule_id == DYNAMODB_MAPPING_RULE_ID
+    # The engine (Rust side) still never performs an automatic rewrite for
+    # a cross-provider equivalence judgement -- only the honesty of the
+    # recorded reason changes, not the outcome.
+    assert entry.outcome is ManifestOutcome.UNSUPPORTED
+    assert entry.edits == ()
+    assert entry.mapping_release_version == release.version
+    assert "gcp:bigtable" in entry.reason
+    assert "APPROXIMATE" in entry.reason
+    assert "never upgraded to EXACT" in entry.reason
+
+
+def test_dynamodb_table_with_no_mapping_release_degrades_honestly_not_a_guess() -> None:
+    """Required deliberate-break case: no ``MappingRelease`` supplied at
+    all. The rule must flag the gap honestly, never fabricate a
+    target-provider service name or equivalence."""
+
+    manifest = _fetch_and_transform("terraform_dynamodb_cross_provider_mapping")
+
+    assert len(manifest.entries) == 1
+    entry = manifest.entries[0]
+    assert entry.outcome is ManifestOutcome.UNSUPPORTED
+    assert entry.edits == ()
+    assert entry.mapping_release_version is None
+    assert "mapping release unavailable" in entry.reason
+    assert "bigtable" not in entry.reason.lower()
+    assert "gcp" not in entry.reason.lower()
+
+
+def test_dynamodb_table_with_unavailable_mapping_entry_degrades_honestly_not_a_guess() -> None:
+    """Required deliberate-break case, the other half: a real, published
+    release *is* supplied, but its own ``aws:dynamodb`` -> ``gcp`` entry
+    is itself ``UNAVAILABLE`` (700/R2-01's resolver's own "no fallback,
+    ever" semantics -- ``resolve_mapping`` raises ``MappingUnavailableError``
+    rather than inventing a substitute). The rule must carry that
+    unavailability forward honestly, with the real release version that
+    said so, and still never name a target service."""
+
+    unavailable_entry = MappingEntry(
+        id="dynamodb-to-gcp-unavailable",
+        source_provider="aws",
+        source_service="dynamodb",
+        target_provider="gcp",
+        target_service=None,
+        equivalence=Equivalence.UNAVAILABLE,
+        caveat="No published GCP equivalent for this DynamoDB table shape",
+        evidence="R4-01 deliberate-break fixture",
+    )
+    release = MappingRelease(
+        version="2026.11.99",
+        released_at=datetime(2026, 11, 16, tzinfo=UTC),
+        status=ReleaseStatus.DRAFT,
+        entries=(unavailable_entry,),
+    )
+
+    manifest = _fetch_and_transform(
+        "terraform_dynamodb_cross_provider_mapping", mapping_release=release
+    )
+
+    assert len(manifest.entries) == 1
+    entry = manifest.entries[0]
+    assert entry.outcome is ManifestOutcome.UNSUPPORTED
+    assert entry.edits == ()
+    assert entry.mapping_release_version == release.version
+    assert "mapping unavailable" in entry.reason
+    assert "No published GCP equivalent" in entry.reason
+    assert "bigtable" not in entry.reason.lower()
 
 
 # ---------------------------------------------------------------------------
@@ -321,9 +434,26 @@ def test_mixed_pilot_scope_repository_end_to_end() -> None:
         "python_relative_imp_skip",
         "python_fstring_unsupported",
         "mixed_pilot_scope",
+        "terraform_dynamodb_cross_provider_mapping",
     ],
 )
 def test_full_pipeline_is_deterministic_across_repeated_runs(repo_name: str) -> None:
     first = _fetch_and_transform(repo_name)
     second = _fetch_and_transform(repo_name)
+    assert first == second
+
+
+def test_dynamodb_mapping_resolution_is_deterministic_across_repeated_runs() -> None:
+    """Same determinism requirement as above, but with a real
+    ``mapping_release`` supplied -- the resolved-reason path, not just
+    the no-release path the generic parametrized test above already
+    covers for this fixture."""
+
+    release = load_mapping_release(SEED_MAPPING_RELEASE_PATH)
+    first = _fetch_and_transform(
+        "terraform_dynamodb_cross_provider_mapping", mapping_release=release
+    )
+    second = _fetch_and_transform(
+        "terraform_dynamodb_cross_provider_mapping", mapping_release=release
+    )
     assert first == second

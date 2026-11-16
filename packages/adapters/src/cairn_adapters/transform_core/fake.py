@@ -22,6 +22,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from cairn_contracts.mapping import MappingRelease
 from cairn_contracts.transformation import SourceFile
 from cairn_kernel.errors import NotFoundError
 from cairn_modules.transformation.engine import TransformationManifest, build_manifest
@@ -40,10 +41,17 @@ class FakeTransformationPort:
     """
 
     def __init__(
-        self, fixtures: Mapping[tuple[str, str, str], Mapping[str, Any]] | None = None
+        self,
+        fixtures: Mapping[tuple[str, str, str], Mapping[str, Any]] | None = None,
+        *,
+        mapping_release: MappingRelease | None = None,
     ) -> None:
         self._fixtures: dict[tuple[str, str, str], Mapping[str, Any]] = dict(fixtures or {})
         self.calls: list[Sequence[SourceFile]] = []
+        # Unit 780 (R4-01): same optional release the real adapter takes,
+        # so the fake/real contract test can compare them with either
+        # both given one, or (the common case) neither.
+        self._mapping_release = mapping_release
 
     def register(self, source_file: SourceFile, raw_cli_output: Mapping[str, Any]) -> None:
         """Register the exact raw ``CliOutput`` payload this adapter
@@ -68,7 +76,7 @@ class FakeTransformationPort:
                     f"no transform-core fixture registered for source file {source_file.path!r}"
                 )
             cli_outputs.append((source_file.path, self._fixtures[key]))
-        return build_manifest(cli_outputs)
+        return build_manifest(cli_outputs, mapping_release=self._mapping_release)
 
 
 __all__ = ["FakeTransformationPort"]

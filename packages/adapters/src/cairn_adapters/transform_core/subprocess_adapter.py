@@ -31,6 +31,7 @@ import subprocess
 from collections.abc import Sequence
 from pathlib import Path
 
+from cairn_contracts.mapping import MappingRelease
 from cairn_contracts.transformation import SourceFile, SourceLanguage
 from cairn_kernel.errors import ProviderUnavailableError
 from cairn_modules.transformation.engine import TransformationManifest, build_manifest
@@ -122,9 +123,15 @@ class SubprocessTransformationPort:
         *,
         binary_path: Path | None = None,
         timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
+        mapping_release: MappingRelease | None = None,
     ) -> None:
         self._binary_path = binary_path or resolve_transform_cli_binary()
         self._timeout_seconds = timeout_seconds
+        # Unit 780 (R4-01): threaded straight through to ``build_manifest``,
+        # which is the only place that actually calls 700/R2-01's resolver.
+        # Omitting it (the default) is legal, and is itself the honest
+        # "no mapping release available" path for any rule that needs one.
+        self._mapping_release = mapping_release
 
     def transform(self, files: Sequence[SourceFile]) -> TransformationManifest:
         cli_outputs: list[tuple[str, dict]] = []
@@ -133,7 +140,7 @@ class SubprocessTransformationPort:
                 continue
             raw_output = self._run_one(source_file)
             cli_outputs.append((source_file.path, raw_output))
-        return build_manifest(cli_outputs)
+        return build_manifest(cli_outputs, mapping_release=self._mapping_release)
 
     def _run_one(self, source_file: SourceFile) -> dict:
         payload = _parse_input_payload(source_file)
