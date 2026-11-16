@@ -59,3 +59,7 @@ c86fa9245549db82388d5d73f8e3ff6a5edfd363:apps/api/tests/test_transformations_api
 # upload-sourced diff/preview HTTP-layer test fixture. Confirmed
 # R4-02 (2026-11-16).
 9e5e660454a7d934e44af2cc03af520bc38891ef:apps/api/tests/test_transformations_upload_api.py:generic-api-key:44
+
+# Same dummy HS256 test secret constant, reused in 792/R4-05's
+# approval-console HTTP-layer test fixture. Confirmed R4-05 (2026-11-16).
+6058866d942f85c5e51ce11f2e4ee071d3e7a877:apps/api/tests/test_approval_console_api.py:generic-api-key:37
