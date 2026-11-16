@@ -110,7 +110,7 @@ impl ValidationResult {
 /// docs).
 fn apply_edits(source_text: &str, edits: &[ProposedEdit]) -> String {
     let mut ordered: Vec<&ProposedEdit> = edits.iter().collect();
-    ordered.sort_by(|a, b| b.span.start_byte.cmp(&a.span.start_byte));
+    ordered.sort_by_key(|edit| std::cmp::Reverse(edit.span.start_byte));
 
     let mut buffer: Vec<u8> = source_text.as_bytes().to_vec();
     for edit in ordered {
