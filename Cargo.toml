@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "packages/transform-core/contract",
     "packages/transform-core/parser",
     "packages/transform-core/detector",
     "packages/transform-core/patcher",
