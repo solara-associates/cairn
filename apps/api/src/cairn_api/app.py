@@ -13,7 +13,7 @@ from cairn_adapters.auth_oidc import JwtAuthenticator, OidcSettings
 from cairn_adapters.diagram_drawio import DrawioXmlDiagramRenderer
 from cairn_adapters.evidence_kms import KmsEvidenceSigner, KmsKeyVersion
 from cairn_adapters.iac_terraform import TerraformHclGenerator
-from cairn_adapters.source_git import GitSourceAdapter
+from cairn_adapters.source_git import ArchiveLoader, CompositeSourceAdapter, UploadSourceAdapter
 from cairn_adapters.transform_core.subprocess_adapter import (
     SubprocessTransformationPort,
     TransformCliUnavailableError,
@@ -286,6 +286,7 @@ def create_app(
     design_mapping_release: MappingRelease | None = None,
     transformation_registry: TransformationRegistry | None = None,
     transformation_source_port: RepositorySourcePort | None = None,
+    transformation_archive_loader: ArchiveLoader | None = None,
     transformation_port: TransformationPort | None = None,
     transformation_run_repository: TransformationRunRepository | None = None,
     transformation_validation_checks: tuple[ValidationPort, ...] | None = None,
@@ -359,7 +360,12 @@ def create_app(
     register_transformation_routes(
         app,
         registry=transformation_registry or TransformationRegistry(),
-        source_port=transformation_source_port or GitSourceAdapter(),
+        source_port=transformation_source_port
+        or CompositeSourceAdapter(
+            upload_adapter=UploadSourceAdapter(transformation_archive_loader)
+            if transformation_archive_loader is not None
+            else None
+        ),
         transformation_port=transformation_port or _default_transformation_port(),
         run_repository=transformation_run_repository or FakeTransformationRunRepository(),
         evidence_signer=resolved_evidence_signer,
