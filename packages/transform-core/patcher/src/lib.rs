@@ -199,6 +199,9 @@ fn apply_detection(ast: Option<&AstNode>, detection: &Detection) -> ChangeEntry 
             rules::tf_s3_bucket_inline_acl_deprecated(ast, detection)
         }
         rule_ids::PY_IMPORT_IMP_DEPRECATED => rules::py_import_imp_deprecated(ast, detection),
+        rule_ids::TF_DYNAMODB_TABLE_CROSS_PROVIDER_EQUIVALENCE => {
+            rules::tf_dynamodb_table_cross_provider_equivalence(detection)
+        }
         other => unsupported(
             detection,
             format!("unsupported: no registered rewrite rule for '{other}'"),
@@ -366,6 +369,38 @@ mod rules {
             .iter()
             .find_map(|child| find_import_alias(child, target_span))
     }
+
+    /// Rewrite (refusal) for `tf-dynamodb-table-cross-provider-equivalence`
+    /// (780/R4-01). Unlike every other rule in this crate, this one has
+    /// *no* safe rewrite this crate can compute at all, by design: the
+    /// correct remediation for an `aws_dynamodb_table` resource is a
+    /// cross-provider service-equivalence judgement (which target-provider
+    /// service is the real counterpart, under what caveats, or whether no
+    /// counterpart is published at all), and that judgement can only come
+    /// from 700/R2-01's mapping-registry resolver
+    /// (`cairn_modules.mappings.resolver.resolve_mapping`) -- a Python
+    /// module this Rust crate cannot call in-process (ADR-006's Rust/
+    /// Python split; see this crate's module-level "Scope note" doc
+    /// comment). Always returns `ChangeOutcome::Unsupported` with no
+    /// edits, for every `Detection` of this rule id, unconditionally --
+    /// never a guessed target resource, never a silently-upgraded
+    /// "equivalent" value. The actual resolver lookup, and the honest
+    /// APPROXIMATE/UNAVAILABLE-never-rendered-as-EXACT rendering R-MAP-01
+    /// requires, happens one layer up, in
+    /// `cairn_modules.transformation.engine.build_manifest`, the only
+    /// place in this pipeline allowed to call the resolver.
+    pub(super) fn tf_dynamodb_table_cross_provider_equivalence(
+        detection: &Detection,
+    ) -> ChangeEntry {
+        unsupported(
+            detection,
+            "unsupported: resolving aws_dynamodb_table's cross-provider service \
+             equivalence requires a mapping-registry lookup (700's resolver), which \
+             this Rust engine cannot perform in-process (ADR-006); the manifest-building \
+             layer resolves this separately and renders it honestly per R-MAP-01 (an \
+             APPROXIMATE or UNAVAILABLE mapping is never rendered as EXACT)",
+        )
+    }
 }
 
 #[cfg(test)]
@@ -502,6 +537,49 @@ resource "aws_s3_bucket" "templated" {
             .replacement
             .contains("resource \"aws_s3_bucket_acl\" \"dirty\""));
         assert!(insert.replacement.contains("acl    = \"private\""));
+    }
+
+    // -- Golden corpus: cross-provider mapping-dependent rule (780/R4-01) --
+
+    const DYNAMODB_TABLE: &str = r#"
+resource "aws_dynamodb_table" "sessions" {
+  name         = "cairn-demo-sessions"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "session_id"
+
+  attribute {
+    name = "session_id"
+    type = "S"
+  }
+}
+"#;
+
+    #[test]
+    fn dynamodb_table_resource_is_always_unsupported_never_guessed() {
+        // This crate has no mapping-registry call available to it
+        // (ADR-006) -- it must always refuse this rewrite, never invent a
+        // target resource. The actual resolver lookup happens one layer
+        // up, in Python; this engine's job is only to decline honestly.
+        let parsed = parse_hcl(&hcl_input(DYNAMODB_TABLE));
+        let detections = detect(&parsed);
+        assert_eq!(detections.detections.len(), 1);
+        assert!(detections.skipped.is_empty());
+
+        let changes = patch(&parsed, &detections);
+        assert_eq!(changes.entries.len(), 1);
+        let entry = &changes.entries[0];
+        assert_eq!(entry.outcome, ChangeOutcome::Unsupported);
+        assert!(entry.edits.is_empty());
+        let reason = entry
+            .reason
+            .as_deref()
+            .expect("unsupported entries carry a reason");
+        assert!(reason.contains("mapping-registry"));
+        assert!(reason.contains("R-MAP-01"));
+        // Must never fabricate a target-provider service name -- that
+        // judgement belongs to the resolver, not this crate.
+        assert!(!reason.to_lowercase().contains("bigtable"));
+        assert!(!reason.to_lowercase().contains("gcp"));
     }
 
     #[test]
