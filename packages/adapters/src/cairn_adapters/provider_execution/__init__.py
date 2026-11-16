@@ -19,6 +19,14 @@ from cairn_adapters.provider_execution.ports import (
     RollbackRequest,
     RollbackResult,
 )
+from cairn_adapters.provider_execution.recovery import (
+    EXPECTED_ROLLBACK_STATUS,
+    RECOVERY_FAILURE_RUNBOOK,
+    IncidentRecord,
+    ReconciliationRecord,
+    RecoveryEngine,
+    RecoveryOutcome,
+)
 from cairn_adapters.provider_execution.token import (
     DEFAULT_TOKEN_TTL_SECONDS,
     MAX_TOKEN_TTL_SECONDS,
@@ -30,18 +38,24 @@ from cairn_adapters.provider_execution.token import (
 
 __all__ = [
     "DEFAULT_TOKEN_TTL_SECONDS",
+    "EXPECTED_ROLLBACK_STATUS",
     "FAKE_ADAPTER_KIND",
     "FAKE_PROVIDER",
     "MAX_TOKEN_TTL_SECONDS",
+    "RECOVERY_FAILURE_RUNBOOK",
     "ApplyRequest",
     "ApplyResult",
     "ExecutionScope",
     "FakeProviderExecutionAdapter",
     "FakeTokenProvider",
+    "IncidentRecord",
     "PlanRequest",
     "PlanResult",
     "ProviderExecutionDescriptor",
     "ProviderExecutionPort",
+    "ReconciliationRecord",
+    "RecoveryEngine",
+    "RecoveryOutcome",
     "RollbackRequest",
     "RollbackResult",
     "ScopedToken",
