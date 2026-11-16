@@ -15,6 +15,7 @@ correctness ... matches what 725's ChangeSet reported" acceptance item.
 from __future__ import annotations
 
 from cairn_modules.transformation.engine import (
+    PARSE_INCOMPLETE_RULE_ID,
     ManifestOutcome,
     TransformationPort,
     build_manifest,
@@ -208,4 +209,83 @@ def test_empty_change_set_produces_an_empty_manifest_not_an_error() -> None:
     assert manifest.entries == ()
     assert manifest.applied_count == 0
     assert manifest.skipped_count == 0
+
+
+def test_parse_error_synthesizes_an_explicit_unsupported_manifest_entry() -> None:
+    """Unit 727's fix for a real gap its end-to-end pass found: a file
+    whose ``ParseOutput`` was ``Error`` (722's deliberate-break case --
+    an unterminated HCL block) has an empty ``change_set.entries`` (724's
+    documented "no AST, no detections" behaviour), exactly like a file
+    that parsed cleanly and matched nothing. Before 727's
+    ``CliOutput.parse_status`` field and this synthesis, that distinction
+    was lost by the time it reached the manifest. It must not be lost.
+    """
+
+    raw_output = {
+        "parser_version": HCL_PARSER_VERSION,
+        "detector_version": DETECTOR_VERSION,
+        "patcher_version": PATCHER_VERSION,
+        "change_set": {"source_file_id": "broken.tf", "patcher_version": PATCHER_VERSION, "entries": []},
+        "parse_status": {
+            "status": "ERROR",
+            "reason": "unterminated block: expected closing '}' before end of file",
+        },
+    }
+
+    manifest = build_manifest([("broken.tf", raw_output)])
+
+    assert len(manifest.entries) == 1
+    entry = manifest.entries[0]
+    assert entry.source_file_id == "broken.tf"
+    assert entry.rule_id == PARSE_INCOMPLETE_RULE_ID
+    assert entry.outcome is ManifestOutcome.UNSUPPORTED
+    assert entry.edits == ()
+    assert "unterminated block" in entry.reason
+    assert manifest.unsupported_count == 1
+    assert manifest.applied_count == 0
+    assert manifest.skipped_count == 0
+
+
+def test_parse_unsupported_also_synthesizes_an_explicit_manifest_entry() -> None:
+    """723's deliberate-break case (an f-string, outside the pilot's
+    Python subset) is ``ParseOutput::Unsupported``, not ``Error`` -- a
+    different parse_status.status value, same requirement: it must show
+    up in the manifest, not vanish."""
+
+    raw_output = {
+        "parser_version": PYTHON_PARSER_VERSION,
+        "detector_version": DETECTOR_VERSION,
+        "patcher_version": PATCHER_VERSION,
+        "change_set": {"source_file_id": "greet.py", "patcher_version": PATCHER_VERSION, "entries": []},
+        "parse_status": {
+            "status": "UNSUPPORTED",
+            "reason": "f-strings are outside the pilot subset (near line 1)",
+        },
+    }
+
+    manifest = build_manifest([("greet.py", raw_output)])
+
+    assert len(manifest.entries) == 1
+    entry = manifest.entries[0]
+    assert entry.rule_id == PARSE_INCOMPLETE_RULE_ID
+    assert entry.outcome is ManifestOutcome.UNSUPPORTED
+    assert "f-string" in entry.reason
+
+
+def test_parsed_status_never_synthesizes_a_spurious_entry() -> None:
+    """A real, successful parse with an explicit ``parse_status.status
+    == "PARSED"`` (not merely a missing key, as the pre-existing test
+    above exercises) must still produce zero synthesized entries."""
+
+    raw_output = {
+        "parser_version": HCL_PARSER_VERSION,
+        "detector_version": DETECTOR_VERSION,
+        "patcher_version": PATCHER_VERSION,
+        "change_set": {"source_file_id": "clean.tf", "patcher_version": PATCHER_VERSION, "entries": []},
+        "parse_status": {"status": "PARSED", "reason": None},
+    }
+
+    manifest = build_manifest([("clean.tf", raw_output)])
+
+    assert manifest.entries == ()
     assert manifest.unsupported_count == 0
