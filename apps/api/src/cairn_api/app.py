@@ -52,6 +52,7 @@ from fastapi.responses import JSONResponse
 
 from cairn_api.errors import problem_from_error
 from cairn_api.middleware import AuthMiddleware, CairnErrorMiddleware
+from cairn_api.routes_approval_console import PlanApprovalRegistry, register_approval_console_routes
 from cairn_api.routes_assessment import register_assessment_routes
 from cairn_api.routes_connections import register_connections_routes
 from cairn_api.routes_design import DesignRegistry, register_design_routes
@@ -290,6 +291,7 @@ def create_app(
     transformation_port: TransformationPort | None = None,
     transformation_run_repository: TransformationRunRepository | None = None,
     transformation_validation_checks: tuple[ValidationPort, ...] | None = None,
+    approval_console_registry: PlanApprovalRegistry | None = None,
 ) -> FastAPI:
     service_version = _service_version()
     probe = readiness or (dict)
@@ -348,13 +350,20 @@ def create_app(
     )
     register_mapping_routes(app, service=mapping_service)
 
+    resolved_design_registry = design_registry or DesignRegistry()
     register_design_routes(
         app,
-        registry=design_registry or DesignRegistry(),
+        registry=resolved_design_registry,
         pattern_catalogue=pattern_catalogue or _default_pattern_catalogue(),
         mapping_release=design_mapping_release or _default_mapping_release(),
         diagram_renderer=DrawioXmlDiagramRenderer(),
         iac_generator=TerraformHclGenerator(),
+    )
+
+    register_approval_console_routes(
+        app,
+        registry=approval_console_registry or PlanApprovalRegistry(),
+        design_registry=resolved_design_registry,
     )
 
     register_transformation_routes(

@@ -463,6 +463,85 @@ export type TransformationEvidencePackageResponse = {
   report: TransformationRunSummary;
 };
 
+// --- 792/R4-05: approval and execution console (propose a design's
+// Terraform plan revision for approval -> inspect the exact revision,
+// diff, mutation class, recovery plan and evidence -> approve/comment/
+// request changes). "No cloud" -- orchestrated server-side against
+// 787's fake provider adapter only. ---
+
+export type MutationClass =
+  | "READ_ONLY"
+  | "INTERNAL_MUTATION"
+  | "REVERSIBLE_EXTERNAL_MUTATION"
+  | "COMPENSATABLE_EXTERNAL_MUTATION"
+  | "IRREVERSIBLE_EXTERNAL_MUTATION";
+
+export type RecoveryStrategy = "ROLLBACK" | "COMPENSATE" | "ACCEPT_IRREVERSIBLE";
+
+export type RiskTier = "TIER_1" | "TIER_2" | "TIER_3";
+
+/** Mirrors ``IaCResourceStatus``/``ManifestOutcome``'s own discipline --
+ * a plan diff entry's action is always one of these two distinct
+ * markers, never a bare "changed". */
+export type PlanDiffAction = "CREATE" | "GAP";
+
+export type PlanDiffEntry = {
+  resource_id: string;
+  action: PlanDiffAction;
+  source_provider: string;
+  source_service: string;
+  target_provider: string;
+  target_service: string | null;
+  approximate: boolean;
+  detail: string | null;
+};
+
+export type PlanRevisionView = {
+  revision_id: string;
+  tenant_id: string;
+  project_id: string;
+  design_id: string;
+  revision_number: number;
+  content_hash: string;
+  mutation_class: MutationClass;
+  created_by: string;
+  created_at: string;
+  diff: PlanDiffEntry[];
+  resource_list: string[];
+  reversible: boolean;
+  provider_preview: Record<string, unknown>;
+};
+
+/** ADR-010's recovery plan -- a rollback or compensation contract, named
+ * by spec §2.4 as one of the four things the approver must see before
+ * approving. */
+export type RecoveryPlan = {
+  strategy: RecoveryStrategy;
+  plan_ref: string;
+  preconditions: string;
+  authority: string;
+  evidence: string;
+  failure_handling: string;
+};
+
+/** Reuses ``ReviewComment``/``ReviewDecision`` (R3-07) directly -- see
+ * ``PlanApprovalThread``'s own ``revision_id`` for the one field that
+ * had to change (a Terraform plan revision, not a transformation run). */
+export type PlanApprovalThread = {
+  revision_id: string;
+  blocked: boolean;
+  reviewed: boolean;
+  comments: ReviewComment[];
+};
+
+export type PlanApprovalView = {
+  revision: PlanRevisionView;
+  risk_tier: RiskTier | null;
+  recovery_plan: RecoveryPlan | null;
+  evidence_to_capture: string;
+  approval: PlanApprovalThread;
+};
+
 export const api = {
   createProject(input: { name: string; customer_name?: string }): Promise<Project> {
     return request("POST", "/v1/projects", input);
@@ -597,5 +676,23 @@ export const api = {
     input: { decision: ReviewDecision; body: string },
   ): Promise<ReviewThread> {
     return request("POST", `/v1/transformations/${runId}/review-comments`, input);
+  },
+  createPlanApproval(
+    designId: string,
+    input: { mutation_class: MutationClass; compensation?: RecoveryPlan },
+  ): Promise<PlanApprovalView> {
+    return request("POST", `/v1/designs/${designId}/approval`, input);
+  },
+  getPlanApproval(revisionId: string): Promise<PlanApprovalView> {
+    return request("GET", `/v1/plans/${revisionId}/approval`);
+  },
+  createApprovalDecision(
+    revisionId: string,
+    input: { decision: ReviewDecision; body: string },
+  ): Promise<PlanApprovalThread> {
+    return request("POST", `/v1/plans/${revisionId}/approval-comments`, input);
+  },
+  listApprovalDecisions(revisionId: string): Promise<PlanApprovalThread> {
+    return request("GET", `/v1/plans/${revisionId}/approval-comments`);
   },
 };
