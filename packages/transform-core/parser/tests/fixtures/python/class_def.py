@@ -1,3 +1,11 @@
+class WidgetMeta(type):
+    pass
+
+
+class Base:
+    pass
+
+
 class Widget(Base, metaclass=WidgetMeta):
     """A widget."""
 
