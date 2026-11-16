@@ -36,6 +36,32 @@ use cairn_transform_parser::{parse_hcl, parse_python, HCL_PARSER_VERSION, PYTHON
 use cairn_transform_patcher::{patch, ChangeSet, PATCHER_VERSION};
 use serde::{Deserialize, Serialize};
 
+/// Unit 727's end-to-end golden-corpus/deliberate-break pass over this
+/// pipeline found a real gap, not a hypothetical one: when `ParseOutput`
+/// is `Unsupported` or `Error` (722's unterminated-block/heredoc cases;
+/// 723's f-string/walrus/control-flow cases), `detect()` returns an
+/// empty `DetectionSet` (724's own documented behaviour -- "no AST at
+/// all" produces `DetectionSet::empty`), so `patch()` in turn produces a
+/// `ChangeSet` with zero entries. Before this field existed, that file's
+/// manifest line was *indistinguishable from a file that parsed cleanly
+/// and simply had nothing to flag* -- the parse failure was swallowed by
+/// the detector stage, exactly the failure mode ADR-015's "applied/
+/// skipped/unsupported outcomes and reasons" manifest requirement exists
+/// to prevent. `parse_status` carries the parse stage's own outcome
+/// forward explicitly, so 726's `build_manifest` can synthesize a
+/// manifest entry for a file whose `change_set` is empty *because
+/// parsing never produced an AST to detect against*, rather than that
+/// file silently vanishing from the manifest.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ParseStatus {
+    /// `"PARSED"`, `"UNSUPPORTED"`, or `"ERROR"` -- mirrors
+    /// `ParseOutput`'s three variants by name.
+    pub status: String,
+    /// `None` iff `status == "PARSED"`; the parser's own `reason`
+    /// (`Unsupported`) or `error.reason` (`Error`) otherwise.
+    pub reason: Option<String>,
+}
+
 /// The exact shape written to stdout on success. `parser_version` is
 /// surfaced here explicitly (not only inside `ParseOutput`, which this
 /// binary does not emit at all) because 726's Python-side manifest needs
@@ -47,6 +73,7 @@ pub struct CliOutput {
     pub detector_version: String,
     pub patcher_version: String,
     pub change_set: ChangeSet,
+    pub parse_status: ParseStatus,
 }
 
 /// A one-line error payload, written to stdout (not stderr) so the
@@ -74,6 +101,21 @@ fn run(source_text: &str) -> Result<CliOutput, String> {
         }
     };
 
+    let parse_status = match &parse_output {
+        ParseOutput::Parsed { .. } => ParseStatus {
+            status: "PARSED".to_string(),
+            reason: None,
+        },
+        ParseOutput::Unsupported { reason, .. } => ParseStatus {
+            status: "UNSUPPORTED".to_string(),
+            reason: Some(reason.clone()),
+        },
+        ParseOutput::Error { error, .. } => ParseStatus {
+            status: "ERROR".to_string(),
+            reason: Some(error.reason.clone()),
+        },
+    };
+
     let detections = detect(&parse_output);
     let change_set = patch(&parse_output, &detections);
 
@@ -82,6 +124,7 @@ fn run(source_text: &str) -> Result<CliOutput, String> {
         detector_version: DETECTOR_VERSION.to_string(),
         patcher_version: PATCHER_VERSION.to_string(),
         change_set,
+        parse_status,
     })
 }
 
@@ -231,6 +274,62 @@ resource "aws_s3_bucket" "interpolated" {
             output.change_set.entries[0].outcome,
             cairn_transform_patcher::ChangeOutcome::Unsupported
         );
+    }
+
+    #[test]
+    fn hcl_fixture_runs_end_to_end_reports_parsed_status() {
+        let output = run(&hcl_input("s3.tf", S3_ACL_FIXTURE)).unwrap();
+        assert_eq!(output.parse_status.status, "PARSED");
+        assert!(output.parse_status.reason.is_none());
+    }
+
+    // Unit 727's required deliberate-break case, re-run through the
+    // *CLI* layer this crate owns: 722's own `unterminated block` case
+    // (its handover documents the exact reason prefix
+    // "unterminated block: expected closing '}'"). Confirms the parse
+    // failure is visible on `CliOutput` itself, not only inside the
+    // change set (which, per the comment on `ParseStatus` above, is
+    // empty either way and therefore cannot carry this on its own).
+    #[test]
+    fn unterminated_hcl_block_reports_error_parse_status_with_empty_change_set() {
+        let fixture = r#"
+resource "aws_s3_bucket" "broken" {
+  bucket = "demo"
+"#;
+        let output = run(&hcl_input("broken.tf", fixture)).expect("pipeline should still succeed");
+        assert_eq!(output.parse_status.status, "ERROR");
+        let reason = output
+            .parse_status
+            .reason
+            .expect("ERROR status must carry a reason");
+        assert!(
+            reason.contains("unterminated block"),
+            "reason should name the parse failure, got: {reason}"
+        );
+        assert!(
+            output.change_set.entries.is_empty(),
+            "an unparsed file has no detections to patch -- the change set alone cannot \
+             carry this failure forward, which is exactly why parse_status exists"
+        );
+    }
+
+    // 723's required deliberate-break case (f-strings are outside the
+    // pilot's Python subset) re-run through the CLI layer: `Unsupported`,
+    // not `Error` -- the file is readable Python, this pilot simply
+    // declines to represent the construct.
+    #[test]
+    fn fstring_python_construct_reports_unsupported_parse_status_with_empty_change_set() {
+        let output = run(&python_input("greet.py", "greeting = f\"hello {name}\"\n")).unwrap();
+        assert_eq!(output.parse_status.status, "UNSUPPORTED");
+        let reason = output
+            .parse_status
+            .reason
+            .expect("UNSUPPORTED status must carry a reason");
+        assert!(
+            reason.contains("f-string"),
+            "reason should name the unsupported construct, got: {reason}"
+        );
+        assert!(output.change_set.entries.is_empty());
     }
 
     #[test]
