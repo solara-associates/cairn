@@ -3,6 +3,18 @@
 version = 4
 
 [[package]]
+name = "cairn-transform-cli"
+version = "0.1.0"
+dependencies = [
+ "cairn-transform-contract",
+ "cairn-transform-detector",
+ "cairn-transform-parser",
+ "cairn-transform-patcher",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "cairn-transform-contract"
 version = "0.1.0"
 dependencies = [

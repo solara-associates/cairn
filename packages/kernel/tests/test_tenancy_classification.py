@@ -33,6 +33,7 @@ def test_tenancy_baseline_tables_are_classified() -> None:
         "subject_revision",
         "approval",
         "execution_record",
+        "transformation_run",
     }
     assert TENANCY_CLASSIFICATION["schema_migration"] is TenancyScope.GLOBAL
 
