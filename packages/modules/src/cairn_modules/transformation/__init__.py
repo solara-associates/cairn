@@ -11,6 +11,12 @@ from cairn_modules.transformation.evidence import (
     PRODUCER,
     build_transformation_evidence_package,
 )
+from cairn_modules.transformation.review import (
+    ReviewComment,
+    ReviewDecisionKind,
+    RunReviewThread,
+    add_review_comment,
+)
 from cairn_modules.transformation.sandbox import (
     DEFAULT_SANDBOX_LIMITS,
     SandboxLimits,
@@ -31,12 +37,16 @@ __all__ = [
     "PRODUCER",
     "FileDiff",
     "RepositorySourcePort",
+    "ReviewComment",
+    "ReviewDecisionKind",
+    "RunReviewThread",
     "SandboxLimits",
     "TransformationDiff",
     "ValidationPort",
     "ValidationRequest",
     "ValidationResult",
     "ValidationRun",
+    "add_review_comment",
     "build_transformation_evidence_package",
     "render_file_diff",
     "render_transformation_diff",

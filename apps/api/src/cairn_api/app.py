@@ -322,6 +322,7 @@ def create_app(
     register_projects_routes(app, service)
 
     sink = audit_sink or InMemoryAuditSink()
+    resolved_evidence_signer = evidence_signer or _default_evidence_signer()
 
     assessment_service = AssessmentService(
         checkpoint_store=assessment_checkpoint_store or InMemoryCheckpointStore(),
@@ -333,7 +334,7 @@ def create_app(
         control_catalogue=control_catalogue or _default_control_catalogue(),
         price_list=price_list or _default_price_list(),
         audit_sink=sink,
-        evidence_signer=evidence_signer or _default_evidence_signer(),
+        evidence_signer=resolved_evidence_signer,
     )
 
     register_connections_routes(
@@ -361,6 +362,7 @@ def create_app(
         source_port=transformation_source_port or GitSourceAdapter(),
         transformation_port=transformation_port or _default_transformation_port(),
         run_repository=transformation_run_repository or FakeTransformationRunRepository(),
+        evidence_signer=resolved_evidence_signer,
         validation_checks=transformation_validation_checks
         if transformation_validation_checks is not None
         else _default_validation_checks(),
