@@ -364,10 +364,18 @@ def test_execution_gate_refuses_to_construct_with_this_adapter() -> None:
 
 # --- no cloud SDK import anywhere in this unit's code path -----------------
 
+# ``cairn_modules`` was added for 790 (R4-04a)'s ``provider_execution.recovery``
+# module, which legitimately reuses the domain-model execution state machine
+# (``cairn_modules.execution.model``) -- the same precedent already set for
+# this same ``PROVIDER_EXECUTION_SRC`` directory by
+# ``test_terraform_plan_orchestration.py``'s own allowlist. Domain-model
+# reuse is not a cloud SDK/network import; this allowlist still rejects any
+# actual cloud SDK or network-shaped import.
 _ALLOWED_IMPORT_ROOTS = {
     "__future__",
     "cairn_adapters",
     "cairn_kernel",
+    "cairn_modules",
     "collections",
     "dataclasses",
     "datetime",
