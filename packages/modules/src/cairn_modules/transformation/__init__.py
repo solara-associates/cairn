@@ -6,6 +6,11 @@ from cairn_modules.transformation.diff import (
     render_file_diff,
     render_transformation_diff,
 )
+from cairn_modules.transformation.evidence import (
+    EVIDENCE_SUBJECT_KIND,
+    PRODUCER,
+    build_transformation_evidence_package,
+)
 from cairn_modules.transformation.source import RepositorySourcePort
 from cairn_modules.transformation.validation import (
     ValidationPort,
@@ -17,6 +22,8 @@ from cairn_modules.transformation.validation import (
 )
 
 __all__ = [
+    "EVIDENCE_SUBJECT_KIND",
+    "PRODUCER",
     "FileDiff",
     "RepositorySourcePort",
     "TransformationDiff",
@@ -24,6 +31,7 @@ __all__ = [
     "ValidationRequest",
     "ValidationResult",
     "ValidationRun",
+    "build_transformation_evidence_package",
     "render_file_diff",
     "render_transformation_diff",
     "require_validation_passed",
