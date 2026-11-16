@@ -22,6 +22,8 @@ class ErrorCode(str, Enum):
     INVALID_STATE_TRANSITION = "INVALID_STATE_TRANSITION"
     SEPARATION_OF_DUTIES_VIOLATION = "SEPARATION_OF_DUTIES_VIOLATION"
     DEPENDENCY_CYCLE = "DEPENDENCY_CYCLE"
+    REQUIRED_APPROVER_ROLE_MISSING = "REQUIRED_APPROVER_ROLE_MISSING"
+    RISK_TIER_MISMATCH = "RISK_TIER_MISMATCH"
     INTERNAL = "INTERNAL"
 
 
@@ -135,6 +137,16 @@ class SeparationOfDutiesError(CairnError):
 class DependencyCycleError(CairnError):
     code = ErrorCode.DEPENDENCY_CYCLE
     title = "Dependency cycle"
+
+
+class RequiredApproverRoleMissingError(CairnError):
+    code = ErrorCode.REQUIRED_APPROVER_ROLE_MISSING
+    title = "Required approver role missing"
+
+
+class RiskTierMismatchError(CairnError):
+    code = ErrorCode.RISK_TIER_MISMATCH
+    title = "Risk tier mismatch"
 
 
 class ConfigurationError(CairnError):
