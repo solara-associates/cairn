@@ -68,6 +68,12 @@ PRESERVED_AUDIT_TABLES: tuple[str, ...] = (
     "ledger_entry",
     "subject_revision",
     "mapping_proposal",
+    # R3-03b: transformation_run is append-only by the same migration-
+    # level trigger discipline (its own transformation_run_append_only
+    # trigger) for the same evidence-immutability reason -- a
+    # transformation manifest is a record a tenant deletion must not
+    # erase.
+    "transformation_run",
 )
 
 #: Classified GLOBAL: no per-tenant rows exist in these tables at all.
