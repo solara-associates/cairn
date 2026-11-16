@@ -163,6 +163,35 @@ def test_version_fields_are_recorded_per_entry_not_hardcoded() -> None:
     assert entry.mapping_release_version is None
 
 
+def test_782_pattern_version_is_locked_to_parser_version() -> None:
+    """Unit 782 regression lock, not a new behaviour test: ``docs/specs/
+    r4-inherited-judgement-calls.md`` records 726's ``pattern_version
+    <- parser_version`` mapping (this module's own docstring above,
+    ``build_manifest``'s ``pattern_version = raw_output["parser_version"]``
+    line) as a judgement call accepted pending Allan's review, not a
+    settled design decision. This test exists so a later R4 unit cannot
+    silently change that mapping (e.g. deriving ``pattern_version`` from
+    some other field, or hardcoding it) without this test failing first
+    -- see the doc for the exact one-line change Allan's own call would
+    need if his intent differs.
+    """
+    raw_output = {
+        "parser_version": HCL_PARSER_VERSION,
+        "detector_version": DETECTOR_VERSION,
+        "patcher_version": PATCHER_VERSION,
+        "change_set": {
+            "source_file_id": "s3.tf",
+            "patcher_version": PATCHER_VERSION,
+            "entries": [_applied_entry("tf-s3-bucket-inline-acl-deprecated")],
+        },
+    }
+
+    manifest = build_manifest([("s3.tf", raw_output)])
+
+    assert manifest.entries[0].pattern_version == raw_output["parser_version"]
+    assert manifest.entries[0].pattern_version == HCL_PARSER_VERSION
+
+
 def test_build_manifest_covers_multiple_source_files_in_given_order() -> None:
     hcl_output = {
         "parser_version": HCL_PARSER_VERSION,
