@@ -55,6 +55,60 @@ def test_a_declared_makefile_test_target_runs_and_passes() -> None:
     assert results[0].check_id == TEST_SUITE_CHECK_ID
 
 
+def test_a_declared_test_suite_that_attempts_network_egress_observes_it_blocked() -> None:
+    """R3-08 (731): the adapter's own execution step now runs through
+    ``cairn_adapters.sandbox_runner``, not a bare subprocess -- a declared
+    test suite that actually tries to reach the network (not merely
+    asserting a config flag) observes the attempt fail. The declared
+    command here is ``python3 -m pytest`` -- a direct, single-hop exec
+    of the discovered command, the same shape
+    ``test_sandbox_runner.py``'s own fixtures use, deliberately not a
+    ``make``/shell-wrapped command: ``cairn_adapters.sandbox_runner``'s
+    own module docstring documents that this unit's macOS dev-loop
+    mechanism (``DYLD_INSERT_LIBRARIES``) only covers the directly
+    exec'd process, not a shell's further grandchildren, which is a
+    platform-specific gap this test deliberately does not exercise --
+    ``test_sandbox_runner.py``'s own tests are the ones that prove the
+    block itself; this test proves it reaches through this adapter's
+    real wiring to that mechanism, end to end, for the shape of command
+    the adapter itself discovers.
+
+    Skipped only if this environment has no outbound network at all to
+    prove the control against (same discipline as
+    ``test_sandbox_runner.py``'s negative control)."""
+
+    import socket
+
+    try:
+        with socket.create_connection(("1.1.1.1", 80), timeout=3):
+            pass
+    except OSError:
+        pytest.skip("no outbound network reachable from this test environment at all")
+
+    test_file_content = (
+        "import socket\n"
+        "\n"
+        "def test_egress_is_blocked_by_the_sandbox():\n"
+        "    try:\n"
+        "        socket.create_connection(('1.1.1.1', 80), timeout=5)\n"
+        "    except OSError:\n"
+        "        return\n"
+        "    raise AssertionError('reached the network from inside the sandbox')\n"
+    )
+    files = (
+        SourceFile(
+            path="test_egress.py", content=test_file_content, language=SourceLanguage.PYTHON
+        ),
+    )
+    adapter = TestSuiteValidationAdapter()
+    results = adapter.validate(_request_with_files(files))
+
+    assert results[0].passed is True, (
+        "the declared test suite's own assertion that network egress is blocked did "
+        f"not pass -- the sandbox did not actually block the connection attempt: {results[0]}"
+    )
+
+
 def test_a_declared_makefile_test_target_that_fails_blocks() -> None:
     files = (
         SourceFile(
