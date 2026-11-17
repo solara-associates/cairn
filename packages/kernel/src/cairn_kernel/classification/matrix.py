@@ -12,11 +12,13 @@ not built the production adapters yet); the reason is not padding, it is the
 honest answer to "why is this classified this way" that the acceptance
 criteria asks for.
 
-Scope: no MCP tool/resource or worker job is classified below because none
-exists in the codebase yet (``apps/mcp-gateway`` and ``apps/cli`` are
-docstring-only stubs; no ``EventPublisher`` adapter is wired; the worker and
-scheduler apps expose no job beyond the health API already listed). Nothing
-here invents an R1 surface — see ``tests/conformance/
+Scope: no worker job is classified below because none exists in the
+codebase yet (``apps/cli`` is a docstring-only stub; no ``EventPublisher``
+adapter is wired; the worker and scheduler apps expose no job beyond the
+health API already listed). R5-04a/818 wires the first real MCP tool
+(``apps/mcp-gateway`` was a docstring-only stub before that unit); its
+entry is below, discovered the same way the API routes are. Nothing here
+invents an R1 surface — see ``tests/conformance/
 test_classification_matrix.py`` for the discovery that this matrix is kept
 honest against.
 """
@@ -705,6 +707,22 @@ OPERATIONS: tuple[OperationEntry, ...] = (
             "mutation class is bound to the approved revision's compensation contract"
             " (spec 5.3); no execution adapter exists before R4 (ADR-010)"
         ),
+    ),
+    # --- apps/mcp-gateway: registry, OAuth (R5-04a/818) ---
+    # This unit's proof registration: the posture module's existing
+    # read-only control-catalogue lookup, exposed as one MCP tool
+    # through the gateway's registry (ADR-011). It only resolves a
+    # control already published in the seeded catalogue release -- a
+    # global, CAIRN-operated artefact, same reasoning
+    # ``api.GET /v1/mappings/{version}`` already uses for a published
+    # mapping release -- so it is Class A READ_ONLY, GLOBAL scope. No
+    # cloud, no write path.
+    OperationEntry(
+        surface=SurfaceKind.MCP_TOOL,
+        name="mcp.posture.get_control",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.GLOBAL,
     ),
     OperationEntry(
         surface=SurfaceKind.EVENT,
