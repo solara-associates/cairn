@@ -35,10 +35,12 @@ testpaths = [
     "tests",
     "packages/kernel/tests",
     "packages/contracts/tests",
+    "packages/kits/tests",
     "packages/adapters/tests",
     "packages/modules/tests",
     "apps/api/tests",
     "apps/worker/tests",
+    "apps/mcp-gateway/tests",
 ]
 
 [tool.ruff]
