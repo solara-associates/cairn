@@ -160,6 +160,12 @@ requires-dist = [
 name = "cairn-kits"
 version = "0.1.0"
 source = { editable = "packages/kits" }
+dependencies = [
+    { name = "cairn-kernel" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "cairn-kernel", editable = "packages/kernel" }]
 
 [[package]]
 name = "cairn-mcp-gateway"
