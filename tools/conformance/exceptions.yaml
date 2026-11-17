@@ -1,15 +1,5 @@
 version: 0
 exceptions:
-  - rule_id: R-AI-01
-    owner: ai
-    reason: No model integration exists before R5-02
-    expires_on: 2028-03-31
-    evidence: CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md
-  - rule_id: R-AI-02
-    owner: ai
-    reason: No model approval or execution path exists before R5-02
-    expires_on: 2028-03-31
-    evidence: CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md
   - rule_id: R-COV-01
     owner: quality
     reason: Coverage floors and enforcement land with R0-17
