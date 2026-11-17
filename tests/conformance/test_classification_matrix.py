@@ -7,13 +7,11 @@ operation makes this test fail; removing an entry from the matrix for a
 surface that still exists makes this test fail the same way.
 """
 
-import re
-from pathlib import Path
-
 from cairn_api import create_app as create_api_app
 from cairn_contracts.events.model import KNOWN_EVENT_TYPES
 from cairn_kernel.classification import SurfaceKind, operations_by_name, require_classified
 from cairn_kernel.classification.matrix import OPERATIONS
+from cairn_mcp_gateway import build_default_registry
 from cairn_worker import create_app as create_worker_app
 
 # Routes FastAPI adds itself (OpenAPI schema, docs UI) are transport
@@ -54,7 +52,9 @@ def test_every_declared_event_type_is_classified() -> None:
 
 def test_matrix_has_no_stale_api_entries() -> None:
     """Catches the opposite drift: a matrix entry for an API route that no longer exists."""
-    discovered = {f"{service}.{method} {path}" for service, method, path in _discover_api_operations()}
+    discovered = {
+        f"{service}.{method} {path}" for service, method, path in _discover_api_operations()
+    }
     matrix_api_names = {entry.name for entry in OPERATIONS if entry.surface is SurfaceKind.API}
     assert matrix_api_names <= discovered
 
@@ -64,13 +64,25 @@ def test_matrix_has_no_stale_event_entries() -> None:
     assert matrix_event_names <= KNOWN_EVENT_TYPES
 
 
-def test_no_mcp_tool_or_resource_exists_yet() -> None:
-    """apps/mcp-gateway is a docstring-only stub; this fails loudly the day that changes,
-    which is the signal to add real MCP_TOOL/MCP_RESOURCE classification entries."""
-    import cairn_mcp_gateway
+def _discover_mcp_tool_names() -> set[str]:
+    registry = build_default_registry()
+    return {f"mcp.{tool_name}" for tool_name in registry.tool_names()}
 
-    source = Path(cairn_mcp_gateway.__file__).read_text(encoding="utf-8")
-    assert re.match(r'^"""[^"]*"""\s*$', source), (
-        "apps/mcp-gateway now has real code; classify its tools/resources in"
-        " cairn_kernel.classification.matrix before this test is allowed to pass"
-    )
+
+def test_every_registered_mcp_tool_is_classified() -> None:
+    """R5-04a/818: apps/mcp-gateway's registry is no longer a docstring-only
+    stub -- every tool it registers must carry an R0-19 classification entry."""
+    index = operations_by_name(OPERATIONS)
+    discovered = _discover_mcp_tool_names()
+    assert discovered, "expected the gateway's own proof registration to register a tool"
+    for name in discovered:
+        require_classified(index, SurfaceKind.MCP_TOOL, name)
+
+
+def test_matrix_has_no_stale_mcp_tool_entries() -> None:
+    """Catches the opposite drift: a matrix entry for an MCP tool no longer registered."""
+    discovered = _discover_mcp_tool_names()
+    matrix_mcp_tool_names = {
+        entry.name for entry in OPERATIONS if entry.surface is SurfaceKind.MCP_TOOL
+    }
+    assert matrix_mcp_tool_names <= discovered
