@@ -160,11 +160,33 @@ requires-dist = [
 name = "cairn-kits"
 version = "0.1.0"
 source = { editable = "packages/kits" }
+dependencies = [
+    { name = "cairn-kernel" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "cairn-kernel", editable = "packages/kernel" }]
 
 [[package]]
 name = "cairn-mcp-gateway"
 version = "0.1.0"
 source = { editable = "apps/mcp-gateway" }
+dependencies = [
+    { name = "cairn-adapters" },
+    { name = "cairn-contracts" },
+    { name = "cairn-kernel" },
+    { name = "cairn-kits" },
+    { name = "cairn-modules" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "cairn-adapters", editable = "packages/adapters" },
+    { name = "cairn-contracts", editable = "packages/contracts" },
+    { name = "cairn-kernel", editable = "packages/kernel" },
+    { name = "cairn-kits", editable = "packages/kits" },
+    { name = "cairn-modules", editable = "packages/modules" },
+]
 
 [[package]]
 name = "cairn-modules"
