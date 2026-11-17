@@ -16,7 +16,9 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass, field
 
+from cairn_kernel.errors import ModelPriceUnavailableError
 from cairn_kernel.hex.ports import Clock
+from cairn_kernel.model.cost import ModelPriceTable, compute_cost_micro_usd, default_price_table
 from cairn_kernel.model.policy import CircuitBreaker, DenyListPolicy, RateLimiter
 from cairn_kernel.model.ports import ModelPort, ModelRequest, ModelResponse
 from cairn_kernel.model.schema import validate_structured_output
@@ -29,10 +31,13 @@ class ModelGateway:
 
     ``generate`` never returns a schema-invalid response: a response that
     fails ``validate_structured_output`` is rejected (raised), never passed
-    through to the caller (R-AI-01). Cost accounting beyond the zero
-    placeholder recorded here is R5-02b's (815) concern, not this unit's --
-    the ``AiCallRecord`` this gateway logs already carries the field so 815
-    can populate it without a new mechanism.
+    through to the caller (R-AI-01). ``price_table`` (R5-02b, 815) turns
+    each call's own token counts into a real ``cost_micro_usd`` on the
+    ``AiCallRecord`` this gateway logs -- see ``cairn_kernel.model.cost``
+    for why that is a small local table rather than a reuse of R1-13's
+    cloud-SKU price list. An unpriced (provider, model) pair falls back to
+    logging ``cost_micro_usd=0`` (814's placeholder) rather than raising: a
+    gap in cost *observability* must never break the model call itself.
     """
 
     adapter: ModelPort
@@ -41,6 +46,7 @@ class ModelGateway:
     rate_limiter: RateLimiter | None = None
     circuit_breaker: CircuitBreaker | None = None
     ai_call_logger: AiCallLogger = field(default_factory=JsonAiCallLogger)
+    price_table: ModelPriceTable = field(default_factory=default_price_table)
 
     def generate(self, request: ModelRequest) -> ModelResponse:
         now = self.clock.now()
@@ -93,16 +99,27 @@ class ModelGateway:
                 latency_ms=response.latency_ms if response is not None else 0,
                 input_tokens=response.input_tokens if response is not None else 0,
                 output_tokens=response.output_tokens if response is not None else 0,
-                # Real per-call cost accounting is R5-02b's (815) concern;
-                # this field exists now so that unit can populate it
-                # without a new mechanism.
-                cost_micro_usd=0,
+                cost_micro_usd=self._cost_micro_usd(response),
                 correlation_id=request.correlation_id,
                 tenant_id=request.tenant_id,
                 project_id=request.project_id,
                 agent_run_id=request.agent_run_id,
             )
         )
+
+    def _cost_micro_usd(self, response: ModelResponse | None) -> int:
+        if response is None:
+            return 0
+        try:
+            return compute_cost_micro_usd(
+                self.price_table,
+                provider=response.provider,
+                model=response.model,
+                input_tokens=response.input_tokens,
+                output_tokens=response.output_tokens,
+            )
+        except ModelPriceUnavailableError:
+            return 0
 
 
 def _input_hash(request: ModelRequest) -> str:
