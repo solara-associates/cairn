@@ -12,7 +12,7 @@ If you believe a contribution contains third-party material, say so in the pull 
 
 - Read `CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md` and the relevant ADR.
 - A change to a contract in sections 7 to 13 needs an ADR and a version bump.
-- New scope needs a backlog story. Do not add features to R1 without removing something or recording the delay.
+- New scope needs a backlog story. Do not add features to the current release phase without removing something or recording the delay.
 
 ## Commits
 
@@ -45,3 +45,10 @@ See `CODE_OF_CONDUCT.md`.
 ## Governance
 
 See `GOVERNANCE.md` for how decisions are made.
+
+## Good first issues
+
+New to CAIRN? `docs/specs/good-first-issues.md` lists a small set of real,
+scoped gaps already named in this repository's own docs -- not invented
+for this purpose -- that are safe for a first-time, external contributor
+to pick up without cloud access or security context.
