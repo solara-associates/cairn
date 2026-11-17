@@ -8,6 +8,14 @@ All are compatible with Apache-2.0 distribution. Transitive dependency
 trees are not reproduced here; re-run the generator for a complete
 snapshot before a release if a stricter guarantee is needed.
 
+**Last verified: 2026-11-17 (unit 831, `docs/roadmap-r4-r5-oss.md` §3).**
+Python section re-generated and diffed against this file — no change
+needed, still current. Rust section was stale (see that section's own
+note) and is corrected below. No GPL, AGPL, SSPL, or other
+copyleft-incompatible licence found anywhere in the dependency tree
+checked; `psycopg`'s LGPL-3.0 remains the one licence requiring the
+explanation already given below, unchanged.
+
 ## Python
 
 | Name | Version | License | URL |
@@ -75,7 +83,29 @@ and are MIT/Apache-2.0 licensed (checked against their own published
 
 ## Rust (packages/transform-core)
 
-The Rust workspace (`parser`, `detector`, `patcher`, `validator`) has
-**no external crate dependencies** today -- `Cargo.lock` lists only the
-four workspace members themselves. Re-check with `cargo tree` once any
-external crate is added.
+**Corrected 2026-11-17 (unit 831) — this section was stale.** The Rust
+workspace now has six members (`contract`, `parser`, `detector`,
+`patcher`, `validator`, `cli` — `contract` and `cli` were added since
+this section was last written) and real external crate dependencies,
+pulled in starting with unit 722's parser work. Checked directly against
+each crate's own `Cargo.toml` `license` field in the local registry cache
+(`~/.cargo/registry/src/`):
+
+| Name | License |
+|---|---|
+| serde / serde_core / serde_derive / serde_json | MIT OR Apache-2.0 |
+| proc-macro2 | MIT OR Apache-2.0 |
+| quote | MIT OR Apache-2.0 |
+| syn | MIT OR Apache-2.0 |
+| unicode-ident | (MIT OR Apache-2.0) AND Unicode-DFS-2016 |
+| itoa | MIT OR Apache-2.0 |
+| memchr | MIT OR Unlicense |
+| zmij (transitive, via `serde_json`'s float formatting) | MIT |
+
+All compatible with Apache-2.0 distribution. `unicode-ident`'s additional
+`Unicode-DFS-2016` term applies only to its embedded Unicode character-
+property data tables, not to CAIRN's own code, and permits redistribution
+with attribution (already satisfied by the crate's own bundled licence
+file, carried through unmodified). Re-check with `cargo tree` and re-read
+each new crate's licence field whenever a new external dependency is
+added — this file does not automatically track `Cargo.lock`.
