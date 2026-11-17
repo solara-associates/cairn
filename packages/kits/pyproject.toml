@@ -4,6 +4,12 @@ version = "0.1.0"
 description = "CAIRN kits"
 requires-python = ">=3.12"
 license = "Apache-2.0"
+dependencies = [
+    "cairn-kernel",
+]
+
+[tool.uv.sources]
+cairn-kernel = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]
