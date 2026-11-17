@@ -65,13 +65,30 @@ rules:
     title: Model output schema-validated
     owner: ai
     mandatory: true
-    pending_story: R5-02
+    check: >-
+      uv run pytest packages/kernel/tests/test_model_port.py
+      packages/kernel/tests/test_model_policy.py
+      packages/adapters/tests/test_model_adapter.py -q
+    evidence:
+      - packages/kernel/src/cairn_kernel/model/ports.py
+      - packages/kernel/src/cairn_kernel/model/schema.py
+      - packages/kernel/src/cairn_kernel/model/gateway.py
+      - packages/kernel/tests/test_model_port.py
+      - packages/adapters/src/cairn_adapters/model/fake.py
+      - packages/adapters/tests/test_model_adapter.py
 
   - id: R-AI-02
     title: Model cannot approve/execute
     owner: ai
     mandatory: true
-    pending_story: R5-02
+    check: >-
+      uv run pytest packages/kernel/tests/test_model_port.py
+      packages/modules/tests/test_model_proposal_boundary.py
+      packages/adapters/tests/test_model_adapter.py -q
+    evidence:
+      - packages/kernel/src/cairn_kernel/model/ports.py
+      - packages/kernel/tests/test_model_port.py
+      - packages/modules/tests/test_model_proposal_boundary.py
 
   - id: R-MAP-01
     title: Approximate/unavailable never rendered as exact
