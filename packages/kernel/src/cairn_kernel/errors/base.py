@@ -28,6 +28,7 @@ class ErrorCode(str, Enum):
     MODEL_RATE_LIMIT_EXCEEDED = "MODEL_RATE_LIMIT_EXCEEDED"
     MODEL_CIRCUIT_OPEN = "MODEL_CIRCUIT_OPEN"
     MODEL_OUTPUT_SCHEMA_INVALID = "MODEL_OUTPUT_SCHEMA_INVALID"
+    MODEL_PRICE_UNAVAILABLE = "MODEL_PRICE_UNAVAILABLE"
     INTERNAL = "INTERNAL"
 
 
@@ -171,6 +172,11 @@ class ModelCircuitBreakerOpenError(CairnError):
 class ModelSchemaValidationError(CairnError):
     code = ErrorCode.MODEL_OUTPUT_SCHEMA_INVALID
     title = "Model output failed schema validation"
+
+
+class ModelPriceUnavailableError(CairnError):
+    code = ErrorCode.MODEL_PRICE_UNAVAILABLE
+    title = "Model price rate unavailable"
 
 
 class ConfigurationError(CairnError):

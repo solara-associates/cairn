@@ -72,6 +72,16 @@ class RateLimiter:
             )
         history.append(now)
 
+    def exhaust(self, tenant_id: str, *, now: datetime) -> None:
+        """Force this limiter's window to its cap for ``tenant_id`` -- the
+        cost control loop (R5-02b, ``cairn_kernel.model.control_loop``) calls
+        this to THROTTLE a tenant through the rate limiter's own existing
+        mechanism, rather than inventing a second blocking path. The next
+        ``check`` call within ``window`` of ``now`` raises exactly as if the
+        tenant had already made ``max_calls`` calls itself."""
+
+        self._history[tenant_id] = [now] * self.max_calls
+
 
 class CircuitState(str, Enum):
     CLOSED = "CLOSED"
@@ -125,6 +135,18 @@ class CircuitBreaker:
         self._consecutive_failures += 1
         if was_half_open_trial or self._consecutive_failures >= self.failure_threshold:
             self._opened_at = now
+
+    def force_open(self, *, now: datetime) -> None:
+        """Force the breaker open -- the cost control loop (R5-02b,
+        ``cairn_kernel.model.control_loop``) calls this to STOP calls
+        through the circuit breaker's own existing mechanism, rather than
+        inventing a second blocking path. Equivalent to the breaker having
+        just crossed its own ``failure_threshold``: ``check`` raises
+        ``ModelCircuitBreakerOpenError`` until ``reset_timeout`` elapses."""
+
+        self._consecutive_failures = max(self._consecutive_failures, self.failure_threshold)
+        self._half_open_trial_in_flight = False
+        self._opened_at = now
 
 
 __all__ = ["CircuitBreaker", "CircuitState", "DenyListPolicy", "RateLimiter"]
