@@ -1,6 +1,6 @@
 # Security policy
 
-CAIRN is at the specification stage. There is no supported release and no hosted service yet. This policy covers the repository and, once code exists, the software.
+CAIRN has substantial, tested code: R0-R3 (foundation, assessment, design, clean-room transformation) are complete, R4 (the kernel execution gate -- policy, approval and recovery) is partially built, and R5 (operate loops -- FinOps, LLMOps, MLOps, resilience, sovereignty, MCP/A2A, a vertical accelerator pack) is complete. All of it is built and tested against a fake/deterministic adapter or a synthetic estate; no code in this repository has executed a write against a real customer cloud account. There is no tagged release and no hosted service yet -- see [README.md](README.md) for the current status in full. This policy covers the repository today and will cover the running software once a release and a hosted service exist.
 
 ## Reporting a vulnerability
 
@@ -12,7 +12,7 @@ Include the affected file or component, the impact, reproduction steps and any s
 
 In scope:
 - The repository content and build configuration.
-- Code once released.
+- The code in this repository today, and any tagged release once one exists.
 - The clean-room controls and any accidental inclusion of third-party code.
 
 Out of scope:
