@@ -14,6 +14,19 @@ import check the same way ``cairn_kernel.execution_gate``'s own tests
 assert "no execution credentials reachable".
 """
 
+from cairn_kernel.model.control_loop import (
+    CostControlBudget,
+    CostControlDecision,
+    CostControlEvaluation,
+    CostControlLoop,
+    evaluate_cost_window,
+)
+from cairn_kernel.model.cost import (
+    ModelPriceRate,
+    ModelPriceTable,
+    compute_cost_micro_usd,
+    default_price_table,
+)
 from cairn_kernel.model.gateway import ModelGateway
 from cairn_kernel.model.policy import CircuitBreaker, CircuitState, DenyListPolicy, RateLimiter
 from cairn_kernel.model.ports import (
@@ -29,14 +42,23 @@ from cairn_kernel.model.schema import validate_structured_output
 __all__ = [
     "CircuitBreaker",
     "CircuitState",
+    "CostControlBudget",
+    "CostControlDecision",
+    "CostControlEvaluation",
+    "CostControlLoop",
     "DenyListPolicy",
     "ModelGateway",
     "ModelPort",
+    "ModelPriceRate",
+    "ModelPriceTable",
     "ModelRequest",
     "ModelResponse",
     "RateLimiter",
     "SafetyMetadata",
     "SafetyParameters",
     "StructuredOutputExpectation",
+    "compute_cost_micro_usd",
+    "default_price_table",
+    "evaluate_cost_window",
     "validate_structured_output",
 ]
