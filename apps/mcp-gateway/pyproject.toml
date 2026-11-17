@@ -4,6 +4,20 @@ version = "0.1.0"
 description = "CAIRN MCP gateway service"
 requires-python = ">=3.12"
 license = "Apache-2.0"
+dependencies = [
+    "cairn-adapters",
+    "cairn-contracts",
+    "cairn-kernel",
+    "cairn-kits",
+    "cairn-modules",
+]
+
+[tool.uv.sources]
+cairn-adapters = { workspace = true }
+cairn-contracts = { workspace = true }
+cairn-kernel = { workspace = true }
+cairn-kits = { workspace = true }
+cairn-modules = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]
