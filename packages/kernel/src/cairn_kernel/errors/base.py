@@ -24,6 +24,10 @@ class ErrorCode(str, Enum):
     DEPENDENCY_CYCLE = "DEPENDENCY_CYCLE"
     REQUIRED_APPROVER_ROLE_MISSING = "REQUIRED_APPROVER_ROLE_MISSING"
     RISK_TIER_MISMATCH = "RISK_TIER_MISMATCH"
+    MODEL_DENY_LIST_VIOLATION = "MODEL_DENY_LIST_VIOLATION"
+    MODEL_RATE_LIMIT_EXCEEDED = "MODEL_RATE_LIMIT_EXCEEDED"
+    MODEL_CIRCUIT_OPEN = "MODEL_CIRCUIT_OPEN"
+    MODEL_OUTPUT_SCHEMA_INVALID = "MODEL_OUTPUT_SCHEMA_INVALID"
     INTERNAL = "INTERNAL"
 
 
@@ -147,6 +151,26 @@ class RequiredApproverRoleMissingError(CairnError):
 class RiskTierMismatchError(CairnError):
     code = ErrorCode.RISK_TIER_MISMATCH
     title = "Risk tier mismatch"
+
+
+class ModelDenyListViolationError(CairnError):
+    code = ErrorCode.MODEL_DENY_LIST_VIOLATION
+    title = "Model request denied by deny-list policy"
+
+
+class ModelRateLimitExceededError(CairnError):
+    code = ErrorCode.MODEL_RATE_LIMIT_EXCEEDED
+    title = "Model call rate limit exceeded"
+
+
+class ModelCircuitBreakerOpenError(CairnError):
+    code = ErrorCode.MODEL_CIRCUIT_OPEN
+    title = "Model circuit breaker is open"
+
+
+class ModelSchemaValidationError(CairnError):
+    code = ErrorCode.MODEL_OUTPUT_SCHEMA_INVALID
+    title = "Model output failed schema validation"
 
 
 class ConfigurationError(CairnError):
