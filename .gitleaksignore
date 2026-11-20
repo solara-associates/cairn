@@ -4,62 +4,66 @@
 #
 # Add an entry only when the finding has been confirmed NOT to be a real secret
 # (e.g. a test fixture constant). Never allowlist a live credential.
+#
+# All fingerprints below were re-verified in s842 (2026-11-20) against a fresh
+# `gitleaks detect --source . --report-format json` run on this exact history —
+# every prior entry's commit hash was stale (did not match any commit reachable
+# in this repository) and so silently filtered nothing; `secrets-scan` had been
+# failing on every run as a result. Re-verify the same way before adding more.
 
-# Dummy HS256 test secrets used only to sign fixture JWTs in unit tests — not
-# real credentials, never used outside the test process. Confirmed R0-17b (2026-11-13).
-f0747d2953345156c5fbda2eb463df0c6e393ca8:apps/api/tests/test_auth_middleware.py:generic-api-key:10
-f0747d2953345156c5fbda2eb463df0c6e393ca8:packages/adapters/tests/test_auth_oidc.py:generic-api-key:9
+# Dummy HS256 test secret used only to sign fixture JWTs in unit tests — not a
+# real credential, never used outside the test process. Introduced together
+# for both files by R0-09 (2026-11-12).
+f9f9a5d7e8d4b63f9727bf72d668e31c39816277:apps/api/tests/test_auth_middleware.py:generic-api-key:10
+f9f9a5d7e8d4b63f9727bf72d668e31c39816277:packages/adapters/tests/test_auth_oidc.py:generic-api-key:9
 
 # Same dummy HS256 test secret constant, reused in R1-01's HTTP-layer test
-# fixture. Confirmed R1-01 (2026-11-13).
-45a7c068c8dd301b716a5b234a338b6bfa1c8cc1:apps/api/tests/test_projects_api.py:generic-api-key:18
+# fixture.
+704f4438f92d5c106538eb89c625c29a539526f6:apps/api/tests/test_projects_api.py:generic-api-key:18
 
 # Same dummy HS256 test secret constant, reused in R1-15's HTTP-layer test
-# fixture. Confirmed R1-15 (2026-11-14).
-2c77c0ea2c9ef94017d8a6e29ec285877e38a8ba:apps/api/tests/test_assessment_api.py:generic-api-key:17
+# fixture.
+88bbda82125c590e83bd9153cb768594d42562f7:apps/api/tests/test_assessment_api.py:generic-api-key:17
 
 # Same dummy HS256 test secret constant, reused in R1-18's console-API
-# HTTP-layer test fixtures. Confirmed R1-18 (2026-11-14).
-f7d0b76bbf5321d39ebe73e165a81fce2ba95a29:apps/api/tests/test_connections_api.py:generic-api-key:17
-f7d0b76bbf5321d39ebe73e165a81fce2ba95a29:apps/api/tests/test_assessment_console_api.py:generic-api-key:20
+# HTTP-layer test fixtures.
+a540d32fbbc13e76a4891a0db9779f068119f7eb:apps/api/tests/test_connections_api.py:generic-api-key:17
+a540d32fbbc13e76a4891a0db9779f068119f7eb:apps/api/tests/test_assessment_console_api.py:generic-api-key:20
 
-# Same dummy HS256 test secret constant, reused in the new
-# _default_authenticator env-wiring test added while preparing this
-# repository for open-source publication. Confirmed (2026-11-15).
-692eacd00b46dfc961074c3def3805945c7ab712:apps/api/tests/test_default_authenticator.py:generic-api-key:14
+# Same dummy HS256 test secret constant, reused in the _default_authenticator
+# env-wiring test added while preparing this repository for open-source
+# publication.
+cc3e3f216b3e2a4c955c9e63a1d116c2b7ced2c2:apps/api/tests/test_default_authenticator.py:generic-api-key:14
 
-# Same dummy HS256 test secret constant, reused in R2-01's mapping
-# registry HTTP-layer test fixture. Confirmed R2-01 (2026-11-15).
-e3251ac63c6e28cf2e73eff71c511d98390f8d5a:apps/api/tests/test_mappings_api.py:generic-api-key:21
+# Same dummy HS256 test secret constant, reused in R2-01's mapping registry
+# HTTP-layer test fixture.
+8970cb2172df7378a8809a2a48e568da243ed039:apps/api/tests/test_mappings_api.py:generic-api-key:21
 
-# Same dummy HS256 test secret constant, reused in R2-08's design/plan
-# export HTTP-layer test fixture. Confirmed R2-08 (2026-11-15).
-bfeffba49dd8f4cd207330311ff00b3777e77ad5:apps/api/tests/test_design_api.py:generic-api-key:45
+# Same dummy HS256 test secret constant, reused in R2-08's design/plan export
+# HTTP-layer test fixture.
+075f7b787880714f35fbdfc3635de315500407cc:apps/api/tests/test_design_api.py:generic-api-key:45
 
-# Same dummy HS256 test secret constant, reused in R2-09's design-
-# generation HTTP-layer test fixture. Confirmed R2-09 (2026-11-15).
-dcfd8b6a816e4d202a2c15962f0672a90e1d9023:apps/api/tests/test_design_generation_api.py:generic-api-key:27
+# Same dummy HS256 test secret constant, reused in R2-09's design-generation
+# HTTP-layer test fixture.
+0f4c504c22426e0cc092db2e74415e3273c7368b:apps/api/tests/test_design_generation_api.py:generic-api-key:27
 
-# Same dummy HS256 test secret constant, reused in R3-04's unified
-# diff artefact / transformation preview API HTTP-layer test fixture.
-# Confirmed R3-04 (2026-11-16).
-c86fa9245549db82388d5d73f8e3ff6a5edfd363:apps/api/tests/test_transformations_api.py:generic-api-key:26
+# Same dummy HS256 test secret constant, reused in R3-04's unified diff
+# artefact / transformation preview API HTTP-layer test fixture.
+8d12ac9ab30c8a4c660d2d6902c0c824bd9d4f93:apps/api/tests/test_transformations_api.py:generic-api-key:26
 
-# Same dummy HS256 test secret constant, reused in R3-05's validation
-# route HTTP-layer test fixture. Confirmed R3-05 (2026-11-16).
-968bfd09d9654fe0405409e427ee44645d1fc3e2:apps/api/tests/test_transformations_validate_api.py:generic-api-key:27
+# Same dummy HS256 test secret constant, reused in R3-05's validation route
+# HTTP-layer test fixture.
+66aaf4b059b98e7bcccda6c98eb46fba3f83176b:apps/api/tests/test_transformations_validate_api.py:generic-api-key:27
 
-# Same dummy HS256 test secret constant, reused in R3-07's review-
-# comments and evidence-package HTTP-layer test fixtures. Confirmed
-# R3-07 (2026-11-16).
-7404eed46379b6c32fde0571d1d6d5979f875cf2:apps/api/tests/test_transformations_review_api.py:generic-api-key:23
-7404eed46379b6c32fde0571d1d6d5979f875cf2:apps/api/tests/test_transformations_evidence_api.py:generic-api-key:28
+# Same dummy HS256 test secret constant, reused in R3-07's review-comments and
+# evidence-package HTTP-layer test fixtures.
+d0d9021f2884900f137ad17c2027f2f03a889b70:apps/api/tests/test_transformations_review_api.py:generic-api-key:23
+d0d9021f2884900f137ad17c2027f2f03a889b70:apps/api/tests/test_transformations_evidence_api.py:generic-api-key:28
 
-# Same dummy HS256 test secret constant, reused in 781/R4-02's
-# upload-sourced diff/preview HTTP-layer test fixture. Confirmed
-# R4-02 (2026-11-16).
-9e5e660454a7d934e44af2cc03af520bc38891ef:apps/api/tests/test_transformations_upload_api.py:generic-api-key:44
+# Same dummy HS256 test secret constant, reused in 781/R4-02's upload-sourced
+# diff/preview HTTP-layer test fixture.
+bec6504618d89ce5054e991fc97998f665bedc4f:apps/api/tests/test_transformations_upload_api.py:generic-api-key:44
 
 # Same dummy HS256 test secret constant, reused in 792/R4-05's
-# approval-console HTTP-layer test fixture. Confirmed R4-05 (2026-11-16).
-6058866d942f85c5e51ce11f2e4ee071d3e7a877:apps/api/tests/test_approval_console_api.py:generic-api-key:37
+# approval-console HTTP-layer test fixture.
+1ebf27caa7cf37db9c77217d9728e492c149f74d:apps/api/tests/test_approval_console_api.py:generic-api-key:37
