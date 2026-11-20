@@ -50,9 +50,6 @@ ALLOWED_PATHS: frozenset[str] = frozenset(
     {
         "tests/contract/test_no_vaid_synthera_dependency.py",
         "docs/specs/r5-integration-boundaries.md",
-        # Pre-existing R5 planning doc: names this unit's own goal (document,
-        # not implement, the VAID/SYNTHERA boundary) in its run-sheet row.
-        "docs/roadmap-r4-r5-oss.md",
     }
 )
 
