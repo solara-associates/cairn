@@ -22,7 +22,8 @@ less-redacted form anywhere in history.
 named anywhere in the public history, the premise for D1/D2 (removing a
 real reference-engagement name from history) does not apply. Allan has
 also dropped the conditional codename-hygiene unit (genericising the
-VAID/SYNTHERA boundary doc) that was held pending this decision.
+internal-codename boundary doc named in §4's codename sweep) that was held
+pending this decision.
 
 **The conflict (original framing, kept for context).** This task's own framing states "CAIRN is open-sourced
 only after R5, with a one-time history rewrite first." But two things
