@@ -10,6 +10,11 @@
 f0747d2953345156c5fbda2eb463df0c6e393ca8:apps/api/tests/test_auth_middleware.py:generic-api-key:10
 f0747d2953345156c5fbda2eb463df0c6e393ca8:packages/adapters/tests/test_auth_oidc.py:generic-api-key:9
 
+# Same dummy HS256 test secret constant, at the commit that originally added
+# this file (R0-09, before R0-17b's later edit above). Both fingerprints
+# point at the same non-secret test fixture line. Confirmed s842 (2026-11-20).
+f9f9a5d7e8d4b63f9727bf72d668e31c39816277:apps/api/tests/test_auth_middleware.py:generic-api-key:10
+
 # Same dummy HS256 test secret constant, reused in R1-01's HTTP-layer test
 # fixture. Confirmed R1-01 (2026-11-13).
 45a7c068c8dd301b716a5b234a338b6bfa1c8cc1:apps/api/tests/test_projects_api.py:generic-api-key:18
