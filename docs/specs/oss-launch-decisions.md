@@ -9,7 +9,23 @@ follow-up ADR.
 
 ## D0 — Does the repository's current public state match intent?
 
-**The conflict.** This task's own framing states "CAIRN is open-sourced
+**Resolved 2026-11-20, by Allan.** The "[prior reference engagement]"
+string this decision hinged on is a placeholder only — it is not, and
+never was, a real organisation name. It appears identically, brackets
+included, in every commit back to its introduction (`dc08fc8`) and was
+never a disclosure of an actual client or employer. Verified in CAIRN
+runner session s841: `git log --all --follow -p -- CLOUD-ARCHITECTURE-PATTERNS.md`
+shows the literal bracketed text at every occurrence, with no earlier,
+less-redacted form anywhere in history.
+
+**Decision: no history rewrite needed.** Since no real organisation is
+named anywhere in the public history, the premise for D1/D2 (removing a
+real reference-engagement name from history) does not apply. Allan has
+also dropped the conditional codename-hygiene unit (genericising the
+internal-codename boundary doc named in §4's codename sweep) that was held
+pending this decision.
+
+**The conflict (original framing, kept for context).** This task's own framing states "CAIRN is open-sourced
 only after R5, with a one-time history rewrite first." But two things
 already on `main` say otherwise:
 
@@ -78,19 +94,15 @@ blob inventory s698/s699 already produced.
 
 ## D1 — Proceed with the history rewrite at all?
 
-Given D0's answer may make a rewrite moot (content already exposed) or
-urgent (stop further exposure of anything not yet scrubbed), should 827's
-specified history rewrite actually be executed, and on what timeline
-relative to D0's answer?
-
-**Not decided here.** 827 specifies the rewrite's exact scope and
-verification method without executing it — execution needs this decision
-plus Allan's direct participation (destructive, unrebasable operation on
-public history; `git filter-repo`-style rewrites are exactly what the
-estate's own "no force-push" rule exists to prevent an unattended session
-from doing).
+**Resolved 2026-11-20, by Allan, as a consequence of D0: no.** D0 found
+the content a rewrite would have removed is a placeholder, not a real
+organisation name, so there is nothing left for 827's specified rewrite to
+remove. 827 remains unexecuted and is not scheduled.
 
 ## D2 — Exact scope of what a rewrite removes
+
+**Moot as of D1's resolution (2026-11-20): D1 is no, so there is no
+rewrite to scope.** Kept below for the record only.
 
 If D1 is yes, exactly what gets removed. Candidates per 827's own spec:
 
