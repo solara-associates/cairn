@@ -39,7 +39,7 @@ jobs:
       CAIRN_TRANSFORM_VALIDATOR_CLI_BIN: ${{ github.workspace }}/target/release/cairn-transform-validator-cli
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
       - uses: dtolnay/rust-toolchain@stable
@@ -122,7 +122,7 @@ jobs:
       # The console's R1-18 end-to-end test spawns the real cairn_api
       # backend (uv run uvicorn cairn_api.main:app) rather than mocking
       # it, so the Python workspace needs to be set up here too.
-      - uses: astral-sh/setup-uv@v5
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
       - uses: dtolnay/rust-toolchain@stable
@@ -182,7 +182,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           enable-cache: true
       - name: Export uv.lock to requirements format
