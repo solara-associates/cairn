@@ -63,7 +63,7 @@ jobs:
         run: uv run python -m cairn_kernel.conformance --release
       - name: Generate Python SBOM
         run: uvx --from cyclonedx-bom cyclonedx-py environment --output-format json --output-file python-sbom.cdx.json .venv
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: python-sbom
           path: python-sbom.cdx.json
@@ -91,7 +91,7 @@ jobs:
       - name: Show cargo audit report
         if: always()
         run: cat cargo-audit-result.json
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: cargo-audit-report
@@ -167,7 +167,7 @@ jobs:
               --output-certificate "$f.pem" \
               "$f"
           done
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: cairn-sbom
           path: |
@@ -208,7 +208,7 @@ jobs:
       - name: Show pip-audit report
         if: always()
         run: cat pip-audit-result.json
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: pip-audit-report
@@ -230,7 +230,7 @@ jobs:
       - name: Show gitleaks report
         if: always()
         run: cat gitleaks-report.json
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: gitleaks-report
@@ -274,7 +274,7 @@ jobs:
           output: trivy-${{ matrix.app }}.json
           severity: CRITICAL,HIGH
           exit-code: "1"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always() && steps.build.outcome == 'success'
         with:
           name: trivy-${{ matrix.app }}-report
@@ -299,7 +299,7 @@ jobs:
             --output-signature "$f.sig" \
             --output-certificate "$f.pem" \
             "$f"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.build.outcome == 'success'
         with:
           name: image-sbom-${{ matrix.app }}
