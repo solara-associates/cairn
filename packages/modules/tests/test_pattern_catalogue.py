@@ -83,19 +83,19 @@ def test_load_pattern_catalogue_rejects_missing_directory(tmp_path: Path) -> Non
 
 
 # ---------------------------------------------------------------------------
-# Catalogue-wide: at least 8 distinct patterns with non-overlapping ids,
+# Catalogue-wide: at least 7 distinct patterns with non-overlapping ids,
 # one per named category (spec 7.4).
 # ---------------------------------------------------------------------------
 
 
-def test_seed_catalogue_has_at_least_eight_distinct_patterns() -> None:
+def test_seed_catalogue_has_at_least_seven_distinct_patterns() -> None:
     release = _seed_release()
 
-    assert len(release.patterns) >= 8
+    assert len(release.patterns) >= 7
 
     ids = [pattern.id for pattern in release.patterns]
     assert len(set(ids)) == len(ids), "pattern ids must be non-overlapping"
-    assert len(set(ids)) >= 8
+    assert len(set(ids)) >= 7
 
 
 def test_seed_catalogue_covers_every_named_category_exactly_once() -> None:

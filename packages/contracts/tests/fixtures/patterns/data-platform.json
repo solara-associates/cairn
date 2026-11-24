@@ -82,5 +82,5 @@
       "severity": "warning"
     }
   ],
-  "evidence": "CLOUD-ARCHITECTURE-PATTERNS.md P11 (\"Ingest to BigQuery, process with Dataflow or Airflow/Composer... keep raw and curated layers... a data-platform module with ingestion contracts, raw/curated/consumption layers, lineage, PII classification\") and 5.2 M6 (\"Ingestion, lakehouse, reconciliation, schema generation, lineage\"), evidenced by `barq`, `taa`, `core_banking_ldm_accelerator`, `fhir-omop`, `msm`."
+  "evidence": "CLOUD-ARCHITECTURE-PATTERNS.md P11 (\"Ingest to BigQuery, process with Dataflow or Airflow/Composer... keep raw and curated layers... a data-platform module with ingestion contracts, raw/curated/consumption layers, lineage, PII classification\") and 5.2 M6 (\"Ingestion, lakehouse, reconciliation, schema generation, lineage\"), evidenced by `taa`, `fhir-omop`, `msm`."
 }
