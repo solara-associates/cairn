@@ -4,7 +4,7 @@
 
 project_id          = "cairn-dev-REPLACE_ME"
 billing_account_id  = "REPLACE_ME" # format: XXXXXX-XXXXXX-XXXXXX
-notification_email  = "REPLACE_ME@solara.associates"
+notification_email  = "alerts@example.com"
 
 # region, workload_image, evidence_retention_period_seconds and
 # monthly_budget_amount_units all have workable dev defaults in variables.tf.

@@ -8,7 +8,7 @@
     "ServiceName": "iam",
     "SubServiceName": "",
     "Status": "FAIL",
-    "StatusExtended": "User alice@gmail.com has Owner role on project my-project-1",
+    "StatusExtended": "User alice@example.com has Owner role on project my-project-1",
     "Severity": "high",
     "ResourceType": "Project",
     "ResourceId": "projects/my-project-1",

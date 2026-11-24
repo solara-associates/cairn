@@ -205,7 +205,7 @@ REFERENCE_PORTFOLIO_REPOSITORIES: tuple[str, ...] = (
     "leadforge",
     "coderev",
     "barq",
-    "temenos_ldm_accelerator",
+    "core_banking_ldm_accelerator",
     "fhir-omop",
     "taa",
     "raas",

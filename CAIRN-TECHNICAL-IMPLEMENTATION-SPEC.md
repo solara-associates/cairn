@@ -732,7 +732,7 @@ entries:
 |---|---|---|
 | Service map | `cloudshift` (134 patterns), `infracc`, `mlops-aws`, `Meridian` | Top 40 services per provider pair used in pilot |
 | Region catalogue | `uk-landing-zone-accelerator`, `nelc` | UK, GCC/MENA, India, EU, US |
-| Jurisdiction packs | `taa`, `temenos_ldm_accelerator`, `fhir-omop`, `consent-ledger-compliance-poc` | UK, Saudi, UAE, India (initial launch pack chosen in ADR) |
+| Jurisdiction packs | `taa`, `core_banking_ldm_accelerator`, `fhir-omop`, `consent-ledger-compliance-poc` | UK, Saudi, UAE, India (initial launch pack chosen in ADR) |
 | Pattern catalogue | `drawio-gen` | 8-12 patterns: web app, data platform, AI app, landing zone, event-driven, analytics, migration, resilient multi-region |
 
 ---

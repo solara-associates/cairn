@@ -2,6 +2,8 @@
 
 CAIRN is a cloud modernization platform. It assesses an estate, applies 6R dispositions, designs a target architecture, modernizes code and infrastructure, and records every governed change as signed evidence.
 
+CAIRN is for platform and cloud engineering teams planning or running a cloud migration or modernization programme, and for consultancies building that capability for clients, who want the assessment, design and transformation stages to produce auditable, signed evidence rather than slide decks and one-off scripts. It is not yet a tool for executing changes against a live customer environment -- see the status below for exactly where that boundary sits today.
+
 **Status: R0 (foundation), R1 (assessment), R2 (design) and R3 (modernize) are complete. R4 (govern) is partially built. R5 (operate) is complete, built and tested entirely against fake/deterministic adapters and one synthetic cloud estate.** CAIRN today can ingest an estate, run a 6R assessment, compute cost/TCO, check posture against a control catalogue, design a target architecture with equivalence mappings and migration plans, transform Terraform and Python source under a clean-room transformation engine with diff review and signed evidence, and run FinOps/LLMOps/MLOps/resilience/sovereignty operate loops with MCP/A2A surfaces and a vertical accelerator pack -- all exercised only against a fake/deterministic adapter or a synthetic estate, never a real customer environment. R4's policy, approval-console and recovery-engine layers are built and tested the same way; **no production adapter has yet executed a real write against a customer cloud account** -- that requires a real GCP project, IAM bindings and Allan's own plan approval, none of which exist yet (see Roadmap). There is no tagged release and no hosted service; nothing here should be pointed at a production environment. The repository itself has been public on GitHub since 2026-11-15, by Allan's own decision; this is separate from, and does not imply, a formal public-launch announcement, which has not yet been scheduled.
 
 ## What's built (R0-R3, partial R4, R5 fake-adapter-only)
@@ -44,7 +46,27 @@ This starts:
 - the **console** on `http://localhost:3000`
 - a local **dex** identity provider, so the console has somewhere to sign in against with no setup -- see [Identity and sign-in](docs/identity.md) for exactly what it does and why it is local-only
 
-Open `http://localhost:3000` and sign in. The bundled dex instance gives you one fixed local demo identity (no password prompt) with enough roles to explore the read-only assessment screens. This is a development convenience only -- it is not how a real deployment authenticates; see `docs/identity.md` for bringing your own OIDC provider.
+No database is needed for this quickstart: the API's project, assessment and transformation stores are all in-memory in this configuration, so data does not survive a restart. A real deployment uses the multi-tenant Postgres described under Architecture; the quickstart intentionally skips it to stay to a single `docker compose up`.
+
+Open `http://localhost:3000` and sign in. The bundled dex instance gives you one fixed local demo identity (no password prompt), with enough roles to create a project and walk through it end to end -- connect or upload an estate, run an assessment, and see posture, cost/TCO and 6R results. This is a development convenience only -- it is not how a real deployment authenticates, and the identity's roles are broader than a real deployment would ever hand out; see `docs/identity.md` for bringing your own OIDC provider.
+
+## Development
+
+Requires Python 3.12, [uv](https://docs.astral.sh/uv/), Rust/Cargo and [pnpm](https://pnpm.io/). Postgres is not required to build or run the test suite (a handful of integration tests skip without `CAIRN_TEST_DATABASE_URL` set).
+
+```
+make bootstrap   # uv sync --all-packages; cargo fetch; pnpm install
+make test        # builds the Rust transformation/validation CLIs in release
+                  # mode, points the Python adapters at them
+                  # (CAIRN_TRANSFORM_CLI_BIN / CAIRN_TRANSFORM_VALIDATOR_CLI_BIN),
+                  # then runs the Python and Rust suites. Without the build
+                  # step, pytest fails closed on the subprocess-boundary tests
+                  # with a clear error telling you to run it
+make lint        # ruff, import-linter, cargo fmt/clippy, pnpm lint
+make conformance # the mandatory/pending conformance rule set
+```
+
+This is the same build-then-test sequence `.github/workflows/ci.yml` runs per pull request, so a green `make test` locally means the same gate CI will apply. The console's own test suite (`pnpm -r run test`, including a real-backend end-to-end journey) additionally expects those same two binaries already built in release mode at `target/release/`; run `make test` once first if you also want to run the console suite directly.
 
 ## Roadmap
 
@@ -69,6 +91,7 @@ See the [technical implementation specification](CAIRN-TECHNICAL-IMPLEMENTATION-
 | [Reference register](docs/specs/reference-register.md) | Clean-room evidence log |
 | [Identity and sign-in](docs/identity.md) | OIDC, local dex quickstart, bring-your-own-IdP for deployments |
 | [Third-party licences](docs/third-party-licenses.md) | Direct dependency licences |
+| [Changelog](CHANGELOG.md) | What shipped in each tagged release |
 | `Cloud_Modernization_Platform_PRD.docx` | Product requirements baseline with revision notes |
 | `CAIRN_Architecture_Review_and_R0_Resolution.docx` | Architecture review that drove the pre-R0 corrections and release boundary |
 
