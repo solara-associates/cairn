@@ -25,7 +25,6 @@ GOLDEN_PATTERN_FIXTURES = [
     "ai-app.json",
     "landing-zone.json",
     "event-driven.json",
-    "analytics.json",
     "migration.json",
     "resilient-multi-region.json",
 ]

@@ -15,7 +15,7 @@ First tagged release. Everything in it has been built and tested against determi
 - **Design (R2)** -- target architecture generation, equivalence mappings, migration plans, pattern library, diagram and plan export.
 - **Modernize (R3)** -- clean-room transformation engine for Terraform and Python, with unified-diff review, a Rust patcher and static validation.
 - **Govern (R4, partial)** -- risk-tier policy engine, `ProviderExecutionPort` contract, GCP adapter skeleton, Terraform plan orchestration, rollback/compensation engine and approval console. All fake-adapter tested; the real-cloud proofs have not started.
-- **Operate (R5)** -- FinOps, LLMOps, MLOps, resilience and sovereignty operate loops, MCP/A2A surfaces, and a first vertical accelerator pack.
+- **Operate (R5)** -- FinOps, LLMOps, MLOps, resilience and sovereignty operate loops, MCP/A2A surfaces, and a first vertical accelerator pack. Complete, but built and tested only against fake/deterministic adapters and one synthetic cloud estate -- no real-cloud operate action has executed anywhere in this codebase.
 - `make build` now runs as part of `make test`, so a single documented command sequence (`make bootstrap`, `make build`, `make test`) produces a green run from a clean clone.
 - README gains a "Development" section with the exact local build/test commands, and states plainly that the `docker compose` quickstart needs no database.
 
@@ -34,6 +34,7 @@ First tagged release. Everything in it has been built and tested against determi
 - Replaced the real GCP project identifier `solara-cairn-dev`/`-exec` with a neutral `<gcp-project-id>` placeholder in `docs/r4-acceptance.md`, `docs/specs/oss-launch-decisions.md` and a source comment in `cairn_modules.sovereignty.residency_sweep`.
 - Renamed a prior-work codename and its description to neutral names across the architecture catalogue, the technical spec, a pattern definition, a contract test fixture and a mapping-registry test.
 - Replaced two placeholder/sample email addresses (`REPLACE_ME@solara.associates` in a Terraform example, `alice@gmail.com` in a scanner test fixture) with `example.com` addresses.
+- Removed remaining prior-work banking content that the previous pass had renamed rather than removed, in full, from `CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md`, `CLOUD-ARCHITECTURE-PATTERNS.md`, `docs/specs/reference-register.md`, the `analytics` design pattern (deleted entirely, including its test fixture) and the `data-platform` pattern's evidence citation (pattern kept).
 
 ### Known limitations
 

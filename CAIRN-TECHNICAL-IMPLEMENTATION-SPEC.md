@@ -732,8 +732,8 @@ entries:
 |---|---|---|
 | Service map | `cloudshift` (134 patterns), `infracc`, `mlops-aws`, `Meridian` | Top 40 services per provider pair used in pilot |
 | Region catalogue | `uk-landing-zone-accelerator`, `nelc` | UK, GCC/MENA, India, EU, US |
-| Jurisdiction packs | `taa`, `prior_work_accelerator`, `fhir-omop`, `consent-ledger-compliance-poc` | UK, Saudi, UAE, India (initial launch pack chosen in ADR) |
-| Pattern catalogue | `drawio-gen` | 8-12 patterns: web app, data platform, AI app, landing zone, event-driven, analytics, migration, resilient multi-region |
+| Jurisdiction packs | `taa`, `fhir-omop`, `consent-ledger-compliance-poc` | UK, Saudi, UAE, India (initial launch pack chosen in ADR) |
+| Pattern catalogue | `drawio-gen` | 7 patterns: web app, data platform, AI app, landing zone, event-driven, migration, resilient multi-region |
 
 ---
 
@@ -2076,7 +2076,7 @@ R0 does not exit until all gates pass with linked evidence. This gate is a **har
 |---|---|---|---|---|
 | R2-01 | Implement mapping registry service, release workflow and resolver | XL | R0-14 | Resolve returns equivalence/caveat/version; published immutable |
 | R2-02 | Seed service map for pilot provider pairs | L | R2-01 | Top 40 services per pair; approximate/unavailable labelled |
-| R2-03 | Implement pattern catalogue schema and 8-12 seed patterns | L | R0-04 | Parameter schema, preconditions, outputs, validation rules |
+| R2-03 | Implement pattern catalogue schema and 7 seed patterns | L | R0-04 | Parameter schema, preconditions, outputs, validation rules |
 | R2-04 | Implement target model generator | XL | R2-01, R2-03 | Deterministic from estate + pattern + parameters; records versions |
 | R2-05 | Implement diagram compiler (Draw.io compatible) | XL | R2-04 | Approximate/unavailable/unresolved distinct; no invented shapes |
 | R2-06 | Implement migration roadmap and wave sequencing | L | R2-04, R1-14 | Dependencies respected; constraints and risks shown |
@@ -2159,7 +2159,7 @@ CAIRN is greenfield (ADR-017). The reference repositories are evidence for how p
 
 | Capability | Reference evidence | What CAIRN takes (design lesson) | CAIRN implementation |
 |---|---|---|---|
-| Hex/DDD scaffolding | `Meridian`, `punjab`, `reconciliation_framework` | Four-layer separation and explicit ports, enforced in CI | New `kernel/hex` and `contracts`, `import-linter` |
+| Hex/DDD scaffolding | `Meridian`, `punjab` | Four-layer separation and explicit ports, enforced in CI | New `kernel/hex` and `contracts`, `import-linter` |
 | Provider ports | `Meridian`, `mlops-aws`, `raas` | One contract per provider capability; a fake adapter for tests | New `provider-core` protocols; GCP adapter first |
 | MCP kit | `punjab`, `byomcp`, `raas` | One server per bounded context; gateway auth and audit | New `kits/mcp`, `apps/mcp-gateway` |
 | Evidence and ledger | `uk-landing-zone-accelerator`, `consent-ledger-compliance-poc`, `feedback` | Audit-before-effect; signed artefacts; offline verification | New `kernel/evidence` |

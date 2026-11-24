@@ -1,35 +1,106 @@
 # CAIRN
 
-CAIRN is a cloud modernization platform. It assesses an estate, applies 6R dispositions, designs a target architecture, modernizes code and infrastructure, and records every governed change as signed evidence.
+CAIRN is an open-source cloud modernization platform. It assesses an estate, applies 6R dispositions, designs a target architecture, modernizes code and infrastructure, and records every governed step as signed, verifiable evidence.
 
-CAIRN is for platform and cloud engineering teams planning or running a cloud migration or modernization programme, and for consultancies building that capability for clients, who want the assessment, design and transformation stages to produce auditable, signed evidence rather than slide decks and one-off scripts. It is not yet a tool for executing changes against a live customer environment -- see the status below for exactly where that boundary sits today.
+It is for platform and cloud engineering teams running a migration or modernization programme, and for consultancies building that capability for clients, who want each stage to produce auditable evidence rather than slide decks and one-off scripts.
 
-**Status: R0 (foundation), R1 (assessment), R2 (design) and R3 (modernize) are complete. R4 (govern) is partially built. R5 (operate) is complete, built and tested entirely against fake/deterministic adapters and one synthetic cloud estate.** CAIRN today can ingest an estate, run a 6R assessment, compute cost/TCO, check posture against a control catalogue, design a target architecture with equivalence mappings and migration plans, transform Terraform and Python source under a clean-room transformation engine with diff review and signed evidence, and run FinOps/LLMOps/MLOps/resilience/sovereignty operate loops with MCP/A2A surfaces and a vertical accelerator pack -- all exercised only against a fake/deterministic adapter or a synthetic estate, never a real customer environment. R4's policy, approval-console and recovery-engine layers are built and tested the same way; **no production adapter has yet executed a real write against a customer cloud account** -- that requires a real GCP project, IAM bindings and Allan's own plan approval, none of which exist yet (see Roadmap). There is no tagged release and no hosted service; nothing here should be pointed at a production environment. The repository itself has been public on GitHub since 2026-11-15, by Allan's own decision; this is separate from, and does not imply, a formal public-launch announcement, which has not yet been scheduled.
+> **Status (v0.5.0):** R0 to R3 and R5 are complete. R4 (govern) is partially built. Every cloud-provider adapter has been exercised only against deterministic fakes or one synthetic estate; the clean-room transformation engine and the rest of the system are real, tested code, just never pointed at a customer's actual cloud account. **No code in this repository has executed a write against a real cloud account.** Do not point it at a production environment.
 
-## What's built (R0-R3, partial R4, R5 fake-adapter-only)
+## What CAIRN does
 
-| Capability | Status |
-|---|---|
-| **CAIRN Kernel** -- domain model, provider ports, evidence, audit, tenancy, conformance | Built (R0) |
-| **CAIRN Assess** -- estate ingestion, posture, cost/TCO, 6R classification, signed evidence | Built (R1) |
-| **CAIRN Design** -- target architecture, patterns and migration plans from one model | Built (R2) |
-| **CAIRN Modernize** -- clean-room transformation of Terraform and Python | Built (R3) |
-| **CAIRN Govern** -- policy, approval and immutable evidence for customer-environment writes | Partial (R4) -- risk-tier policy engine, `ProviderExecutionPort` contract and GCP adapter skeleton, Terraform plan orchestration, rollback/compensation engine, approval console and fake-adapter failure-mode tests are built and merged, all tested against a fake adapter; the real-cloud proofs (first real read, first real write/rollback, real Terraform plan/apply, real rollback via the engine, real distributed-boundary/irreversible-rollback proof) need a real GCP project, IAM bindings and plan approvals that only Allan can provide, and have not started |
-| **CAIRN Operate** -- FinOps, LLMOps, MLOps, resilience, sovereignty and MCP/A2A surfaces, plus a first vertical accelerator pack | Complete (R5) against fake/deterministic adapters only -- including an end-to-end demonstration against one synthetic cloud estate; no real-cloud operate action has executed anywhere in this codebase |
+| Stage | Capability | Status |
+|---|---|---|
+| **Kernel** (R0) | Domain model, provider ports, signed evidence, append-only audit ledger, multi-tenant isolation, conformance rules | Complete |
+| **Assess** (R1) | Estate ingestion, posture checks against a control catalogue, cost/TCO baselines, 6R classification, signed evidence packages | Complete |
+| **Design** (R2) | Target architecture, equivalence mappings, migration plans, pattern library, diagram and plan export | Complete |
+| **Modernize** (R3) | Clean-room transformation of Terraform and Python, with diff review and static validation | Complete |
+| **Govern** (R4) | Risk-tier policy engine, approval console, execution contract, Terraform plan orchestration, rollback and compensation engine | Partial: built and tested against a fake adapter; real-cloud proofs not started |
+| **Operate** (R5) | FinOps, LLMOps, MLOps, resilience and sovereignty loops, MCP and A2A surfaces, a first vertical pack (UK public sector) | Complete against fake adapters and a synthetic estate |
 
-CAIRN is read-only or workspace-only against customer environments through R3 -- assessment, design and transformation, with no write or execute credential ever requested or stored. R4 adds the kernel execution gate's policy, approval and recovery layers, but by design (spec §5.4: "no production provider adapter before R4") the only production adapter built so far is deliberately *not yet reachable* through the gate -- R1's existing guard rejects it unconditionally until a later unit wires a real credential in. R5 adds FinOps/LLMOps/MLOps/resilience/sovereignty operate loops and MCP/A2A surfaces on top of that same gate, built and tested only against fake/deterministic adapters and one synthetic cloud estate. Governed customer-environment writes do not happen anywhere in this codebase today.
+CAIRN is read-only or workspace-only against customer environments through R3, with no write or execute credential ever requested or stored. Two production-capable provider adapters exist for GCP: a real read-only inventory adapter (R1), tested only against a fake HTTP client and never pointed at a real account, and a write/execute adapter (R4), structure only with no cloud SDK import or network call anywhere in its own code path, deliberately unreachable through the execution gate until a real project, IAM bindings and approvals are in place.
 
-## Architecture overview
+## Architecture at a glance
 
-- **Hexagonal/DDD, enforced by tooling** (ADR-002): domain and application code never import a provider SDK directly; everything crosses a port, checked by `import-linter` in CI.
-- **Python 3.12** for domain and application code; **Rust** for the transformation engine and other measured hot paths (ADR-006).
-- **Multi-tenant Postgres** with forced row-level security, signed tenant-context assertions, and an append-only audit ledger (ADR-007, ADR-012).
-- **Signed, hash-chained evidence envelopes** for every governed action, verifiable offline without a network call (ADR-008).
-- **Provider-neutral adapter contracts** (inventory, billing, posture) with a deterministic fake for tests, so the same contract suite runs against a real GCP adapter or a synthetic one.
-- **OpenID Connect for identity, no hosted provider**: see [Identity and sign-in](docs/identity.md).
-- **GCP-first** (ADR-005), with a UK jurisdiction pack as the first launch target (ADR-016) -- the architecture is not GCP-exclusive by design, just GCP-first in sequencing.
+CAIRN is hexagonal: the domain never talks to a cloud SDK directly. Everything crosses a port, and an adapter sits on the other side.
 
-See [Architecture decision records](docs/adr/README.md) for the full set of accepted decisions, and the [technical implementation specification](CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md) for contracts and schemas.
+```mermaid
+flowchart TB
+    subgraph Users
+        U1[Engineers and consultants]
+        U2[AI agents]
+    end
+
+    subgraph Apps["Applications"]
+        CON[Console<br/>TypeScript/Vite, served by nginx]
+        API[API<br/>Python, FastAPI]
+        WRK[Worker<br/>background jobs]
+        MCP[MCP gateway]
+    end
+
+    subgraph Modules["Modules (domain and application)"]
+        ASSESS[Assess<br/>ingestion, posture, cost/TCO, 6R]
+        DESIGN[Design<br/>architecture, mappings, plans]
+        MOD[Modernize<br/>transformation, diff review]
+        GOV[Govern<br/>risk policy, approvals, rollback]
+        OPS[Operate<br/>FinOps, MLOps, resilience, sovereignty]
+    end
+
+    subgraph Kernel["Kernel"]
+        GATE[Execution gate<br/>policy, approval, audit before effect]
+        EVID[Evidence<br/>signed, hash-chained envelopes]
+        AUD[Audit ledger<br/>append-only]
+        TEN[Tenancy<br/>forced row-level security]
+        OUT[Transactional outbox]
+    end
+
+    subgraph Engine["Transformation engine (Rust)"]
+        TCORE[transform-core<br/>patcher and validator CLIs]
+    end
+
+    subgraph Adapters["Adapters (behind ports)"]
+        PGCP[GCP inventory, billing, posture]
+        SCAN[Scanners<br/>Prowler, Steampipe, OPA]
+        EXEC[GCP execution<br/>skeleton, gated off]
+        IAC[Terraform]
+        GIT[Git source]
+        KMS[KMS evidence signing]
+        PG[(Postgres)]
+        OIDC[OIDC identity]
+        FAKE[Deterministic fakes<br/>used by all tests]
+    end
+
+    U1 --> CON --> API
+    U2 --> MCP --> API
+    API --> Modules
+    WRK --> Modules
+    Modules --> Kernel
+    MOD --> TCORE
+    API --> Adapters
+    MCP --> Adapters
+```
+
+| Layer | What lives there | Where in the repo |
+|---|---|---|
+| Applications | API, worker, console, MCP gateway | `apps/` |
+| Modules | Assess, design, modernize, govern and operate logic | `packages/modules/` |
+| Kernel | Execution gate, evidence, audit, tenancy, outbox, conformance | `packages/kernel/` |
+| Contracts | Shared schemas for estate, posture, mapping, FinOps, transformation, events | `packages/contracts/` |
+| Kits | MCP and A2A surfaces, operate loops, vertical packs | `packages/kits/` |
+| Transformation engine | Rust patcher and validator | `packages/transform-core/` |
+| Adapters | GCP, scanners, Terraform, Git, Postgres, KMS, OIDC, diagram export, fakes | `packages/adapters/` |
+| Infrastructure | Terraform modules (network, IAM, data, runtime, evidence, observability), Helm chart | `infra/` |
+
+Key decisions:
+
+- **Hexagonal/DDD, enforced in CI** (ADR-002). `import-linter` fails the build if domain code imports a provider SDK.
+- **Python 3.12** for domain and application code; **Rust** for the transformation engine (ADR-006).
+- **Multi-tenant Postgres** with forced row-level security and signed tenant-context assertions (ADR-007, ADR-012).
+- **Signed, hash-chained evidence** for every governed action, verifiable offline (ADR-008).
+- **Gated writes** (ADR-010): any change to a customer environment must pass policy, approval and audit before it happens.
+- **GCP-first** (ADR-005), with a UK jurisdiction pack as the first launch target (ADR-016). AWS and Azure adapters are placeholders today.
+- **OpenID Connect** for identity, bring your own provider. See [Identity and sign-in](docs/identity.md).
+
+See the [architecture decision records](docs/adr/README.md) and the [technical implementation specification](CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md) for detail.
 
 ## Quickstart
 
@@ -41,68 +112,60 @@ docker compose up --build
 
 This starts:
 
-- the **API** on `http://localhost:8080` (liveness `GET /healthz`, readiness `GET /readyz`)
-- the **worker** on `http://localhost:8081` (same health endpoints)
+- the **API** on `http://localhost:8080` (`GET /healthz`, `GET /readyz`)
+- the **worker** on `http://localhost:8081`
 - the **console** on `http://localhost:3000`
-- a local **dex** identity provider, so the console has somewhere to sign in against with no setup -- see [Identity and sign-in](docs/identity.md) for exactly what it does and why it is local-only
+- a local **dex** identity provider, so you can sign in with no setup
 
-No database is needed for this quickstart: the API's project, assessment and transformation stores are all in-memory in this configuration, so data does not survive a restart. A real deployment uses the multi-tenant Postgres described under Architecture; the quickstart intentionally skips it to stay to a single `docker compose up`.
+Open `http://localhost:3000` and sign in with the bundled demo identity. You can create a project, upload an estate, run an assessment, and see posture, cost/TCO and 6R results.
 
-Open `http://localhost:3000` and sign in. The bundled dex instance gives you one fixed local demo identity (no password prompt), with enough roles to create a project and walk through it end to end -- connect or upload an estate, run an assessment, and see posture, cost/TCO and 6R results. This is a development convenience only -- it is not how a real deployment authenticates, and the identity's roles are broader than a real deployment would ever hand out; see `docs/identity.md` for bringing your own OIDC provider.
+The quickstart keeps all data in memory, so nothing survives a restart, and the demo identity has broader roles than a real deployment would grant. It is a local convenience, not a deployment. See `docs/identity.md` to use your own OIDC provider.
 
 ## Development
 
-Requires Python 3.12, [uv](https://docs.astral.sh/uv/), Rust/Cargo and [pnpm](https://pnpm.io/). Postgres is not required to build or run the test suite (a handful of integration tests skip without `CAIRN_TEST_DATABASE_URL` set).
+Requires Python 3.12, [uv](https://docs.astral.sh/uv/), Rust/Cargo and [pnpm](https://pnpm.io/). Postgres is optional: a few integration tests skip without `CAIRN_TEST_DATABASE_URL`.
 
 ```
-make bootstrap   # uv sync --all-packages; cargo fetch; pnpm install
-make test        # builds the Rust transformation/validation CLIs in release
-                  # mode, points the Python adapters at them
-                  # (CAIRN_TRANSFORM_CLI_BIN / CAIRN_TRANSFORM_VALIDATOR_CLI_BIN),
-                  # then runs the Python and Rust suites. Without the build
-                  # step, pytest fails closed on the subprocess-boundary tests
-                  # with a clear error telling you to run it
+make bootstrap   # uv sync, cargo fetch, pnpm install
+make test        # builds the Rust CLIs in release mode, then runs the Python and Rust suites
 make lint        # ruff, import-linter, cargo fmt/clippy, pnpm lint
-make conformance # the mandatory/pending conformance rule set
+make conformance # conformance rule set
 ```
 
-This is the same build-then-test sequence `.github/workflows/ci.yml` runs per pull request, so a green `make test` locally means the same gate CI will apply. The console's own test suite (`pnpm -r run test`, including a real-backend end-to-end journey) additionally expects those same two binaries already built in release mode at `target/release/`; run `make test` once first if you also want to run the console suite directly.
+`make test` runs the same sequence as CI, so a green local run means CI will pass the same gate.
 
 ## Roadmap
 
 | Release | Scope | Status |
 |---|---|---|
 | **R0** | Kernel, tenancy, evidence, audit, observability, conformance | Complete |
-| **R1** | Estate ingestion, posture, cost/TCO, 6R classification, assessment console, signed evidence packages | Complete |
-| **R2** | Target architecture design, equivalence mapping, migration plans | Complete |
+| **R1** | Estate ingestion, posture, cost/TCO, 6R, assessment console, evidence packages | Complete |
+| **R2** | Target architecture, equivalence mapping, migration plans | Complete |
 | **R3** | Clean-room transformation engine (Terraform and Python first) | Complete |
-| **R4** | Kernel execution gate: policy, approval, audit-before-effect, governed customer-environment writes | Partial -- risk-tier policy, `ProviderExecutionPort` contract/adapter skeleton, Terraform plan orchestration, rollback/compensation engine, approval console and fake-adapter failure-mode tests are built; the real-cloud proofs (first real read, first real write/rollback, real Terraform plan/apply, real rollback via the engine, real distributed-boundary/irreversible-rollback proof) need a real GCP project, IAM bindings and plan approvals that only Allan can provide, and have not started |
-| **R5** | FinOps/LLMOps/MLOps/resilience/sovereignty operate loops, MCP/A2A surfaces, vertical accelerator packs | Complete -- built and tested entirely against fake/deterministic adapters and one synthetic cloud estate (the end-to-end demonstration); no real-cloud write has been attempted by any R5 module |
-
-See the [technical implementation specification](CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md) for the detailed backlog and [docs/acceptance/r0-20-review.md](docs/acceptance/r0-20-review.md) for the R0 acceptance evidence.
+| **R4** | Execution gate and governed customer-environment writes | Partial: policy, approvals, plan orchestration and rollback built against a fake adapter; real-cloud read, write and rollback proofs need a real GCP project and have not started |
+| **R5** | Operate loops, MCP/A2A surfaces, vertical packs | Complete against fake adapters and a synthetic estate |
+| **Next** | Real-cloud R4 proofs on GCP, then AWS and Azure adapters | Planned |
 
 ## Documents
 
 | Document | Purpose |
 |---|---|
-| [Technical implementation specification](CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md) | Contracts, schemas, deployment, backlog and delivery outlook |
-| [Architecture patterns](CLOUD-ARCHITECTURE-PATTERNS.md) | Design evidence from prior work; nothing is reused as code |
+| [Technical implementation specification](CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md) | Contracts, schemas, deployment and backlog |
+| [Architecture patterns](CLOUD-ARCHITECTURE-PATTERNS.md) | Design patterns; nothing is reused as code |
 | [Architecture decision records](docs/adr/README.md) | ADR-001 to ADR-018 |
 | [Reference register](docs/specs/reference-register.md) | Clean-room evidence log |
-| [Identity and sign-in](docs/identity.md) | OIDC, local dex quickstart, bring-your-own-IdP for deployments |
-| [Third-party licences](docs/third-party-licenses.md) | Direct dependency licences |
-| [Changelog](CHANGELOG.md) | What shipped in each tagged release |
-| `Cloud_Modernization_Platform_PRD.docx` | Product requirements baseline with revision notes |
-| `CAIRN_Architecture_Review_and_R0_Resolution.docx` | Architecture review that drove the pre-R0 corrections and release boundary |
+| [Identity and sign-in](docs/identity.md) | OIDC, local dex, bring your own IdP |
+| [Third-party licences](docs/third-party-licenses.md) | Dependency licences |
+| [Changelog](CHANGELOG.md) | What shipped in each release |
 
 ## Licence
 
-Apache-2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE). Professional services are available separately. There is no open-core gate.
+Apache-2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE). There is no open-core gate. Professional services are available separately from [Solara Associates](https://solara.associates).
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Contributions use the Developer Certificate of Origin. The clean-room policy is strict: no code, assets or configuration from the reference repositories listed in the reference register. See also [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) and [GOVERNANCE.md](GOVERNANCE.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md). Contributions use the Developer Certificate of Origin, and the clean-room policy is strict: no code, assets or configuration from the repositories listed in the reference register. See also [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) and [GOVERNANCE.md](GOVERNANCE.md).
 
 ## Security
 
-See [SECURITY.md](SECURITY.md). Do not open a public issue for a vulnerability -- use GitHub's private security advisories. The project makes no support or warranty promise without a separate engagement.
+See [SECURITY.md](SECURITY.md). Report vulnerabilities through GitHub's private security advisories, not public issues. There is no support or warranty promise without a separate engagement.
