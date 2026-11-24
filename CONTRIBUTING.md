@@ -10,6 +10,7 @@ If you believe a contribution contains third-party material, say so in the pull 
 
 ## Before you start
 
+- See [README.md](README.md#development) for the local build and test commands (`make bootstrap`, `make test`, `make lint`). `make test` builds the Rust CLIs the Python adapters shell out to before running pytest -- without that, a subset of tests fail closed with a clear error.
 - Read `CAIRN-TECHNICAL-IMPLEMENTATION-SPEC.md` and the relevant ADR.
 - A change to a contract in sections 7 to 13 needs an ADR and a version bump.
 - New scope needs a backlog story. Do not add features to the current release phase without removing something or recording the delay.
