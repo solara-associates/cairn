@@ -31,3 +31,15 @@ CVE-2026-78410 exp:2027-02-13
 CVE-2026-119373 exp:2027-02-13
 CVE-2026-119374 exp:2027-02-13
 CVE-2026-119379 exp:2027-02-13
+
+# apps/api and apps/worker base image (ghcr.io/astral-sh/uv:python3.12-trixie-slim,
+# Debian 13 "trixie"): openssl/libssl3t64, HIGH-severity, Status "affected" --
+# no fixed version published by Debian yet at the time of this waiver. Found
+# newly disclosed in s879's open-source launch-readiness PR (#120); confirmed
+# by re-running CI on main at 52b7c99 with no code changes, which fails
+# identically (run 44768918787), so this is a pre-existing base-image gap, not
+# introduced by that PR. Waived by Allan 2026-11-24. Re-run the image-scan job
+# after the expiry date; if Debian has since shipped a fix, upgrade the base
+# image/apt packages instead of renewing this entry.
+CVE-2026-107494 exp:2026-12-24
+CVE-2026-124709 exp:2026-12-24
