@@ -334,7 +334,7 @@ jobs:
       - run: terraform -chdir=${{ matrix.dir }} fmt -check -diff
       - run: terraform -chdir=${{ matrix.dir }} init -backend=false
       - run: terraform -chdir=${{ matrix.dir }} validate
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - run: pip install checkov
