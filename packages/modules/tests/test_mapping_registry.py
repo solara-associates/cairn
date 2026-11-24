@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import re
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
@@ -167,49 +169,79 @@ def test_loader_wraps_schema_errors(tmp_path: Path) -> None:
 # ADR-017: "design evidence only... nothing is pasted into CAIRN," which
 # this story's own brief extends to citation: a reference-portfolio
 # repository is never a citable public source for an `evidence` string.
-REFERENCE_PORTFOLIO_REPOSITORIES: tuple[str, ...] = (
-    "gcp-cost-posture-foundation",
-    "Meridian",
-    "infracc",
-    "aws_to_gcp_cost",
-    "cloud-cost-genius-convert",
-    "autoinfra_aws",
-    "autoinfra",
-    "vuln-reduction-platform",
-    "consent-ledger-compliance-poc",
-    "nelc",
-    "cloudshift_v2",
-    "cloudshift",
-    "refactor2",
-    "refactor",
-    "newrefactor",
-    "anytoany",
-    "agent-assess",
-    "drawio-gen",
-    "uk-landing-zone-accelerator",
-    "mlops-aws",
-    "mlops",
-    "llmops",
-    "cockpit",
-    "byomcp",
-    "nexus-agentic",
-    "martech",
-    "punjab",
-    "prism",
-    "planetpayment",
-    "mmopt2",
-    "mmopt3",
-    "atttick",
-    "feedback",
-    "aival2",
-    "leadforge",
-    "coderev",
-    "reconciliation_framework",
-    "prior_work_accelerator",
-    "fhir-omop",
-    "taa",
-    "raas",
+#
+# Held as SHA-256 hex digests of each name, lowercased, rather than as
+# plaintext (s879 hygiene pass): the names themselves are prior-work
+# repository identifiers that must never be cited in this codebase, and a
+# denylist naming them defeats its own purpose by being exactly such a
+# citation. `_tokenize` below extracts each candidate token from an
+# evidence string and hashes it the same way before checking membership,
+# so the test still fails the moment a real name appears anywhere it
+# scans -- it just never has to spell one out to do it. Regenerate with
+# `hashlib.sha256(name.lower().encode()).hexdigest()` for each name if
+# this set ever needs a new entry; do not add a plaintext name next to it.
+REFERENCE_PORTFOLIO_REPOSITORY_HASHES: frozenset[str] = frozenset(
+    (
+        "e416435a1f8d19180a71d7ba3835cf151f74ec76291823e877e5f2ca7d8f3311",
+        "b6c4ac412ac8822355239dd717c11ca5b07373e4db550d0423c1b6aeceef8493",
+        "d59c9d5485df2fb3fe2dd547287b010ce4573e20e87e98f4a90de2029d6a159e",
+        "3517efc324466969394924bd3473c57dbff483e63c494a6df5e81c2e31d664f6",
+        "d4ea85cd5a75a4fa41bd55ae2110c4edff55aae94fd1a904ff99becdfdf82f8f",
+        "effc5355da6acf9ec72d24c871c8c0ea8d0a59ba7815116cf35b059fb2e7a7f8",
+        "0820c280b7ceff979f8c9efba71c3df93c43a7d604e8ee7cad731b75acb96eb3",
+        "981d153e7600f0255bc30aa482bf0429e0d64ec1d37785b00487024720a12d9b",
+        "fcab9e686f87810fe5c53df16c01ca7d8ce7eea7d359da151c988a0304930bc5",
+        "1102178abc3503ce06c0d3779e092367bef28f17d834487375fad90b7b246b1c",
+        "bde4e01f8ba1ddb2f1f217d13992ab876ff9bbc90bd10a485cb416595304e9d3",
+        "05c1c67c02a1ff239ba0d2a1b2a6097c9b239bafc1fab959425994adb5b26a40",
+        "d4021486b8b6683cba8d6714ff562c30ea81cb69e10654aed22b9019860669fb",
+        "423fb404ba34657a6f5ffbd3b09bd4aa9be296440fd2f1caaa0055c9c575ad4c",
+        "b934361290df16b58b2424804d821e920037e52446af0ee17c6cb5c76e0262f1",
+        "f508a05936bfb5e5c6dd5eda71d685a2eb4d5dd3fb8592a8628bbb9bb180ecce",
+        "4635a72ee9882d960ca1bcd03772d0f47dc4a07d8e83ef8835f56dcb69aef96e",
+        "15d71d4bc4b158a55507873cce9340b8f055c8955493a2319ac4cde4c1e887f5",
+        "19c52821fa3f774b1d7bc9a5b66ce597a9e28a2e6c91d69cbbd73181428e6d1b",
+        "72ccb8227d29b59b2a99b29363e1c0541b11a5ef850c6bc069eb670b4c6a4dbc",
+        "de75f24335d8115eeca6b04b0fc32f68f6ade13d7c6305be2fe347ebf7f5bf04",
+        "1d4b6289382b90c6e06c3a85204ce4edd8351cdb98fc9e6a154b64ae8656b9f1",
+        "1f4f4954cb64b1723252fd0090cc461eaf0162bbea0bb541402961e68104c5b7",
+        "6fda1d6958588b156fb07e6bb8f8935bf9badaf33cebfce4840ae43d948d676b",
+        "6211d7401f23d4e92945976111461671dbaa00ff8290a700b0613e4b8ea975f9",
+        "48ab4d8e97945d5489b3b2a90a4ec09e6f464f4768b2cdfdfa0779b0488d0616",
+        "1b269162f8eeb4c268071d19b28463476b070f85c8b07e21f11ccdbd37625201",
+        "bb4c8eb92b6ec7b9055c94a397581544693c61da0f8f6cbb808681ccd0d9ce9b",
+        "2305c525a043d6f95fdb395260ac2304f3c3b3e9e39b1a1e32ecd7d15c8ab7c4",
+        "1506430f762682f307f19b4e41adece51140b94a96d331dcb4eb50c6136f3c7a",
+        "7de80d884d24552ebc1ddc1f1bda7e3391a2ac8acb2dea924adf19e31877ce5e",
+        "01f2ba2e6129261f7a54927e5e0c08544ca9cad1baaaa5a81f7ba4636e5b5f99",
+        "59bda3f8ee98128d543572e0d29f27ad5343f0c88c36e7bf4672c4c3ab6245b4",
+        "bb77941dd8b59fe8e0dde25f0b06856221a86a44ec0ff421bd303e5b1902431d",
+        "cbd8069a4b7afe1e8c6529741877c1aaed479ff7e9d635dd2aa9ada5141fcdef",
+        "b40cf0c5081906f2c7de69ed9340fd6c06c5030ca5b0d4440089631b5388788d",
+        "58a59cf2689f72a9bc720c04bd9e7ecd0ac55785fa3b7876ec732595330f6823",
+        "ac7dec645119583d5f47e5208b771544dab614d48020bdf9b4c961e61ca33f08",
+        "e694344e46e8a1de50447625161a323f57049bb9e7ce703a4bfae92a109c96ad",
+        "dd751b4e69f1e31008061675ff15b3a35a8dc69b054ffcc8d674649b3f0f950c",
+        "fc5201c7606bfedbbd28b21c4451b7d88428355b1b8f142ad97aed58843084e7",
+    )
 )
+
+
+def _tokenize_for_reference_portfolio_check(text: str) -> set[str]:
+    """Candidate tokens to hash-check against
+    ``REFERENCE_PORTFOLIO_REPOSITORY_HASHES``: runs of letters, digits,
+    hyphens and underscores, lowercased -- the character set every
+    reference-portfolio name is made of, so a hyphenated or underscored
+    codename survives as one token while surrounding prose, punctuation
+    and possessives ("example-tool's" -> "example-tool") are stripped
+    away. This catches a name cited as its own word the same way the
+    plaintext substring check it replaces did; it does not catch one run
+    together with adjacent prose with no separator at all
+    (`theexampletool`), which is not a realistic way anyone would
+    actually write a citation.
+    """
+
+    return set(re.findall(r"[A-Za-z0-9_-]+", text.lower()))
 
 
 def test_seed_entry_count_reaches_the_adr_004_top_40_floor() -> None:
@@ -234,12 +266,12 @@ def test_seed_no_evidence_string_names_a_reference_portfolio_repository() -> Non
     release = load_mapping_release(SEED_PATH)
 
     for entry in release.entries:
-        lowered = entry.evidence.lower()
-        for repo in REFERENCE_PORTFOLIO_REPOSITORIES:
-            assert repo.lower() not in lowered, (
-                f"{entry.id}: evidence {entry.evidence!r} names reference repository {repo!r}"
-                " -- ADR-017 forbids citing a reference-portfolio repository as a source;"
-                " evidence must name public vendor documentation only"
+        for token in _tokenize_for_reference_portfolio_check(entry.evidence):
+            digest = hashlib.sha256(token.encode()).hexdigest()
+            assert digest not in REFERENCE_PORTFOLIO_REPOSITORY_HASHES, (
+                f"{entry.id}: evidence {entry.evidence!r} names a reference-portfolio"
+                " repository -- ADR-017 forbids citing a reference-portfolio repository"
+                " as a source; evidence must name public vendor documentation only"
             )
 
 
