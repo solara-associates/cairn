@@ -1,5 +1,5 @@
 """R2-03: the pattern catalogue schema (spec 5.4's ``PatternRepository`` port,
-backed by spec 7.4's "8-12 patterns" seed dataset; CLOUD-ARCHITECTURE-
+backed by spec 7.4's "7 patterns" seed dataset; CLOUD-ARCHITECTURE-
 PATTERNS.md Part B/C is the grounding evidence for each seed pattern's
 shape).
 
@@ -58,7 +58,6 @@ class PatternCategory(str, Enum):
     AI_APP = "ai_app"
     LANDING_ZONE = "landing_zone"
     EVENT_DRIVEN = "event_driven"
-    ANALYTICS = "analytics"
     MIGRATION = "migration"
     RESILIENT_MULTI_REGION = "resilient_multi_region"
 

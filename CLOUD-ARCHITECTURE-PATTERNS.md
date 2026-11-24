@@ -51,7 +51,7 @@ A note on certainty: statements below are derived from each repository's own REA
 | C | Migration and modernization engines | 9 | `cloudshift`, `cloudshift_v2`, `refactor`, `refactor2`, `newrefactor`, `anytoany`, `agent-assess`, `drawio-gen`, `uk-landing-zone-accelerator` |
 | D | MLOps and LLMOps | 3 | `mlops`, `mlops-aws`, `llmops` |
 | E | Agentic platforms, MCP/A2A and customer experience | 15 | `cockpit`, `byomcp`, `martech`, `nexus-agentic`, `punjab`, `prism`, `planetpayment`, `sales`, `mmopt2`, `mmopt3`, `atttick`, `feedback`, `aival2`, `leadforge`, `coderev` |
-| F | Data and analytics accelerators | 5 | `reconciliation_framework`, `taa`, `prior_work_accelerator`, `fhir-omop`, `msm` |
+| F | Data and analytics accelerators | 3 | `taa`, `fhir-omop`, `msm` |
 | G | Resilience and sovereignty | 1 | `raas` |
 
 Sovereignty and compliance also cut across clusters B, C and E (`uk-landing-zone-accelerator`, `nelc`, `consent-ledger-compliance-poc`, `raas`). They are treated as a cross-cutting pattern in Part B.
@@ -134,9 +134,7 @@ Legend for "Pattern signature":
 
 | Repository | What it does | Pattern signature | Runtime and cloud services | Reference value |
 |---|---|---|---|---|
-| `reconciliation_framework` | Configuration-driven financial reconciliation framework on BigQuery. Matches core-banking against third-party processor transactions with no code change when rules evolve. | Config-driven rules, Hex/DDD, DAG | BigQuery, Cloud Composer/Airflow, Cloud Run or GCE, GCS, Secret Manager, Cloud Monitoring | Config tables for accounts/rules/joins/filters/transformations, dynamic CTE SQL generator, carryover service |
 | `taa` | Telco Analytics Accelerator. Turns BSS/OSS configuration into BigQuery DDL, Terraform, Dataflow pipelines, Airflow DAGs and compliance reports for ten jurisdictions. | Config-driven generation, multi-cloud, IaC, evidence | BigQuery, Dataflow, Airflow, Terraform, Helm/Kubernetes, Vertex notebooks, MCP | Jurisdiction rule packs, vendor mappings, artefact-pack generator, cost estimator |
-| `prior_work_accelerator` | Generates Logical Data Models from core banking system tables and exports to BigQuery. | Hex/DDD, generator | FastAPI backend, React frontend, BigQuery, Terraform/Dataflow output, compliance packs | T24-to-LDM mapping, PII detection, lineage and quality rules, Saudi/UAE compliance |
 | `fhir-omop` | FHIR R4 to OMOP CDM v5.4 data accelerator for Saudi healthcare compliance. | Hex/DDD, mapping DSL, multi-tenant | FastAPI, React, PostgreSQL, Docker Compose, JWT/RBAC, audit | Whistle-compatible mapping DSL engine, consent and tenant isolation, NCA ECC/PDPL/NPHIES controls |
 | `msm` | Predictive revenue-per-click estimator. Near-real-time scoring plus training, reconciliation and dashboard. | Hex/DDD, polyglot, event-driven | Rust scoring on Cloud Run, Python Vertex AI Pipelines, BigQuery, Pub/Sub, Cloud Run jobs, Terraform, Workload Identity | Rust hot-path service, bounds calibration, prediction-versus-revenue reconciliation, circuit-breaker automation |
 
@@ -166,12 +164,12 @@ presentation/    REST, CLI, web console, MCP transport
 Dependencies point inward only. The domain imports no SDK. Every external dependency sits behind a `Protocol` port.
 
 **Enforcement, not documentation.** The recurring rule in the portfolio is "a rule not in CI is not real":
-- Python: `import-linter` contracts (`autoinfra`, `autoinfra_aws`, `mlops`, `mlops-aws`, `llmops`, `Meridian`, `vuln-reduction-platform`, `aival2`, `reconciliation_framework`, `feedback`, `punjab`, `raas`, `deep` set).
+- Python: `import-linter` contracts (`autoinfra`, `autoinfra_aws`, `mlops`, `mlops-aws`, `llmops`, `Meridian`, `vuln-reduction-platform`, `aival2`, `feedback`, `punjab`, `raas`, `deep` set).
 - TypeScript: `eslint-plugin-boundaries` (`msm`).
 - Rust: Cargo workspace boundaries plus `cargo-deny` (`msm`, `punjab`, `cloudshift`).
 - Conformance scripts: `punjab/scripts/conformance.py`, `uk-landing-zone-accelerator` gates.
 
-**Evidence:** almost every repository. The cleanest templates are `Meridian`, `cockpit`, `raas`, `punjab`, `reconciliation_framework`, `mlops`.
+**Evidence:** almost every repository. The cleanest templates are `Meridian`, `cockpit`, `raas`, `punjab`, `mlops`.
 
 **What to standardise:** a shared Python scaffolding package with the four layers, `import-linter` config, frozen dataclasses, ports as `Protocol`, an in-memory adapter for every port, and a CI template. This becomes the "Hex Kit" for the new platform.
 
@@ -218,7 +216,7 @@ One MCP server per bounded context. Tools are writes, resources are reads, promp
 - StreamableHTTP or SSE transport on Cloud Run (`byomcp`, `mlops`).
 - No state in the MCP layer; session state is threaded immutably.
 
-**Evidence:** `punjab`, `raas`, `cockpit`, `byomcp`, `prism`, `planetpayment`, `feedback`, `llmops`, `mlops`, `mlops-aws`, `martech`, `nexus-agentic`, `vuln-reduction-platform`, `mmopt2`, `mmopt3`, `sales`, `reconciliation_framework`, `taa`, `uk-landing-zone-accelerator`.
+**Evidence:** `punjab`, `raas`, `cockpit`, `byomcp`, `prism`, `planetpayment`, `feedback`, `llmops`, `mlops`, `mlops-aws`, `martech`, `nexus-agentic`, `vuln-reduction-platform`, `mmopt2`, `mmopt3`, `sales`, `taa`, `uk-landing-zone-accelerator`.
 
 **What to standardise:** an MCP server kit with transport, OAuth middleware, tool/resource registration, audit hooks, OTel spans, a conformance test, and a generated tool manifest.
 
@@ -247,11 +245,11 @@ Three recurring orchestration models:
 
 1. **Hierarchical (HMAS):** L3 executive planning agent orchestrates L2 specialists, which delegate to L1 workers. `cockpit` implements EPA plus six specialists (RSA, FIA, GA, MVA, DOA, PMA).
 2. **Swarm and pipeline:** seven specialist agents with five coordination patterns (orchestrator-worker, swarm, hierarchical, mesh, pipeline). `mlops` and `mlops-aws`.
-3. **DAG orchestrator:** dependency-aware workflow execution with automatic parallelisation (`asyncio.gather`). Used in `mlops`, `reconciliation_framework`, `raas`, `mmopt2`, `feedback`, `atttick` workflows.
+3. **DAG orchestrator:** dependency-aware workflow execution with automatic parallelisation (`asyncio.gather`). Used in `mlops`, `raas`, `mmopt2`, `feedback`, `atttick` workflows.
 
 **Rules:** immutable session state, frozen domain models, parallel independent steps, explicit state-transition guards.
 
-**What to standardise:** a shared `orchestrator` package providing a DAG runner, retry with jitter, timeout, circuit breaker and event bus. The same design is evidenced in `mlops`, `reconciliation_framework`, `raas` and `gcp-cost-posture-foundation`.
+**What to standardise:** a shared `orchestrator` package providing a DAG runner, retry with jitter, timeout, circuit breaker and event bus. The same design is evidenced in `mlops`, `raas` and `gcp-cost-posture-foundation`.
 
 ---
 
@@ -328,7 +326,6 @@ Every claimed outcome is backed by an artefact a reviewer can inspect. Provenanc
 Business rules and mapping tables live in configuration, not code, so they can evolve without a release.
 
 **Evidence:**
-- `reconciliation_framework`: `recon_accounts`, `recon_rules`, `rule_join_conditions`, `source_filters`, `column_transformations`; dynamic CTE SQL generation.
 - `cloudshift` / `cloudshift_v2`: YAML pattern catalogue with 134 service mappings and a pattern engine.
 - `drawio-gen`: pattern YAML plus `data/service-map.yaml` with `approximate` and `unavailable` semantics.
 - `taa`: jurisdiction packs and vendor mappings.
@@ -346,9 +343,8 @@ Ingest to BigQuery, process with Dataflow or Airflow/Composer, serve from Cloud 
 
 **Evidence:**
 - `msm`: Cloud Run scoring, Vertex AI Pipelines, BigQuery raw and view layers, four Pub/Sub topics, GCS artefacts, Terraform.
-- `reconciliation_framework`: BigQuery as the processing engine, Composer scheduling, GCS for SQL, Secret Manager.
 - `taa`: BigQuery DDL, Dataflow, Airflow, Terraform generation for ten jurisdictions.
-- `prior_work_accelerator`, `fhir-omop`: generate schemas and load into BigQuery/PostgreSQL.
+- `fhir-omop`: generate schemas and load into BigQuery/PostgreSQL.
 - `prism`, `martech`: BigQuery data mart plus vector search.
 
 **What to standardise:** a data-platform module with ingestion contracts, raw/curated/consumption layers, lineage, PII classification and a schema-generation interface.
@@ -397,7 +393,7 @@ Region allowlists, residency sweeps, jurisdiction rule packs, data-fiduciary con
 - `uk-landing-zone-accelerator`: UK-sovereign landing zone in a declared region; residency sweep that raises on empty results.
 - `nelc`: residency and sovereignty controls, bilingual EN/AR, deployment-gated region checks.
 - `consent-ledger-compliance-poc`: DPDP consent ledger and on-prem portability.
-- `taa`, `prior_work_accelerator`, `fhir-omop`: jurisdiction packs (Saudi PDPL, UAE PDPL, SAMA, India DPDP, GDPR, POPIA, etc.).
+- `taa`, `fhir-omop`: jurisdiction packs (Saudi PDPL, UAE PDPL, SAMA, India DPDP, GDPR, POPIA, etc.).
 
 **What to standardise:** a policy engine with a region catalogue, jurisdiction packs, a residency-sweep primitive and evidence output. This is a strong commercial differentiator for GCC/MENA, UK and India.
 
@@ -560,13 +556,13 @@ Three principles:
 
 | Platform module | Responsibility | Primary source repos | Design influence |
 |---|---|---|---|
-| **M0 Shared kernel** | DDD scaffolding, ports, in-memory adapters, config, DI, error model | `Meridian`, `cockpit`, `raas`, `punjab`, `reconciliation_framework` | Strong pattern |
+| **M0 Shared kernel** | DDD scaffolding, ports, in-memory adapters, config, DI, error model | `Meridian`, `cockpit`, `raas`, `punjab` | Strong pattern |
 | **M1 Foundation and posture** | Landing-zone review, IAM, network, DR, security, remediation roadmap | `autoinfra`, `autoinfra_aws`, `gcp-cost-posture-foundation` | Strong pattern; unify Finding model |
 | **M2 Assessment and TCO** | Estate ingestion, canonical model, 6R classification, TCO, roadmap | `agent-assess`, `infracc`, `anytoany` | Moderate pattern |
 | **M3 Code and IaC modernization** | Scan, plan, transform, validate, audit for AWS/Azure-to-GCP | `cloudshift_v2`, `refactor`, `refactor2`, `newrefactor`, `cloudshift` | Strong pattern; one new engine |
 | **M4 Architecture synthesis** | Pattern plus target cloud to diagram, plan and IaC | `drawio-gen`, `anytoany`, `uk-landing-zone-accelerator` | Moderate pattern |
 | **M5 Landing zone and IaC** | Terraform module library, environments, plan/apply/drift | `uk-landing-zone-accelerator`, `gcp-cost-posture-foundation`, `msm`, `raas`, `punjab` | Strong pattern |
-| **M6 Data platform** | Ingestion, lakehouse, reconciliation, schema generation, lineage | `reconciliation_framework`, `taa`, `prior_work_accelerator`, `fhir-omop`, `msm` | Moderate pattern |
+| **M6 Data platform** | Ingestion, lakehouse, reconciliation, schema generation, lineage | `taa`, `fhir-omop`, `msm` | Moderate pattern |
 | **M7 AI/ML platform** | MLOps, LLMOps gateway, model registry, drift, governance | `mlops`, `mlops-aws`, `llmops` | Strong pattern |
 | **M8 Agentic control plane** | MCP registry, A2A gateway, agent hierarchy, co-pilot | `cockpit`, `byomcp`, `punjab`, `raas` | Strong pattern |
 | **M9 FinOps** | Cost schema, graded remediation, budgets, attribution | `Meridian`, `gcp-cost-posture-foundation`, `llmops` | Strong pattern |
@@ -675,14 +671,14 @@ Trying to collapse all four into a single UI too early is the main architectural
 
 ### 6.1 Coverage check
 
-All 43 repositories in the author's earlier archived work were cloned and inspected. Every repository appears in the catalogue:
+All 43 repositories in the author's earlier archived work were cloned and inspected; 41 remain in this catalogue:
 
 - Cluster A: `gcp-cost-posture-foundation`, `Meridian`, `infracc`, `aws_to_gcp_cost`, `cloud-cost-genius-convert`
 - Cluster B: `autoinfra`, `autoinfra_aws`, `vuln-reduction-platform`, `consent-ledger-compliance-poc`, `nelc`
 - Cluster C: `cloudshift`, `cloudshift_v2`, `refactor`, `refactor2`, `newrefactor`, `anytoany`, `agent-assess`, `drawio-gen`, `uk-landing-zone-accelerator`
 - Cluster D: `mlops`, `mlops-aws`, `llmops`
 - Cluster E: `cockpit`, `byomcp`, `martech`, `nexus-agentic`, `punjab`, `prism`, `planetpayment`, `sales`, `mmopt2`, `mmopt3`, `atttick`, `feedback`, `aival2`, `leadforge`, `coderev`
-- Cluster F: `reconciliation_framework`, `taa`, `prior_work_accelerator`, `fhir-omop`, `msm`
+- Cluster F: `taa`, `fhir-omop`, `msm`
 - Cluster G: `raas`
 
 ### 6.2 Caveats
@@ -723,20 +719,20 @@ All 43 repositories in the author's earlier archived work were cloned and inspec
 
 | Pattern | Primary evidence repositories |
 |---|---|
-| P1 Clean/Hexagonal + DDD | `Meridian`, `cockpit`, `raas`, `punjab`, `reconciliation_framework`, `mlops`, `llmops` |
+| P1 Clean/Hexagonal + DDD | `Meridian`, `cockpit`, `raas`, `punjab`, `mlops`, `llmops` |
 | P2 Ports and adapters portability | `Meridian`, `mlops-aws`, `raas`, `cloudshift` |
 | P3 MCP-native bounded contexts | `punjab`, `raas`, `cockpit`, `byomcp`, `prism`, `feedback`, `llmops`, `mlops` |
 | P4 A2A and agent cards | `byomcp`, `cockpit`, `martech`, `nexus-agentic` |
-| P5 Agent hierarchy and DAG orchestration | `cockpit`, `mlops`, `mlops-aws`, `reconciliation_framework`, `raas`, `mmopt2` |
+| P5 Agent hierarchy and DAG orchestration | `cockpit`, `mlops`, `mlops-aws`, `raas`, `mmopt2` |
 | P6 AI advisory with deterministic bounds | `Meridian`, `vuln-reduction-platform`, `planetpayment`, `nelc` |
 | P7 Human-in-the-loop gates | `mmopt2`, `anytoany`, `uk-landing-zone-accelerator`, `llmops`, `raas` |
 | P8 Observe/Decide/Act loop | `Meridian`, `llmops`, `mlops`, `gcp-cost-posture-foundation` |
 | P9 Evidence and reconciliation | `uk-landing-zone-accelerator`, `anytoany`, `gcp-cost-posture-foundation`, `consent-ledger-compliance-poc`, `planetpayment` |
-| P10 Configuration-driven rules | `reconciliation_framework`, `cloudshift`, `drawio-gen`, `taa`, `infracc` |
-| P11 Data and analytics lakehouse | `msm`, `reconciliation_framework`, `taa`, `prior_work_accelerator`, `fhir-omop` |
+| P10 Configuration-driven rules | `cloudshift`, `drawio-gen`, `taa`, `infracc` |
+| P11 Data and analytics lakehouse | `msm`, `taa`, `fhir-omop` |
 | P12 FinOps guardrails | `gcp-cost-posture-foundation`, `Meridian`, `llmops`, `infracc` |
 | P13 Posture scanning and remediation | `autoinfra`, `autoinfra_aws`, `vuln-reduction-platform`, `gcp-cost-posture-foundation` |
-| P14 Sovereignty and residency | `raas`, `uk-landing-zone-accelerator`, `nelc`, `consent-ledger-compliance-poc`, `taa`, `prior_work_accelerator`, `fhir-omop` |
+| P14 Sovereignty and residency | `raas`, `uk-landing-zone-accelerator`, `nelc`, `consent-ledger-compliance-poc`, `taa`, `fhir-omop` |
 | P15 IaC and runtime topology | `uk-landing-zone-accelerator`, `gcp-cost-posture-foundation`, `raas`, `punjab`, `consent-ledger-compliance-poc`, `msm` |
 | P16 Security floor | `planetpayment`, `punjab`, `byomcp`, `consent-ledger-compliance-poc`, `feedback`, `raas` |
 | P17 Observability | `llmops`, `mlops`, `punjab`, `raas`, `planetpayment`, `byomcp` |

@@ -113,7 +113,7 @@ class InMemoryPatternRepository:
 def load_pattern(path: Path | str) -> Pattern:
     """Load a single seed pattern YAML file into a ``Pattern``.
 
-    One file under ``patterns/`` holds one pattern (spec 7.4: "8-12
+    One file under ``patterns/`` holds one pattern (spec 7.4: "7
     patterns"), not a whole release -- distinct from ``mappings/seed.py``'s
     ``load_mapping_release``, where one file is a whole release of entries.
     """

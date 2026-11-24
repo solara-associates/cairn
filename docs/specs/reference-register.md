@@ -13,7 +13,7 @@
 
 | Date | Story | Reference repository | Lesson or behaviour observed | Where used in CAIRN | Code or assets copied |
 |---|---|---|---|---|---|
-| 2026-11-09 | R0-02, R0-06 | `Meridian`, `punjab`, `reconciliation_framework` | Four-layer separation with explicit ports, enforced by tooling | `packages/kernel/hex`, `.importlinter` | No |
+| 2026-11-09 | R0-02, R0-06 | `Meridian`, `punjab`, `financial-reconciliation-framework` | Four-layer separation with explicit ports, enforced by tooling | `packages/kernel/hex`, `.importlinter` | No |
 | 2026-11-09 | R0-13 | `Meridian`, `mlops-aws`, `raas` | One provider contract per capability; fake adapter for tests | `packages/adapters/provider-core` | No |
 | 2026-11-09 | R5-04 | `punjab`, `byomcp`, `raas` | One MCP server per bounded context; gateway auth and audit | `packages/kits/mcp`, `apps/mcp-gateway` | No |
 | 2026-11-09 | R0-11 | `uk-landing-zone-accelerator`, `consent-ledger-compliance-poc`, `feedback` | Audit-before-effect; signed artefact; offline verification | `packages/kernel/evidence` | No |
