@@ -13,6 +13,9 @@ lint:
 	pnpm -r run lint
 
 test:
+	cargo build --release -p cairn-transform-cli -p cairn-transform-validator
+	CAIRN_TRANSFORM_CLI_BIN=$$PWD/target/release/cairn-transform-cli \
+	CAIRN_TRANSFORM_VALIDATOR_CLI_BIN=$$PWD/target/release/cairn-transform-validator-cli \
 	uv run pytest
 	cargo test --workspace
 

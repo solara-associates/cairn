@@ -154,8 +154,8 @@ one later?
 
 ## Carried forward from `docs/roadmap-r4-r5-oss.md` §4, unchanged
 
-- §2.1's project choice (`solara-cairn-dev-exec` vs. extending
-  `solara-cairn-dev`) for R4's cloud-gated units.
+- §2.1's project choice (`<gcp-project-id>-exec` vs. extending
+  `<gcp-project-id>`) for R4's cloud-gated units.
 - Every IAM binding in that document's §1 restated setup commands.
 - Plan approvals for units 786, 789, 791, 794.
 

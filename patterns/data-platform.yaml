@@ -12,7 +12,7 @@ evidence: >
   data-platform module with ingestion contracts, raw/curated/consumption
   layers, lineage, PII classification") and 5.2 M6 ("Ingestion, lakehouse,
   reconciliation, schema generation, lineage"), evidenced by `barq`,
-  `taa`, `temenos_ldm_accelerator`, `fhir-omop`, `msm`.
+  `taa`, `core_banking_ldm_accelerator`, `fhir-omop`, `msm`.
 parameters:
   - name: ingestion_mode
     type: enum

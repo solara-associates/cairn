@@ -51,7 +51,7 @@ A note on certainty: statements below are derived from each repository's own REA
 | C | Migration and modernization engines | 9 | `cloudshift`, `cloudshift_v2`, `refactor`, `refactor2`, `newrefactor`, `anytoany`, `agent-assess`, `drawio-gen`, `uk-landing-zone-accelerator` |
 | D | MLOps and LLMOps | 3 | `mlops`, `mlops-aws`, `llmops` |
 | E | Agentic platforms, MCP/A2A and customer experience | 15 | `cockpit`, `byomcp`, `martech`, `nexus-agentic`, `punjab`, `prism`, `planetpayment`, `sales`, `mmopt2`, `mmopt3`, `atttick`, `feedback`, `aival2`, `leadforge`, `coderev` |
-| F | Data and analytics accelerators | 5 | `barq`, `taa`, `temenos_ldm_accelerator`, `fhir-omop`, `msm` |
+| F | Data and analytics accelerators | 5 | `barq`, `taa`, `core_banking_ldm_accelerator`, `fhir-omop`, `msm` |
 | G | Resilience and sovereignty | 1 | `raas` |
 
 Sovereignty and compliance also cut across clusters B, C and E (`uk-landing-zone-accelerator`, `nelc`, `consent-ledger-compliance-poc`, `raas`). They are treated as a cross-cutting pattern in Part B.
@@ -136,7 +136,7 @@ Legend for "Pattern signature":
 |---|---|---|---|---|
 | `barq` | Configuration-driven financial reconciliation framework on BigQuery. Matches core-banking against third-party processor transactions with no code change when rules evolve. | Config-driven rules, Hex/DDD, DAG | BigQuery, Cloud Composer/Airflow, Cloud Run or GCE, GCS, Secret Manager, Cloud Monitoring | Config tables for accounts/rules/joins/filters/transformations, dynamic CTE SQL generator, carryover service |
 | `taa` | Telco Analytics Accelerator. Turns BSS/OSS configuration into BigQuery DDL, Terraform, Dataflow pipelines, Airflow DAGs and compliance reports for ten jurisdictions. | Config-driven generation, multi-cloud, IaC, evidence | BigQuery, Dataflow, Airflow, Terraform, Helm/Kubernetes, Vertex notebooks, MCP | Jurisdiction rule packs, vendor mappings, artefact-pack generator, cost estimator |
-| `temenos_ldm_accelerator` | Generates Logical Data Models from Temenos T24 banking tables and exports to BigQuery. | Hex/DDD, generator | FastAPI backend, React frontend, BigQuery, Terraform/Dataflow output, compliance packs | T24-to-LDM mapping, PII detection, lineage and quality rules, Saudi/UAE compliance |
+| `core_banking_ldm_accelerator` | Generates Logical Data Models from core banking system tables and exports to BigQuery. | Hex/DDD, generator | FastAPI backend, React frontend, BigQuery, Terraform/Dataflow output, compliance packs | T24-to-LDM mapping, PII detection, lineage and quality rules, Saudi/UAE compliance |
 | `fhir-omop` | FHIR R4 to OMOP CDM v5.4 data accelerator for Saudi healthcare compliance. | Hex/DDD, mapping DSL, multi-tenant | FastAPI, React, PostgreSQL, Docker Compose, JWT/RBAC, audit | Whistle-compatible mapping DSL engine, consent and tenant isolation, NCA ECC/PDPL/NPHIES controls |
 | `msm` | Predictive revenue-per-click estimator. Near-real-time scoring plus training, reconciliation and dashboard. | Hex/DDD, polyglot, event-driven | Rust scoring on Cloud Run, Python Vertex AI Pipelines, BigQuery, Pub/Sub, Cloud Run jobs, Terraform, Workload Identity | Rust hot-path service, bounds calibration, prediction-versus-revenue reconciliation, circuit-breaker automation |
 
@@ -348,7 +348,7 @@ Ingest to BigQuery, process with Dataflow or Airflow/Composer, serve from Cloud 
 - `msm`: Cloud Run scoring, Vertex AI Pipelines, BigQuery raw and view layers, four Pub/Sub topics, GCS artefacts, Terraform.
 - `barq`: BigQuery as the processing engine, Composer scheduling, GCS for SQL, Secret Manager.
 - `taa`: BigQuery DDL, Dataflow, Airflow, Terraform generation for ten jurisdictions.
-- `temenos_ldm_accelerator`, `fhir-omop`: generate schemas and load into BigQuery/PostgreSQL.
+- `core_banking_ldm_accelerator`, `fhir-omop`: generate schemas and load into BigQuery/PostgreSQL.
 - `prism`, `martech`: BigQuery data mart plus vector search.
 
 **What to standardise:** a data-platform module with ingestion contracts, raw/curated/consumption layers, lineage, PII classification and a schema-generation interface.
@@ -397,7 +397,7 @@ Region allowlists, residency sweeps, jurisdiction rule packs, data-fiduciary con
 - `uk-landing-zone-accelerator`: UK-sovereign landing zone in a declared region; residency sweep that raises on empty results.
 - `nelc`: residency and sovereignty controls, bilingual EN/AR, deployment-gated region checks.
 - `consent-ledger-compliance-poc`: DPDP consent ledger and on-prem portability.
-- `taa`, `temenos_ldm_accelerator`, `fhir-omop`: jurisdiction packs (Saudi PDPL, UAE PDPL, SAMA, India DPDP, GDPR, POPIA, etc.).
+- `taa`, `core_banking_ldm_accelerator`, `fhir-omop`: jurisdiction packs (Saudi PDPL, UAE PDPL, SAMA, India DPDP, GDPR, POPIA, etc.).
 
 **What to standardise:** a policy engine with a region catalogue, jurisdiction packs, a residency-sweep primitive and evidence output. This is a strong commercial differentiator for GCC/MENA, UK and India.
 
@@ -566,7 +566,7 @@ Three principles:
 | **M3 Code and IaC modernization** | Scan, plan, transform, validate, audit for AWS/Azure-to-GCP | `cloudshift_v2`, `refactor`, `refactor2`, `newrefactor`, `cloudshift` | Strong pattern; one new engine |
 | **M4 Architecture synthesis** | Pattern plus target cloud to diagram, plan and IaC | `drawio-gen`, `anytoany`, `uk-landing-zone-accelerator` | Moderate pattern |
 | **M5 Landing zone and IaC** | Terraform module library, environments, plan/apply/drift | `uk-landing-zone-accelerator`, `gcp-cost-posture-foundation`, `msm`, `raas`, `punjab` | Strong pattern |
-| **M6 Data platform** | Ingestion, lakehouse, reconciliation, schema generation, lineage | `barq`, `taa`, `temenos_ldm_accelerator`, `fhir-omop`, `msm` | Moderate pattern |
+| **M6 Data platform** | Ingestion, lakehouse, reconciliation, schema generation, lineage | `barq`, `taa`, `core_banking_ldm_accelerator`, `fhir-omop`, `msm` | Moderate pattern |
 | **M7 AI/ML platform** | MLOps, LLMOps gateway, model registry, drift, governance | `mlops`, `mlops-aws`, `llmops` | Strong pattern |
 | **M8 Agentic control plane** | MCP registry, A2A gateway, agent hierarchy, co-pilot | `cockpit`, `byomcp`, `punjab`, `raas` | Strong pattern |
 | **M9 FinOps** | Cost schema, graded remediation, budgets, attribution | `Meridian`, `gcp-cost-posture-foundation`, `llmops` | Strong pattern |
@@ -682,7 +682,7 @@ All 43 repositories in the author's earlier archived work were cloned and inspec
 - Cluster C: `cloudshift`, `cloudshift_v2`, `refactor`, `refactor2`, `newrefactor`, `anytoany`, `agent-assess`, `drawio-gen`, `uk-landing-zone-accelerator`
 - Cluster D: `mlops`, `mlops-aws`, `llmops`
 - Cluster E: `cockpit`, `byomcp`, `martech`, `nexus-agentic`, `punjab`, `prism`, `planetpayment`, `sales`, `mmopt2`, `mmopt3`, `atttick`, `feedback`, `aival2`, `leadforge`, `coderev`
-- Cluster F: `barq`, `taa`, `temenos_ldm_accelerator`, `fhir-omop`, `msm`
+- Cluster F: `barq`, `taa`, `core_banking_ldm_accelerator`, `fhir-omop`, `msm`
 - Cluster G: `raas`
 
 ### 6.2 Caveats
@@ -733,10 +733,10 @@ All 43 repositories in the author's earlier archived work were cloned and inspec
 | P8 Observe/Decide/Act loop | `Meridian`, `llmops`, `mlops`, `gcp-cost-posture-foundation` |
 | P9 Evidence and reconciliation | `uk-landing-zone-accelerator`, `anytoany`, `gcp-cost-posture-foundation`, `consent-ledger-compliance-poc`, `planetpayment` |
 | P10 Configuration-driven rules | `barq`, `cloudshift`, `drawio-gen`, `taa`, `infracc` |
-| P11 Data and analytics lakehouse | `msm`, `barq`, `taa`, `temenos_ldm_accelerator`, `fhir-omop` |
+| P11 Data and analytics lakehouse | `msm`, `barq`, `taa`, `core_banking_ldm_accelerator`, `fhir-omop` |
 | P12 FinOps guardrails | `gcp-cost-posture-foundation`, `Meridian`, `llmops`, `infracc` |
 | P13 Posture scanning and remediation | `autoinfra`, `autoinfra_aws`, `vuln-reduction-platform`, `gcp-cost-posture-foundation` |
-| P14 Sovereignty and residency | `raas`, `uk-landing-zone-accelerator`, `nelc`, `consent-ledger-compliance-poc`, `taa`, `temenos_ldm_accelerator`, `fhir-omop` |
+| P14 Sovereignty and residency | `raas`, `uk-landing-zone-accelerator`, `nelc`, `consent-ledger-compliance-poc`, `taa`, `core_banking_ldm_accelerator`, `fhir-omop` |
 | P15 IaC and runtime topology | `uk-landing-zone-accelerator`, `gcp-cost-posture-foundation`, `raas`, `punjab`, `consent-ledger-compliance-poc`, `msm` |
 | P16 Security floor | `planetpayment`, `punjab`, `byomcp`, `consent-ledger-compliance-poc`, `feedback`, `raas` |
 | P17 Observability | `llmops`, `mlops`, `punjab`, `raas`, `planetpayment`, `byomcp` |

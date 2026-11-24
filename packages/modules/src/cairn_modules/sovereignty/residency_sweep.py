@@ -18,7 +18,7 @@ here exactly as R3-06's ``cairn_modules.transformation.evidence`` already
 reuses it, not reinvented.
 
 No real inventory call against any cloud project is made or implied here
--- the brief is explicit that a real sweep against ``solara-cairn-dev``/
+-- the brief is explicit that a real sweep against ``<gcp-project-id>``/
 ``-exec`` is out of this unit's scope. Every sweep in this module runs
 against a caller-supplied, already-canonical ``Workload`` sequence (a
 fixture in tests; whatever the estate's own ingestion/assessment pipeline
