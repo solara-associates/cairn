@@ -4,6 +4,14 @@ All notable changes to this project are documented here, in [Keep a Changelog](h
 
 This project follows the pre-1.0 versioning scheme in `docs/release-process.md`: `0.MINOR.PATCH`, where MINOR tracks a completed R-number milestone and breaking changes may occur between minors.
 
+## [Unreleased]
+
+### Added
+
+- **R6 agentic release design (documents only).** `ADR-019` (Proposed) decides what an agent is in CAIRN: a bounded plan-act-observe loop, scoped to one project, whose only output is a proposal that a human or a policy must approve. `docs/specs/r6-agentic-design.md` designs the Vertex AI Gemini adapter, three launch agents (assessment, design, modernize), the remaining MCP servers, what the A2A bridge publishes, and the minimum console; `docs/specs/r6-run-sheet.md` lists 20 implementation units with their acceptance tests and the ten R6 conformance rules; `docs/specs/r6-operator-actions.md` lists the GCP actions the product owner must take.
+
+**CAIRN is not agentic.** No agent, loop, model adapter or MCP server described in those documents exists: `cairn_kits.loop` and `cairn_kits.a2a` are still empty, `FakeModelAdapter` is still the only `ModelPort` implementation, no module in this repository calls a model, and one of the eight bounded-context MCP servers ADR-011 names is registered. This release adds four documents and one row to the ADR index. No behaviour changed.
+
 ## [0.5.0] - 2026-11-24
 
 First tagged release. Everything in it has been built and tested against deterministic fake adapters and one synthetic cloud estate. **No code in this repository has ever executed a write against a real cloud account.** Do not point this at a production environment.

@@ -11,7 +11,7 @@ This directory holds the architecture decisions for CAIRN. Each ADR is a short, 
 | Rejected | Considered and declined. The ADR stays to preserve the reasoning. |
 | Superseded | Replaced by a later ADR, which is named in the header. |
 
-All ADRs are Accepted as of 2026-11-09, with ADR-009, ADR-010 and ADR-012 amended on 2026-11-10 and 2026-11-11. The product owner accepted the recommended defaults, with the deviations recorded in ADR-003, ADR-010 and ADR-013.
+ADR-001 to ADR-018 are Accepted as of 2026-11-09, with ADR-009, ADR-010 and ADR-012 amended on 2026-11-10 and 2026-11-11. The product owner accepted the recommended defaults, with the deviations recorded in ADR-003, ADR-010 and ADR-013. ADR-019 is Proposed and awaiting the product owner's decision; no code relies on it.
 
 ## Decision log
 
@@ -35,6 +35,7 @@ All ADRs are Accepted as of 2026-11-09, with ADR-009, ADR-010 and ADR-012 amende
 | [ADR-016](ADR-016-launch-jurisdiction.md) | United Kingdom launch jurisdiction pack, versioned like a mapping release | Accepted | 2026-11-09 |
 | [ADR-017](ADR-017-clean-room.md) | Greenfield clean-room implementation; no code reuse from reference repositories | Accepted | 2026-11-09 |
 | [ADR-018](ADR-018-open-source.md) | Open-source distribution under Apache-2.0 with professional services revenue | Accepted | 2026-11-09 |
+| [ADR-019](ADR-019-agentic-workflows.md) | Agentic workflows as bounded plan-act-observe loops that only propose | Proposed | 2026-11-24 |
 
 ## Decisions that differ from the original proposal
 
