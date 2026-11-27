@@ -16,7 +16,7 @@ from collections.abc import Mapping
 from pathlib import Path
 
 from cairn_kernel.errors import ValidationError
-from cairn_kits.mcp import BoundedContextServer
+from cairn_kits.mcp import BoundedContextServer, ToolCapability
 from cairn_modules.posture import InMemoryControlCatalogue
 
 #: apps/mcp-gateway/src/cairn_mcp_gateway/posture_server.py -> repo root.
@@ -50,6 +50,7 @@ def build_posture_server(seed_path: Path | str = DEFAULT_SEED_PATH) -> BoundedCo
         context_id=POSTURE_CONTEXT_ID,
         name="posture",
         tools=(TOOL_GET_CONTROL,),
+        capabilities={TOOL_GET_CONTROL: ToolCapability.READ},
         handle=handle,
     )
 

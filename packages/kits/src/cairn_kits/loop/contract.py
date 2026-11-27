@@ -20,6 +20,13 @@ named in the table, self-transitions included) matches
 ``cairn_modules.approvals.model.validate_approval_transition`` and
 ``cairn_modules.execution.model.validate_execution_transition`` -- this
 package cannot import either, so the shape is copied, not shared.
+
+R6-05 adds the propose-only boundary at ``AgentSpec.build()``: every
+tool in the toolset must resolve, through a live
+:class:`cairn_kits.mcp.McpRegistry`, to a ``READ`` or ``PROPOSE``
+capability, and ``required_role`` must dominate every tool's own
+required role -- both checked once, at construction, the same shape
+as the prompt-reference check R6-01 already established.
 """
 
 from __future__ import annotations
@@ -28,10 +35,24 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from enum import Enum
 
-from cairn_kernel.errors import InvalidStateTransitionError, ValidationError
+from cairn_kernel.errors import InvalidStateTransitionError, MissingDependencyError, ValidationError
+from cairn_kernel.security import Role
 
 from cairn_kits.loop.budget import RunBudget
 from cairn_kits.loop.prompt_registry import PromptRegistry
+from cairn_kits.mcp import McpRegistry, ToolCapability
+
+#: Role.__members__ is declared most-privileged first (ADR-012's own
+#: taxonomy order); a lower index is a stronger role. "Dominates" means
+#: at least as privileged, by this ranking -- the same reading
+#: ``apps/mcp-gateway/src/cairn_mcp_gateway/registry_factory.py``'s own
+#: comment already gives this ordering informally ("AUDITOR, the lowest
+#: role R0's taxonomy grants read access... under").
+_ROLE_RANK: dict[Role, int] = {role: index for index, role in enumerate(Role)}
+
+
+def _role_dominates(candidate: Role, other: Role) -> bool:
+    return _ROLE_RANK[candidate] <= _ROLE_RANK[other]
 
 
 class StepKind(str, Enum):
@@ -105,7 +126,7 @@ class AgentSpec:
     agent_id: str
     version: int
     toolset: tuple[str, ...]
-    required_role: str
+    required_role: Role
     prompt_references: tuple[tuple[str, int], ...]
     budget: RunBudget
 
@@ -120,8 +141,8 @@ class AgentSpec:
             not name.strip() for name in self.toolset
         ):
             raise ValidationError("agent spec toolset must contain unique, non-blank tool names")
-        if not self.required_role.strip():
-            raise ValidationError("agent spec needs a non-blank required_role")
+        if not isinstance(self.required_role, Role):
+            raise ValidationError("agent spec required_role must be a Role")
         if not isinstance(self.budget, RunBudget):
             raise ValidationError(
                 "agent spec budget must be a RunBudget (an unbounded budget is refused)"
@@ -134,12 +155,42 @@ class AgentSpec:
         agent_id: str,
         version: int,
         toolset: Sequence[str],
-        required_role: str,
+        required_role: Role,
         prompt_references: Sequence[tuple[str, int]],
         budget: RunBudget,
         prompt_registry: PromptRegistry,
+        mcp_registry: McpRegistry,
+        tool_roles: Mapping[str, Role],
     ) -> AgentSpec:
+        """Construction-time checks beyond a single field's own shape
+        (R6-05, R-AGENT-03): every tool in ``toolset`` must resolve in
+        ``mcp_registry`` to a ``READ`` or ``PROPOSE`` capability -- the
+        only two capabilities a tool may ever declare, so this also
+        catches a tool that somehow declared something else -- and
+        ``required_role`` must dominate the role each tool in
+        ``toolset`` requires (``tool_roles``), so a run started under
+        ``required_role`` is never short of a role some tool it may
+        call actually needs.
+        """
+
         prompt_registry.validate_references(prompt_references)
+
+        for tool_name in toolset:
+            capability = mcp_registry.capability_of(tool_name)
+            if capability not in (ToolCapability.READ, ToolCapability.PROPOSE):
+                raise ValidationError(
+                    f"agent spec toolset names {tool_name!r}, whose capability "
+                    f"{capability!r} is neither READ nor PROPOSE"
+                )
+            tool_role = tool_roles.get(tool_name)
+            if tool_role is None:
+                raise MissingDependencyError(f"no required role declared for tool {tool_name!r}")
+            if not _role_dominates(required_role, tool_role):
+                raise ValidationError(
+                    f"agent spec required_role {required_role.value} does not dominate "
+                    f"{tool_role.value}, required by tool {tool_name!r}"
+                )
+
         return cls(
             agent_id=agent_id,
             version=version,

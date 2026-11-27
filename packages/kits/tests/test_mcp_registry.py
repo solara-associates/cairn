@@ -7,6 +7,7 @@ from cairn_kits.mcp import (
     BoundedContextServer,
     DuplicateToolRegistrationError,
     McpRegistry,
+    ToolCapability,
     ToolNotRegisteredError,
 )
 
@@ -18,7 +19,13 @@ def _server(
         calls.append((tool_name, dict(arguments)))
         return {"tool": tool_name, "context": context_id, "arguments": arguments}
 
-    return BoundedContextServer(context_id=context_id, name=context_id, tools=tools, handle=handle)
+    return BoundedContextServer(
+        context_id=context_id,
+        name=context_id,
+        tools=tools,
+        capabilities={tool: ToolCapability.READ for tool in tools},
+        handle=handle,
+    )
 
 
 def test_lookup_returns_the_correct_bounded_context_server_for_a_tool_name() -> None:
@@ -97,7 +104,9 @@ def test_a_server_must_expose_at_least_one_tool() -> None:
         return None
 
     with pytest.raises(ValueError):
-        BoundedContextServer(context_id="empty", name="empty", tools=(), handle=handle)
+        BoundedContextServer(
+            context_id="empty", name="empty", tools=(), capabilities={}, handle=handle
+        )
 
 
 def test_tool_names_lists_every_registered_tool_sorted() -> None:

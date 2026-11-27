@@ -52,7 +52,7 @@ def _run_lint_imports(
 def test_import_contracts_pass_on_current_tree() -> None:
     result = _run_lint_imports(REPO_ROOT / ".importlinter", REPO_ROOT)
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "Contracts: 6 kept, 0 broken." in result.stdout
+    assert "Contracts: 7 kept, 0 broken." in result.stdout
 
 
 def test_deliberate_violation_fails_the_contracts() -> None:

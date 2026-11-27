@@ -10,7 +10,11 @@ bounded-context id/name, the tool names it exposes, and a ``handle`` --
 an in-process callable for now (ADR-011: internal-only until the A2A
 bridge lands in R5-04b/819). No real network server is required for this
 unit's tests; a later unit can swap the handle for a real transport
-without changing this registry's shape.
+without changing this registry's shape. R6-05 adds ``capabilities``:
+every tool's declared :class:`~cairn_kits.mcp.capability.ToolCapability`,
+carried through ``McpRegistry.lookup``/``capability_of`` so
+``AgentSpec.build()`` (``cairn_kits.loop``) can enforce the propose-only
+boundary without this registry knowing anything about agents.
 
 ``cairn_kits`` may not import ``cairn_adapters`` or ``cairn_modules``
 (see ``.importlinter``'s ``kits-purity`` contract), so authentication and
@@ -25,6 +29,8 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 
 from cairn_kernel.errors import NotFoundError
+
+from cairn_kits.mcp.capability import ToolCapability
 
 #: A bounded-context server's handle: given the tool name being invoked
 #: and its arguments, produce the result. One handle may serve several
@@ -49,11 +55,18 @@ class DuplicateToolRegistrationError(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class BoundedContextServer:
-    """One MCP server per bounded context (ADR-011)."""
+    """One MCP server per bounded context (ADR-011).
+
+    ``capabilities`` (R6-05) declares every tool's :class:`ToolCapability`
+    -- exactly the tools in ``tools``, no more, no fewer, so a tool
+    cannot be registered with no declared capability (a silent default
+    would be exactly the hole R-AGENT-03 exists to close).
+    """
 
     context_id: str
     name: str
     tools: tuple[str, ...]
+    capabilities: Mapping[str, ToolCapability]
     handle: ToolHandle
 
     def __post_init__(self) -> None:
@@ -69,14 +82,32 @@ class BoundedContextServer:
             raise ValueError(
                 f"bounded-context server {self.context_id!r} lists a duplicate tool name"
             )
+        missing = set(self.tools) - set(self.capabilities)
+        if missing:
+            raise ValueError(
+                f"bounded-context server {self.context_id!r} has no declared capability for: "
+                f"{sorted(missing)}"
+            )
+        extra = set(self.capabilities) - set(self.tools)
+        if extra:
+            raise ValueError(
+                f"bounded-context server {self.context_id!r} declares a capability for a tool "
+                f"it does not expose: {sorted(extra)}"
+            )
 
 
 @dataclass(frozen=True, slots=True)
 class ToolRegistration:
-    """A resolved registry entry: which server a tool name belongs to."""
+    """A resolved registry entry: which server a tool name belongs to,
+    and that tool's declared capability (carried through from
+    ``BoundedContextServer.capabilities``)."""
 
     tool_name: str
     server: BoundedContextServer
+
+    @property
+    def capability(self) -> ToolCapability:
+        return self.server.capabilities[self.tool_name]
 
     def invoke(self, arguments: Mapping[str, object] | None = None) -> object:
         return self.server.handle(self.tool_name, dict(arguments or {}))
@@ -109,6 +140,9 @@ class McpRegistry:
 
     def invoke(self, tool_name: str, arguments: Mapping[str, object] | None = None) -> object:
         return self.lookup(tool_name).invoke(arguments)
+
+    def capability_of(self, tool_name: str) -> ToolCapability:
+        return self.lookup(tool_name).capability
 
     def servers(self) -> tuple[BoundedContextServer, ...]:
         return tuple(self._servers.values())
