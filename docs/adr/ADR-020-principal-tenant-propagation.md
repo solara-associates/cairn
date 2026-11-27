@@ -1,6 +1,6 @@
 # ADR-020: Principal and tenant propagation through the MCP gateway, with VAID and SYNTHERA
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-11-27
 - **Deciders:** Product owner (Allan Smeyatsky) — self-accepted
 - **Related:** ADR-002, ADR-009, ADR-010, ADR-011, ADR-012, ADR-019, `docs/specs/r5-integration-boundaries.md`, `~/solara/reports/s910/REPORT-s910.md` (item 3)
