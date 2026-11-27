@@ -12,8 +12,8 @@ from cairn_kits.loop import (
     AgentRunState,
     AgentSpec,
     AgentStep,
-    StepKind,
     PromptRegistry,
+    StepKind,
     validate_agent_run_transition,
 )
 

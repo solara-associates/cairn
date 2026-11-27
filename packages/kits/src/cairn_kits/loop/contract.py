@@ -29,6 +29,7 @@ from dataclasses import dataclass, field, replace
 from enum import Enum
 
 from cairn_kernel.errors import InvalidStateTransitionError, ValidationError
+
 from cairn_kits.loop.prompt_registry import PromptRegistry
 
 
@@ -65,7 +66,9 @@ def validate_agent_run_transition(current: AgentRunState, target: AgentRunState)
 
     allowed = ALLOWED_AGENT_RUN_TRANSITIONS.get(current, frozenset())
     if target not in allowed:
-        raise InvalidStateTransitionError(f"agent run cannot move from {current.value} to {target.value}")
+        raise InvalidStateTransitionError(
+            f"agent run cannot move from {current.value} to {target.value}"
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,12 +110,20 @@ class AgentSpec:
             raise ValidationError("agent spec version must be a positive integer")
         if not self.toolset:
             raise ValidationError("agent spec toolset must not be empty")
-        if len(set(self.toolset)) != len(self.toolset) or any(not name.strip() for name in self.toolset):
+        if len(set(self.toolset)) != len(self.toolset) or any(
+            not name.strip() for name in self.toolset
+        ):
             raise ValidationError("agent spec toolset must contain unique, non-blank tool names")
         if not self.required_role.strip():
             raise ValidationError("agent spec needs a non-blank required_role")
-        if not isinstance(self.max_steps, int) or isinstance(self.max_steps, bool) or self.max_steps <= 0:
-            raise ValidationError("agent spec max_steps must be a positive integer (an unbounded budget is refused)")
+        if (
+            not isinstance(self.max_steps, int)
+            or isinstance(self.max_steps, bool)
+            or self.max_steps <= 0
+        ):
+            raise ValidationError(
+                "agent spec max_steps must be a positive integer (an unbounded budget is refused)"
+            )
 
     @classmethod
     def build(
@@ -164,7 +175,9 @@ class AgentRun:
                 raise ValidationError(f"agent run {field_name} must not be blank")
         for index, step in enumerate(self.steps):
             if step.index != index:
-                raise ValidationError(f"agent run steps must be sequential from 0; got index {step.index} at position {index}")
+                raise ValidationError(
+                    f"agent run steps must be sequential from 0; got index {step.index} at position {index}"
+                )
 
     def with_step(self, step: AgentStep) -> AgentRun:
         if step.index != len(self.steps):
