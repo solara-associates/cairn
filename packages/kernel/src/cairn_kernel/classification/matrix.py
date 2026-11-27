@@ -724,6 +724,66 @@ OPERATIONS: tuple[OperationEntry, ...] = (
         mutation_class=MutationClass.READ_ONLY,
         tenancy_scope=TenancyScope.GLOBAL,
     ),
+    # --- apps/mcp-gateway: estate and mappings servers (R6-08) ---
+    # estate.* reads one assessment run's own derived workloads,
+    # resources and dependency edges (R1-06/R1-07) through
+    # cairn_modules.assessment.AssessmentService.get_run -- a run
+    # belongs to exactly one tenant/project, so Class A READ_ONLY,
+    # PROJECT scope, same as every other per-run read in this matrix.
+    OperationEntry(
+        surface=SurfaceKind.MCP_TOOL,
+        name="mcp.estate.list_workloads",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.MCP_TOOL,
+        name="mcp.estate.get_workload",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.MCP_TOOL,
+        name="mcp.estate.list_resources",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.MCP_TOOL,
+        name="mcp.estate.get_dependencies",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    # mappings.* reads the published mapping release
+    # (mappings/service-map.yaml, loaded PUBLISHED at server
+    # construction) -- a global, CAIRN-operated artefact, the same
+    # reasoning mcp.posture.get_control already uses: Class A
+    # READ_ONLY, GLOBAL scope.
+    OperationEntry(
+        surface=SurfaceKind.MCP_TOOL,
+        name="mcp.mappings.resolve",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.GLOBAL,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.MCP_TOOL,
+        name="mcp.mappings.get_release",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.GLOBAL,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.MCP_TOOL,
+        name="mcp.mappings.list_releases",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.GLOBAL,
+    ),
     OperationEntry(
         surface=SurfaceKind.EVENT,
         name="execution.failed.v1",

@@ -12,15 +12,64 @@ from datetime import UTC, datetime, timedelta
 import jwt
 import pytest
 from cairn_adapters.auth_oidc import JwtAuthenticator, OidcSettings
+from cairn_kernel.errors import CairnError
 from cairn_kernel.security import Role
 from cairn_kits.mcp import BoundedContextServer, McpRegistry, ToolCapability, ToolNotRegisteredError
 from cairn_mcp_gateway import (
     TOOL_GET_CONTROL,
+    TOOL_GET_DEPENDENCIES,
+    TOOL_GET_RELEASE,
+    TOOL_GET_WORKLOAD,
+    TOOL_LIST_RELEASES,
+    TOOL_LIST_RESOURCES,
+    TOOL_LIST_WORKLOADS,
+    TOOL_RESOLVE,
     A2ABridge,
     McpGateway,
     build_default_registry,
 )
 from cairn_mcp_gateway.registry_factory import REQUIRED_ROLES
+
+#: One (roles, arguments) fixture per registered tool, keyed by name --
+#: R6-08's own fix to this test's original single-token/single-arguments
+#: shape, which only ever worked because exactly one tool
+#: (``posture.get_control``) was registered when it was written. Every
+#: tool gets a role that can call it and a valid argument shape;
+#: ``build_default_registry()``'s ``estate`` server is backed by a
+#: fresh, empty ``AssessmentService`` (a composition root wires its own
+#: real one), so its tools are fixtured against a run id that does not
+#: exist -- the "identical result" this test proves for those is an
+#: identical ``NotFoundError``, not a successful payload, which is
+#: still a real conformance proof: both paths fail the same way.
+#: Adding a tool without adding an entry here is a missing-fixture
+#: failure below, not a silently-skipped tool.
+_TOOL_FIXTURES: dict[str, tuple[tuple[str, ...], dict[str, object]]] = {
+    TOOL_GET_CONTROL: (
+        (Role.AUDITOR.value,),
+        {"version": "2026.11.1", "control_id": "gcp-cis-5.1"},
+    ),
+    TOOL_LIST_WORKLOADS: ((Role.VIEWER.value,), {"assessment_run_id": "no-such-run"}),
+    TOOL_GET_WORKLOAD: (
+        (Role.VIEWER.value,),
+        {"assessment_run_id": "no-such-run", "workload_id": "w-1"},
+    ),
+    TOOL_LIST_RESOURCES: ((Role.VIEWER.value,), {"assessment_run_id": "no-such-run"}),
+    TOOL_GET_DEPENDENCIES: (
+        (Role.VIEWER.value,),
+        {"assessment_run_id": "no-such-run", "workload_id": "w-1"},
+    ),
+    TOOL_RESOLVE: (
+        (Role.VIEWER.value,),
+        {
+            "mapping_version": "2026.11.2",
+            "source_provider": "aws",
+            "source_service": "s3",
+            "target_provider": "gcp",
+        },
+    ),
+    TOOL_GET_RELEASE: ((Role.VIEWER.value,), {"version": "2026.11.2"}),
+    TOOL_LIST_RELEASES: ((Role.VIEWER.value,), {}),
+}
 
 ISSUER = "https://auth.example.cairn/"
 AUDIENCE = "cairn-mcp-gateway"
@@ -71,22 +120,41 @@ def test_every_registered_server_is_reachable_through_both_paths_identically(
     """The conformance proof: for every bounded-context server currently
     registered, calling its tool through the MCP gateway and through the
     A2A bridge (agent card -> translated task) produces an identical
-    result -- exercised here against the one real proof registration,
-    ``posture.get_control``, and written to generalise over whatever is
-    registered rather than hardcoding a server count."""
+    result -- generalised over whatever is registered, via
+    ``_TOOL_FIXTURES`` rather than one hardcoded (role, arguments) pair.
+    A registered tool with no fixture entry fails this test loudly
+    (``KeyError``), rather than being silently skipped.
+    """
     gateway, bridge = default_gateway_and_bridge
-    token = _token(roles=(Role.AUDITOR.value,))
-    arguments = {"version": "2026.11.1", "control_id": "gcp-cis-5.1"}
 
     checked_any = False
     for card in bridge.agent_cards():
         for tool_name in card.skills:
-            mcp_result = gateway.call_tool(tool_name, token, arguments)
-            a2a_result = bridge.send_task(
-                agent_id=card.agent_id, skill=tool_name, token=token, input=arguments
-            )
+            roles, arguments = _TOOL_FIXTURES[tool_name]
+            token = _token(roles=roles)
 
-            assert a2a_result.output == mcp_result
+            mcp_error: CairnError | None = None
+            try:
+                mcp_result = gateway.call_tool(tool_name, token, arguments)
+            except CairnError as exc:
+                mcp_error = exc
+                mcp_result = None
+
+            a2a_error: CairnError | None = None
+            try:
+                a2a_result = bridge.send_task(
+                    agent_id=card.agent_id, skill=tool_name, token=token, input=arguments
+                )
+                a2a_output = a2a_result.output
+            except CairnError as exc:
+                a2a_error = exc
+                a2a_output = None
+
+            if mcp_error is None and a2a_error is None:
+                assert a2a_output == mcp_result
+            else:
+                assert type(mcp_error) is type(a2a_error)
+                assert str(mcp_error) == str(a2a_error)
             checked_any = True
 
     assert checked_any, "expected at least one registered server to exercise"
