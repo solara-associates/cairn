@@ -38,14 +38,23 @@ from cairn_kernel.errors import ForbiddenError
 from cairn_kernel.hex.ports import Clock
 from cairn_kernel.model.ports import ModelPort, ModelRequest, SafetyParameters
 from cairn_kits.loop.budget import BudgetDimension
-from cairn_kits.loop.contract import AgentRun, AgentRunState, AgentSpec, AgentStep, StepKind
+from cairn_kits.loop.contract import (
+    AgentRun,
+    AgentRunState,
+    AgentSpec,
+    AgentStep,
+    StepKind,
+    complete_with_proposal,
+)
 from cairn_kits.loop.ports import AgentRunContext, ToolInvokerPort
 from cairn_kits.loop.prompt_registry import PromptRegistry
 from cairn_kits.mcp import McpRegistry, ToolCapability
 
 from cairn_adapters.agent_adk.translation import (
     AGENT_TURN_EXPECTATION,
+    TURN_KIND_FINAL,
     TURN_KIND_TOOL_CALL,
+    final_proposal,
     output_to_llm_parts,
     render_prompt,
 )
@@ -59,12 +68,22 @@ class _RunBudgetStopped(Exception):
 
 @dataclass(slots=True)
 class _StepSink:
-    """Collects the steps one run actually produced, in order -- both
-    bridges share one instance per run so a tool-call step and the
-    model-call steps around it land with contiguous, correct indices."""
+    """Collects what one run actually produced -- its steps, in order,
+    and (R6-11a) the proposal its final turn carried. Both bridges
+    share one instance per run so a tool-call step and the model-call
+    steps around it land with contiguous, correct indices, and so the
+    proposal read off a turn inside ``_GatewayBackedLlm`` is reachable
+    from ``AdkAgentLoop.run`` when it terminates the run."""
 
     context: AgentRunContext
     steps: list[AgentStep] = field(default_factory=list)
+    #: R6-11a: the proposal the most recent ``final`` turn carried, or
+    #: ``None`` if no final turn has produced one this loop could read
+    #: as an object. Set only *after* the budget-exhaustion check in
+    #: ``generate_content_async``, so a run whose budget ran out on the
+    #: very turn that proposed something ends ``BUDGET_EXCEEDED``
+    #: carrying no proposal -- a spent run proposes nothing.
+    final_proposal: Mapping[str, object] | None = None
 
     def next_index(self) -> int:
         return len(self.steps)
@@ -151,6 +170,8 @@ class _GatewayBackedLlm:
                     raise _RunBudgetStopped()
 
                 kind, tool_call, final_text = output_to_llm_parts(response.output)
+                if kind == TURN_KIND_FINAL:
+                    sink_ref.final_proposal = final_proposal(response.output)
                 if kind == TURN_KIND_TOOL_CALL:
                     part = genai_types.Part(
                         function_call=genai_types.FunctionCall(
@@ -298,8 +319,12 @@ class AdkAgentLoop:
             ):
                 pass
         except _RunBudgetStopped:
-            terminal_state = AgentRunState.BUDGET_EXCEEDED
-            terminal_reason = None
+            # R6-11a: BUDGET_EXCEEDED and no proposal, even if a final
+            # turn did arrive -- the sink's proposal is only set past
+            # the exhaustion check, and AgentRun's own invariant would
+            # refuse a non-COMPLETED run carrying one anyway.
+            run = _apply_steps(run, sink.steps)
+            return run.with_state(AgentRunState.BUDGET_EXCEEDED)
         except Exception as exc:  # noqa: BLE001 -- deliberately caught and
             # turned into AgentRunState.FAILED (design §3: "the run ends
             # FAILED with the validation error recorded"), not re-raised:
@@ -307,14 +332,15 @@ class AdkAgentLoop:
             # never crash the loop that is driving it.
             run = _apply_steps(run, sink.steps)
             return replace(run, terminal_reason=str(exc)).with_state(AgentRunState.FAILED)
-        else:
-            terminal_state = AgentRunState.COMPLETED
-            terminal_reason = None
 
+        # R6-11a: the run ends on its proposal, through the same
+        # contract-level gate DeterministicAgentLoop goes through --
+        # COMPLETED if the final turn's proposal satisfied
+        # spec.output_schema, FAILED with the reason recorded if it was
+        # missing, unreadable or schema-invalid. The final turn is no
+        # longer discarded.
         run = _apply_steps(run, sink.steps)
-        if terminal_reason is not None:
-            run = replace(run, terminal_reason=terminal_reason)
-        return run.with_state(terminal_state)
+        return complete_with_proposal(run, spec, sink.final_proposal)
 
     def _resolve_system_instruction(self, spec: AgentSpec) -> str:
         """The first prompt reference is this agent's system

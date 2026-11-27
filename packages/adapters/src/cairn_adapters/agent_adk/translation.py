@@ -15,12 +15,36 @@ shape -- "did you call a tool, or are you done" -- through the one
 ``ModelPort`` method that already exists. ``ModelGateway`` validates
 every turn against this schema exactly as it validates anything else
 (R-AI-01); nothing about the propose-only boundary or the run-budget
-enforcement changes because the shape travelling through it is a turn
-instead of a final proposal.
+enforcement changes because the shape travelling through it is a turn.
+
+**R6-11a: the final turn now carries the proposal.** The paragraph
+above used to end "...a turn instead of a final proposal", and the
+loop discarded the final turn's content accordingly -- which left an
+agent's one real output with nowhere to go, and is the gap this unit
+closes. ``agent_turn.v1`` is *extended*, not replaced: ``kind`` and
+``tool_name``/``tool_arguments`` are unchanged, ``text`` is still
+there and still optional, and a new optional ``proposal`` object
+carries the structured output. So the gateway still reads a turn, the
+schema name and version do not move, and a turn written against the
+old shape still validates.
+
+A ``final`` turn's proposal is read in this order, and the order is
+the honest part: ``proposal`` if the model filled it in; otherwise
+``text`` parsed as a JSON object, because a model asked for JSON will
+sometimes put it in the text field and refusing to look there would
+fail runs for a formatting reason rather than a substantive one.
+Text that is not parseable JSON, or parses to something that is not an
+object, yields no proposal at all -- never a half-read one -- and the
+loop ends the run ``FAILED``. This function does **not** check the
+proposal against the agent's own ``output_schema``: that is
+``cairn_kits.loop.complete_with_proposal``'s job, so both
+``AgentLoopPort`` implementations apply the identical check in the
+identical place.
 """
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
 
 from cairn_kernel.errors import ProviderUnavailableError, ValidationError
@@ -38,6 +62,7 @@ AGENT_TURN_EXPECTATION = StructuredOutputExpectation(
             "tool_name": {"type": "string"},
             "tool_arguments": {"type": "object"},
             "text": {"type": "string"},
+            "proposal": {"type": "object"},
         },
     },
 )
@@ -62,7 +87,7 @@ def render_prompt(*, system_instruction: str, transcript_lines: list[str]) -> st
 
 def output_to_llm_parts(
     output: Mapping[str, object],
-) -> tuple[str, Mapping[str, object] | None, Mapping[str, object] | None]:
+) -> tuple[str, Mapping[str, object] | None, str | None]:
     """Parses one turn's validated ``ModelResponse.output`` (already
     schema-checked by ``ModelGateway`` against
     :data:`AGENT_TURN_EXPECTATION`) into ``(kind, tool_call, final_text)``
@@ -93,11 +118,42 @@ def output_to_llm_parts(
     )
 
 
+def final_proposal(output: Mapping[str, object]) -> Mapping[str, object] | None:
+    """R6-11a: the structured proposal a ``final`` turn carries, or
+    ``None`` if it carries none this function can read as an object.
+
+    ``proposal`` is preferred; ``text`` parsed as JSON is the fallback
+    (see this module's own docstring for why both are accepted and why
+    neither is partially read). Returning ``None`` is not an error
+    here: it is the input ``complete_with_proposal`` turns into a
+    ``FAILED`` run with a recorded reason, which is where that decision
+    belongs.
+    """
+
+    proposal = output.get("proposal")
+    if isinstance(proposal, Mapping):
+        return dict(proposal)
+    if proposal is not None:
+        return None
+
+    text = output.get("text")
+    if not isinstance(text, str) or not text.strip():
+        return None
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(parsed, dict):
+        return None
+    return parsed
+
+
 __all__ = [
     "AGENT_TURN_EXPECTATION",
     "AGENT_TURN_SCHEMA_NAME",
     "TURN_KIND_FINAL",
     "TURN_KIND_TOOL_CALL",
+    "final_proposal",
     "output_to_llm_parts",
     "render_prompt",
 ]

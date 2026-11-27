@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from cairn_adapters.agent_adk import AdkAgentLoop, sanitize_tool_name
-from cairn_kernel.model.ports import ModelResponse, SafetyMetadata
+from cairn_kernel.model.ports import ModelResponse, SafetyMetadata, StructuredOutputExpectation
 from cairn_kernel.security import Role
 from cairn_kernel.testing.fakes import FixedClock
 from cairn_kits.loop import (
@@ -54,6 +54,21 @@ class _StubToolInvoker:
     def invoke(self, tool_name: str, arguments: dict) -> object:
         self.calls.append((tool_name, dict(arguments)))
         return {"echoed": arguments}
+
+
+#: R6-11a: every ``AgentSpec`` now declares the shape of the one thing
+#: it produces. A small two-field object is enough for this file's own
+#: assertions, which are about the spec/loop contract, not about any
+#: real agent's proposal shape.
+_OUTPUT_SCHEMA = StructuredOutputExpectation(
+    schema_name="demo_proposal.v1",
+    schema={
+        "type": "object",
+        "required": ["summary"],
+        "properties": {"summary": {"type": "string"}, "confidence": {"type": "number"}},
+    },
+)
+_PROPOSAL: dict[str, object] = {"summary": "a proposal", "confidence": 0.5}
 
 
 def _response(output: dict) -> ModelResponse:
@@ -116,6 +131,7 @@ def _spec(
         "required_role": Role.ENGINEER,
         "prompt_references": (("demo-agent/system", 1),),
         "budget": _budget(),
+        "output_schema": _OUTPUT_SCHEMA,
         "prompt_registry": prompt_registry,
         "mcp_registry": mcp_registry,
         "tool_roles": {"estate.read_estate": Role.ENGINEER},
@@ -157,7 +173,7 @@ def test_every_model_call_goes_through_the_gateway_no_call_escapes(tmp_path: Pat
                     "tool_arguments": {"workload_id": "w-1"},
                 }
             ),
-            _response({"kind": "final", "text": "done"}),
+            _response({"kind": "final", "proposal": _PROPOSAL}),
         ]
     )
     tool_invoker = _StubToolInvoker()
@@ -167,6 +183,7 @@ def test_every_model_call_goes_through_the_gateway_no_call_escapes(tmp_path: Pat
     run = loop.run(spec, {"assessment_run_id": "ar-1"}, context=_context())
 
     assert run.state is AgentRunState.COMPLETED
+    assert run.proposal == _PROPOSAL
     model_call_steps = [s for s in run.steps if s.kind is StepKind.MODEL_CALL]
     assert len(model_call_steps) == len(model_gateway.calls)
     assert len(model_gateway.calls) == 2
@@ -176,7 +193,7 @@ def test_every_model_call_goes_through_the_gateway_no_call_escapes(tmp_path: Pat
 def test_adapter_builds_no_tool_outside_the_spec_toolset(tmp_path: Path) -> None:
     prompt_registry = _prompt_registry(tmp_path)
     mcp_registry = _mcp_registry()
-    model_gateway = _StubModelGateway([_response({"kind": "final", "text": "done"})])
+    model_gateway = _StubModelGateway([_response({"kind": "final", "proposal": _PROPOSAL})])
     tool_invoker = _StubToolInvoker()
     spec = _spec(prompt_registry, mcp_registry)
     loop = _loop(model_gateway, tool_invoker, mcp_registry, prompt_registry)

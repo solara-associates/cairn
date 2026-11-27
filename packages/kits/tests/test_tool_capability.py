@@ -7,9 +7,24 @@ from pathlib import Path
 
 import pytest
 from cairn_kernel.errors import MissingDependencyError, ValidationError
+from cairn_kernel.model.ports import StructuredOutputExpectation
 from cairn_kernel.security import Role
 from cairn_kits.loop import AgentSpec, PromptRegistry, RunBudget
 from cairn_kits.mcp import BoundedContextServer, McpRegistry, ToolCapability, ToolNotRegisteredError
+
+#: R6-11a: every ``AgentSpec`` now declares the shape of the one thing
+#: it produces. A small two-field object is enough for this file's own
+#: assertions, which are about the spec/loop contract, not about any
+#: real agent's proposal shape.
+_OUTPUT_SCHEMA = StructuredOutputExpectation(
+    schema_name="demo_proposal.v1",
+    schema={
+        "type": "object",
+        "required": ["summary"],
+        "properties": {"summary": {"type": "string"}, "confidence": {"type": "number"}},
+    },
+)
+_PROPOSAL: dict[str, object] = {"summary": "a proposal", "confidence": 0.5}
 
 
 def _budget() -> RunBudget:
@@ -114,6 +129,7 @@ def test_agent_spec_naming_a_mutating_tool_raises_at_construction(tmp_path: Path
             required_role=Role.ENGINEER,
             prompt_references=(("demo-agent/system", 1),),
             budget=_budget(),
+            output_schema=_OUTPUT_SCHEMA,
             prompt_registry=prompt_registry,
             mcp_registry=mcp_registry,
             tool_roles={"fixture.mutate_thing": Role.ENGINEER},
@@ -132,6 +148,7 @@ def test_agent_spec_naming_an_unregistered_tool_raises(tmp_path: Path) -> None:
             required_role=Role.ENGINEER,
             prompt_references=(("demo-agent/system", 1),),
             budget=_budget(),
+            output_schema=_OUTPUT_SCHEMA,
             prompt_registry=prompt_registry,
             mcp_registry=mcp_registry,
             tool_roles={"fixture.never_registered": Role.ENGINEER},
@@ -157,6 +174,7 @@ def test_agent_spec_accepts_a_read_and_a_propose_tool(tmp_path: Path) -> None:
         required_role=Role.ENGINEER,
         prompt_references=(("demo-agent/system", 1),),
         budget=_budget(),
+        output_schema=_OUTPUT_SCHEMA,
         prompt_registry=prompt_registry,
         mcp_registry=mcp_registry,
         tool_roles={"fixture.read_thing": Role.VIEWER, "fixture.propose_thing": Role.ENGINEER},
@@ -180,6 +198,7 @@ def test_a_required_role_that_does_not_dominate_its_toolsets_role_raises(tmp_pat
             required_role=Role.VIEWER,  # weaker than the tool's own TENANT_ADMIN requirement
             prompt_references=(("demo-agent/system", 1),),
             budget=_budget(),
+            output_schema=_OUTPUT_SCHEMA,
             prompt_registry=prompt_registry,
             mcp_registry=mcp_registry,
             tool_roles={"fixture.admin_thing": Role.TENANT_ADMIN},
@@ -198,6 +217,7 @@ def test_a_required_role_that_exactly_matches_the_toolsets_role_is_accepted(tmp_
         required_role=Role.ENGINEER,
         prompt_references=(("demo-agent/system", 1),),
         budget=_budget(),
+        output_schema=_OUTPUT_SCHEMA,
         prompt_registry=prompt_registry,
         mcp_registry=mcp_registry,
         tool_roles={"fixture.engineer_thing": Role.ENGINEER},
@@ -217,6 +237,7 @@ def test_a_required_role_stronger_than_the_toolsets_role_is_accepted(tmp_path: P
         required_role=Role.TENANT_ADMIN,  # stronger than the tool's own VIEWER requirement
         prompt_references=(("demo-agent/system", 1),),
         budget=_budget(),
+        output_schema=_OUTPUT_SCHEMA,
         prompt_registry=prompt_registry,
         mcp_registry=mcp_registry,
         tool_roles={"fixture.viewer_thing": Role.VIEWER},
@@ -237,6 +258,7 @@ def test_a_tool_with_no_declared_required_role_raises(tmp_path: Path) -> None:
             required_role=Role.ENGINEER,
             prompt_references=(("demo-agent/system", 1),),
             budget=_budget(),
+            output_schema=_OUTPUT_SCHEMA,
             prompt_registry=prompt_registry,
             mcp_registry=mcp_registry,
             tool_roles={},

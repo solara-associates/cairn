@@ -27,6 +27,7 @@ from cairn_kernel.governance import (
     GovernanceRequest,
     NoOpGovernance,
 )
+from cairn_kernel.model.ports import StructuredOutputExpectation
 from cairn_kernel.security import Role
 from cairn_kits.loop import (
     AgentRunState,
@@ -68,6 +69,21 @@ class SpyGovernance(NoOpGovernance):
     def record(self, request: GovernanceRequest, decision: GovernanceDecision) -> None:
         del request
         self.recorded.append(decision)
+
+
+#: R6-11a: every ``AgentSpec`` now declares the shape of the one thing
+#: it produces. A small two-field object is enough for this file's own
+#: assertions, which are about the spec/loop contract, not about any
+#: real agent's proposal shape.
+_OUTPUT_SCHEMA = StructuredOutputExpectation(
+    schema_name="demo_proposal.v1",
+    schema={
+        "type": "object",
+        "required": ["summary"],
+        "properties": {"summary": {"type": "string"}, "confidence": {"type": "number"}},
+    },
+)
+_PROPOSAL: dict[str, object] = {"summary": "a proposal", "confidence": 0.5}
 
 
 def _clock() -> object:
@@ -115,6 +131,7 @@ def _spec(tmp_path: Path) -> AgentSpec:
             max_total_tokens=100_000,
             max_cost_micro_usd=500_000,
         ),
+        output_schema=_OUTPUT_SCHEMA,
         prompt_registry=_prompt_registry(tmp_path),
         mcp_registry=_mcp_registry(),
         tool_roles={TOOL: Role.ENGINEER},
@@ -144,7 +161,7 @@ def _steps() -> tuple[AgentStep, ...]:
 
 
 def test_the_loop_completes_unchanged_with_no_governance_passed(tmp_path: Path) -> None:
-    loop = DeterministicAgentLoop(_steps(), clock=_clock())
+    loop = DeterministicAgentLoop(_steps(), clock=_clock(), scripted_proposal=_PROPOSAL)
     context = _context()
 
     run = loop.run(_spec(tmp_path), {}, context=context)
@@ -156,7 +173,9 @@ def test_the_loop_completes_unchanged_with_no_governance_passed(tmp_path: Path) 
 
 
 def test_the_loop_completes_unchanged_with_the_no_op_adapter(tmp_path: Path) -> None:
-    loop = DeterministicAgentLoop(_steps(), clock=_clock(), governance=NoOpGovernance())
+    loop = DeterministicAgentLoop(
+        _steps(), clock=_clock(), governance=NoOpGovernance(), scripted_proposal=_PROPOSAL
+    )
 
     run = loop.run(_spec(tmp_path), {}, context=_context())
 
@@ -169,7 +188,9 @@ def test_an_allowing_adapter_is_asked_about_every_step(tmp_path: Path) -> None:
     seam exists alongside the gateway's."""
 
     governance = SpyGovernance()
-    loop = DeterministicAgentLoop(_steps(), clock=_clock(), governance=governance)
+    loop = DeterministicAgentLoop(
+        _steps(), clock=_clock(), governance=governance, scripted_proposal=_PROPOSAL
+    )
 
     run = loop.run(_spec(tmp_path), {}, context=_context())
 
@@ -191,7 +212,9 @@ def test_a_denied_step_ends_the_run_failed_with_the_reason(tmp_path: Path) -> No
 
     governance = SpyGovernance(deny_at_index=1)
     context = _context()
-    loop = DeterministicAgentLoop(_steps(), clock=_clock(), governance=governance)
+    loop = DeterministicAgentLoop(
+        _steps(), clock=_clock(), governance=governance, scripted_proposal=_PROPOSAL
+    )
 
     run = loop.run(_spec(tmp_path), {}, context=context)
 
@@ -209,7 +232,9 @@ def test_a_denied_step_is_never_attempted_recorded_or_debited(tmp_path: Path) ->
 
     governance = SpyGovernance(deny_at_index=1)
     context = _context()
-    loop = DeterministicAgentLoop(_steps(), clock=_clock(), governance=governance)
+    loop = DeterministicAgentLoop(
+        _steps(), clock=_clock(), governance=governance, scripted_proposal=_PROPOSAL
+    )
 
     run = loop.run(_spec(tmp_path), {}, context=context)
 
@@ -219,7 +244,9 @@ def test_a_denied_step_is_never_attempted_recorded_or_debited(tmp_path: Path) ->
 
 def test_denying_the_first_step_ends_the_run_with_no_steps_at_all(tmp_path: Path) -> None:
     governance = SpyGovernance(deny_at_index=0)
-    loop = DeterministicAgentLoop(_steps(), clock=_clock(), governance=governance)
+    loop = DeterministicAgentLoop(
+        _steps(), clock=_clock(), governance=governance, scripted_proposal=_PROPOSAL
+    )
 
     run = loop.run(_spec(tmp_path), {}, context=_context())
 
@@ -239,7 +266,9 @@ def test_the_request_carries_the_run_context_the_gateway_cannot_know(
     deciding a *per-run* budget needs exactly these."""
 
     governance = SpyGovernance()
-    loop = DeterministicAgentLoop(_steps(), clock=_clock(), governance=governance)
+    loop = DeterministicAgentLoop(
+        _steps(), clock=_clock(), governance=governance, scripted_proposal=_PROPOSAL
+    )
 
     loop.run(_spec(tmp_path), {}, context=_context())
 
@@ -257,7 +286,9 @@ def test_the_request_reports_the_runs_own_authority_not_a_guess(tmp_path: Path) 
     under."""
 
     governance = SpyGovernance()
-    loop = DeterministicAgentLoop(_steps(), clock=_clock(), governance=governance)
+    loop = DeterministicAgentLoop(
+        _steps(), clock=_clock(), governance=governance, scripted_proposal=_PROPOSAL
+    )
 
     loop.run(_spec(tmp_path), {}, context=_context())
 
@@ -275,7 +306,9 @@ def test_a_model_call_is_not_misreported_as_a_tool(
     would misreport it to an adapter."""
 
     governance = SpyGovernance()
-    loop = DeterministicAgentLoop(_steps(), clock=_clock(), governance=governance)
+    loop = DeterministicAgentLoop(
+        _steps(), clock=_clock(), governance=governance, scripted_proposal=_PROPOSAL
+    )
 
     loop.run(_spec(tmp_path), {}, context=_context())
 

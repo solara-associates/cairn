@@ -1,8 +1,10 @@
 """CAIRN cairn_kits.loop: the agent loop kit (ADR-019).
 
 R6-01 adds the prompt registry; R6-02 adds the loop contract; R6-03
-adds run budgets and the budget ledger. Later R6 units add the
-propose-only tool-capability boundary in this same package.
+adds run budgets and the budget ledger; R6-05 adds the propose-only
+tool-capability boundary; R6-11a adds the proposal channel an agent's
+output actually travels on (``AgentSpec.output_schema``,
+``AgentRun.proposal``, ``complete_with_proposal``).
 """
 
 from cairn_kits.loop.budget import BudgetDebitResult, BudgetDimension, BudgetLedger, RunBudget
@@ -13,6 +15,7 @@ from cairn_kits.loop.contract import (
     AgentSpec,
     AgentStep,
     StepKind,
+    complete_with_proposal,
     validate_agent_run_transition,
 )
 from cairn_kits.loop.deterministic import DeterministicAgentLoop
@@ -51,6 +54,7 @@ __all__ = [
     "StepKind",
     "StepRecorder",
     "ToolInvokerPort",
+    "complete_with_proposal",
     "find_prompt_literal_violations",
     "validate_agent_run_transition",
 ]

@@ -11,6 +11,18 @@ is why it is not a hand-rolled reasoning loop (ADR-019/A6.framework):
 it never decides anything, it only replays what the caller already
 decided, which is exactly what every agent test, API test and console
 test runs against instead of a real provider.
+
+R6-11a adds the other half of a scripted run: ``scripted_proposal``,
+the final structured output this run "produced". It goes through
+exactly the same gate ``AdkAgentLoop`` puts a real final turn through
+(``AgentRun.with_proposal``, which validates against
+``spec.output_schema``), so a scripted proposal that does not satisfy
+the agent's own schema fails the run here just as a model-produced one
+would -- which is the point of having both implementations: a Wave 4
+test written against this loop is testing the same contract the ADK
+loop obeys. A loop constructed with no ``scripted_proposal`` ends
+``FAILED``: a run that reaches the end of its script with nothing to
+propose has not succeeded at the one thing an agent does.
 """
 
 from __future__ import annotations
@@ -27,7 +39,14 @@ from cairn_kernel.governance import (
 from cairn_kernel.hex.ports import Clock
 
 from cairn_kits.loop.budget import BudgetDimension
-from cairn_kits.loop.contract import AgentRun, AgentRunState, AgentSpec, AgentStep, StepKind
+from cairn_kits.loop.contract import (
+    AgentRun,
+    AgentRunState,
+    AgentSpec,
+    AgentStep,
+    StepKind,
+    complete_with_proposal,
+)
 from cairn_kits.loop.ports import AgentRunContext
 
 
@@ -41,9 +60,13 @@ class DeterministicAgentLoop:
     comes back exhausted stops the run there, in ``BUDGET_EXCEEDED``,
     with every step up to and including that one already recorded (the
     exhausting step is attempted and recorded, consistent with "a
-    budget can never be exceeded by more than one step's worth").
-    Otherwise, once every scripted step has been replayed, the run
-    ends ``COMPLETED``.
+    budget can never be exceeded by more than one step's worth"), and
+    its ``scripted_proposal`` is **not** attached -- a budget-stopped
+    run proposes nothing, even if the script said it would.
+    Otherwise, once every scripted step has been replayed, the
+    ``scripted_proposal`` is validated against ``spec.output_schema``
+    and the run ends ``COMPLETED``; a missing or schema-invalid
+    proposal ends it ``FAILED`` with the reason recorded.
     """
 
     def __init__(
@@ -51,10 +74,12 @@ class DeterministicAgentLoop:
         scripted_steps: Sequence[AgentStep],
         clock: Clock,
         governance: GovernancePort | None = None,
+        scripted_proposal: Mapping[str, object] | None = None,
     ) -> None:
         self._scripted_steps = tuple(scripted_steps)
         self._clock = clock
         self._governance = governance if governance is not None else NoOpGovernance()
+        self._scripted_proposal = scripted_proposal
 
     def run(
         self,
@@ -115,7 +140,7 @@ class DeterministicAgentLoop:
             ):
                 return run.with_state(AgentRunState.BUDGET_EXCEEDED)
 
-        return run.with_state(AgentRunState.COMPLETED)
+        return complete_with_proposal(run, spec, self._scripted_proposal)
 
 
 def _governance_request(

@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 from cairn_kernel.errors import InvalidStateTransitionError, MissingDependencyError, ValidationError
+from cairn_kernel.model.ports import StructuredOutputExpectation
 from cairn_kernel.security import Role
 from cairn_kits.loop import (
     AgentRun,
@@ -19,6 +20,20 @@ from cairn_kits.loop import (
     validate_agent_run_transition,
 )
 from cairn_kits.mcp import BoundedContextServer, McpRegistry, ToolCapability
+
+#: R6-11a: every ``AgentSpec`` now declares the shape of the one thing
+#: it produces. A small two-field object is enough for this file's own
+#: assertions, which are about the spec/loop contract, not about any
+#: real agent's proposal shape.
+_OUTPUT_SCHEMA = StructuredOutputExpectation(
+    schema_name="demo_proposal.v1",
+    schema={
+        "type": "object",
+        "required": ["summary"],
+        "properties": {"summary": {"type": "string"}, "confidence": {"type": "number"}},
+    },
+)
+_PROPOSAL: dict[str, object] = {"summary": "a proposal", "confidence": 0.5}
 
 
 def _budget(**overrides: object) -> RunBudget:
@@ -65,6 +80,7 @@ def _spec(prompt_registry: PromptRegistry, **overrides: object) -> AgentSpec:
         "required_role": Role.ENGINEER,
         "prompt_references": (("demo-agent/system", 1),),
         "budget": _budget(),
+        "output_schema": _OUTPUT_SCHEMA,
         "prompt_registry": prompt_registry,
         "mcp_registry": _mcp_registry(),
         "tool_roles": {"estate.read_estate": Role.ENGINEER},
