@@ -9,6 +9,17 @@ dependencies = [
     "opentelemetry-sdk>=1.45.2",
     "pydantic>=2.9",
     "pyyaml>=6.0",
+    # ADR-020 §3: the published, open-source VAID library, verifying a
+    # presented credential's own Ed25519/RFC-8785 structure offline. A
+    # library dependency like pydantic above, not a network call to a
+    # VAID-operated service, and never a vendored copy.
+    #
+    # Pinned to one minor. PyPI has no caret convention, so a bare
+    # `vaid-mint` or an open `>=` would resolve straight onto the next
+    # breaking release; this is the pin the package's own README asks
+    # for (A7.supply-chain). `vaid-pop`, `cryptography` and `rfc8785`
+    # come in transitively and are locked in uv.lock.
+    "vaid-mint>=0.11,<0.12",
 ]
 
 [build-system]
