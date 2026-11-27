@@ -23,6 +23,14 @@ and ``transformation.get_diff``/``transformation.validate`` both need
 the originals back to render a diff or build a ``ValidationRequest``
 (``cairn_modules.transformation.diff``/``validation`` are both pure
 functions over files + manifest, never a second engine call).
+
+**ADR-020 fix:** the ``TenantContext`` every tenant-scoped tool binds
+is now built from the gateway's propagated, authenticated ``Principal``
+(``tenant_id``, ``actor_id=principal.subject``,
+``actor_roles=principal.role_values()``), not from the caller-supplied
+``tenant_id`` argument and a fixed placeholder ``actor_id="mcp-caller"``.
+The caller-supplied ``tenant_id`` is still required to match the
+principal's own, so a mismatched claim fails loudly.
 """
 
 from __future__ import annotations
@@ -31,8 +39,8 @@ from collections.abc import Mapping, Sequence
 from typing import TypeVar
 
 from cairn_contracts.transformation import SourceFile
-from cairn_kernel.errors import NotFoundError, ValidationError
-from cairn_kernel.hex import TenantId
+from cairn_kernel.errors import NotFoundError, TenantScopeViolationError, ValidationError
+from cairn_kernel.security import Principal
 from cairn_kernel.tenancy import TenantContext, tenant_scope
 from cairn_kits.mcp import BoundedContextServer, ToolCapability
 from cairn_modules.transformation.diff import render_transformation_diff
@@ -84,20 +92,34 @@ def _parse(model_cls: type[_ArgsT], arguments: Mapping[str, object]) -> _ArgsT:
         raise ValidationError(str(exc)) from exc
 
 
-def _scope(tenant_id: str) -> TenantContext:
+def _scope(principal: Principal) -> TenantContext:
     return TenantContext(
-        tenant_id=TenantId(tenant_id),
+        tenant_id=principal.tenant_id,
         project_id=None,
-        actor_id="mcp-caller",
-        actor_roles=(),
-        correlation_id=f"mcp-transformation-{tenant_id}",
+        actor_id=principal.subject,
+        actor_roles=principal.role_values(),
+        correlation_id=f"mcp-transformation-{principal.tenant_id.value}",
     )
 
 
+def _require_caller_matches_principal(caller_tenant_id: str, principal: Principal) -> None:
+    if caller_tenant_id != principal.tenant_id.value:
+        raise TenantScopeViolationError(
+            f"caller-supplied tenant_id {caller_tenant_id!r} does not match the"
+            f" authenticated principal's tenant {principal.tenant_id.value!r}"
+        )
+
+
 def _find_run(
-    repository: TransformationRunRepository, *, tenant_id: str, project_id: str, run_id: str
+    repository: TransformationRunRepository,
+    *,
+    tenant_id: str,
+    project_id: str,
+    run_id: str,
+    principal: Principal,
 ) -> TransformationRunRecord:
-    with tenant_scope(_scope(tenant_id)):
+    _require_caller_matches_principal(tenant_id, principal)
+    with tenant_scope(_scope(principal)):
         for record in repository.list_runs(tenant_id=tenant_id, project_id=project_id):
             if record.run_id == run_id:
                 return record
@@ -121,7 +143,7 @@ def build_transformation_server(
     files = tuple(source_files)
     files_by_run: dict[str, tuple[SourceFile, ...]] = {}
 
-    def handle(tool_name: str, arguments: Mapping[str, object]) -> object:
+    def handle(tool_name: str, arguments: Mapping[str, object], principal: Principal) -> object:
         if tool_name == TOOL_LIST_SOURCE_FILES:
             _parse(_ProjectArgs, arguments)
             return files
@@ -129,20 +151,32 @@ def build_transformation_server(
         if tool_name == TOOL_GET_RUN:
             args = _parse(_RunArgs, arguments)
             return _find_run(
-                repository, tenant_id=args.tenant_id, project_id=args.project_id, run_id=args.run_id
+                repository,
+                tenant_id=args.tenant_id,
+                project_id=args.project_id,
+                run_id=args.run_id,
+                principal=principal,
             )
 
         if tool_name == TOOL_GET_MANIFEST:
             args = _parse(_RunArgs, arguments)
             record = _find_run(
-                repository, tenant_id=args.tenant_id, project_id=args.project_id, run_id=args.run_id
+                repository,
+                tenant_id=args.tenant_id,
+                project_id=args.project_id,
+                run_id=args.run_id,
+                principal=principal,
             )
             return record.manifest
 
         if tool_name == TOOL_GET_DIFF:
             args = _parse(_RunArgs, arguments)
             record = _find_run(
-                repository, tenant_id=args.tenant_id, project_id=args.project_id, run_id=args.run_id
+                repository,
+                tenant_id=args.tenant_id,
+                project_id=args.project_id,
+                run_id=args.run_id,
+                principal=principal,
             )
             run_files = files_by_run.get(args.run_id, files)
             return render_transformation_diff(
@@ -151,8 +185,9 @@ def build_transformation_server(
 
         if tool_name == TOOL_RUN:
             args = _parse(_RunToolArgs, arguments)
+            _require_caller_matches_principal(args.tenant_id, principal)
             manifest = transformation_port.transform(files)
-            with tenant_scope(_scope(args.tenant_id)):
+            with tenant_scope(_scope(principal)):
                 record = repository.record_run(
                     tenant_id=args.tenant_id,
                     project_id=args.project_id,
@@ -165,7 +200,11 @@ def build_transformation_server(
         if tool_name == TOOL_VALIDATE:
             args = _parse(_RunArgs, arguments)
             record = _find_run(
-                repository, tenant_id=args.tenant_id, project_id=args.project_id, run_id=args.run_id
+                repository,
+                tenant_id=args.tenant_id,
+                project_id=args.project_id,
+                run_id=args.run_id,
+                principal=principal,
             )
             run_files = files_by_run.get(args.run_id, files)
             diff = render_transformation_diff(

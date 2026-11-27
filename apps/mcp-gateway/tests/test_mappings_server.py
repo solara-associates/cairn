@@ -12,7 +12,8 @@ import pytest
 from cairn_adapters.auth_oidc import JwtAuthenticator, OidcSettings
 from cairn_contracts.estate import Equivalence
 from cairn_kernel.errors import ForbiddenError, MappingUnavailableError, ValidationError
-from cairn_kernel.security import Role
+from cairn_kernel.hex import TenantId
+from cairn_kernel.security import Principal, Role
 from cairn_kits.mcp import McpRegistry
 from cairn_mcp_gateway.gateway import McpGateway
 from cairn_mcp_gateway.mappings_server import (
@@ -25,6 +26,10 @@ from cairn_mcp_gateway.mappings_server import (
 ISSUER = "https://auth.example.cairn/"
 AUDIENCE = "cairn-mcp-gateway"
 SECRET = "unit-test-secret-does-not-leave-this-process"
+
+
+def _principal() -> Principal:
+    return Principal(subject="user-1", tenant_id=TenantId("tenant-1"), roles=(Role.VIEWER,))
 
 
 def _settings() -> OidcSettings:
@@ -70,6 +75,7 @@ def test_resolve_an_approximate_mapping_carries_its_caveat() -> None:
             "source_service": "s3",
             "target_provider": "gcp",
         },
+        _principal(),
     )
 
     assert resolved.equivalence is Equivalence.APPROXIMATE
@@ -79,11 +85,11 @@ def test_resolve_an_approximate_mapping_carries_its_caveat() -> None:
 def test_list_releases_and_get_release_return_real_data() -> None:
     server = build_mappings_server()
 
-    releases = server.handle(TOOL_LIST_RELEASES, {})
+    releases = server.handle(TOOL_LIST_RELEASES, {}, _principal())
     assert releases
     one = releases[0]
 
-    fetched = server.handle(TOOL_GET_RELEASE, {"version": one.version})
+    fetched = server.handle(TOOL_GET_RELEASE, {"version": one.version}, _principal())
     assert fetched.version == one.version
 
 
@@ -99,6 +105,7 @@ def test_resolve_an_unregistered_version_raises_mapping_unavailable() -> None:
                 "source_service": "s3",
                 "target_provider": "gcp",
             },
+            _principal(),
         )
 
 
@@ -106,14 +113,14 @@ def test_unknown_tool_name_raises() -> None:
     server = build_mappings_server()
 
     with pytest.raises(ValidationError):
-        server.handle("mappings.publish", {})
+        server.handle("mappings.publish", {}, _principal())
 
 
 def test_unknown_argument_key_is_rejected() -> None:
     server = build_mappings_server()
 
     with pytest.raises(ValidationError):
-        server.handle(TOOL_GET_RELEASE, {"version": "2026.11.2", "extra": "nope"})
+        server.handle(TOOL_GET_RELEASE, {"version": "2026.11.2", "extra": "nope"}, _principal())
 
 
 def test_caller_below_declared_role_gets_forbidden_before_the_handle_runs() -> None:

@@ -21,6 +21,17 @@ boundary without this registry knowing anything about agents.
 any real bounded-context wiring live in ``apps/mcp-gateway`` instead --
 this module only knows how to register and resolve, never how to
 authenticate a caller or what a specific tool actually does.
+
+ADR-020 adds the authenticated :class:`~cairn_kernel.security.Principal`
+as a required third argument to every ``ToolHandle``, propagated from
+``McpGateway.call_tool`` (which already authenticates before this
+registry is ever reached) through ``McpRegistry.invoke``/
+``ToolRegistration.invoke``. A handler needs this to enforce tenant
+scope against who the gateway actually authenticated, rather than a
+caller-supplied argument about itself -- see that ADR for the gap this
+closes. ``cairn_kits`` may import ``cairn_kernel`` freely
+(``kits-purity`` only forbids ``cairn_adapters``/``cairn_modules``), so
+this is not a purity violation.
 """
 
 from __future__ import annotations
@@ -29,14 +40,16 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 
 from cairn_kernel.errors import NotFoundError
+from cairn_kernel.security import Principal
 
 from cairn_kits.mcp.capability import ToolCapability
 
-#: A bounded-context server's handle: given the tool name being invoked
-#: and its arguments, produce the result. One handle may serve several
-#: tool names (one MCP server, several tools), matching ADR-011's "one
-#: server per bounded context" shape.
-ToolHandle = Callable[[str, Mapping[str, object]], object]
+#: A bounded-context server's handle: given the tool name being invoked,
+#: its arguments, and the gateway's authenticated caller, produce the
+#: result. One handle may serve several tool names (one MCP server,
+#: several tools), matching ADR-011's "one server per bounded context"
+#: shape.
+ToolHandle = Callable[[str, Mapping[str, object], Principal], object]
 
 
 class ToolNotRegisteredError(NotFoundError):
@@ -109,8 +122,8 @@ class ToolRegistration:
     def capability(self) -> ToolCapability:
         return self.server.capabilities[self.tool_name]
 
-    def invoke(self, arguments: Mapping[str, object] | None = None) -> object:
-        return self.server.handle(self.tool_name, dict(arguments or {}))
+    def invoke(self, principal: Principal, arguments: Mapping[str, object] | None = None) -> object:
+        return self.server.handle(self.tool_name, dict(arguments or {}), principal)
 
 
 @dataclass(slots=True)
@@ -138,8 +151,13 @@ class McpRegistry:
             raise ToolNotRegisteredError(f"no bounded-context server exposes tool {tool_name!r}")
         return ToolRegistration(tool_name=tool_name, server=self._servers[context_id])
 
-    def invoke(self, tool_name: str, arguments: Mapping[str, object] | None = None) -> object:
-        return self.lookup(tool_name).invoke(arguments)
+    def invoke(
+        self,
+        tool_name: str,
+        principal: Principal,
+        arguments: Mapping[str, object] | None = None,
+    ) -> object:
+        return self.lookup(tool_name).invoke(principal, arguments)
 
     def capability_of(self, tool_name: str) -> ToolCapability:
         return self.lookup(tool_name).capability

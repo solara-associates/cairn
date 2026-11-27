@@ -11,9 +11,15 @@ from pathlib import Path
 import jwt
 import pytest
 from cairn_adapters.auth_oidc import JwtAuthenticator, OidcSettings
-from cairn_kernel.errors import ForbiddenError, NotFoundError, ValidationError
+from cairn_kernel.errors import (
+    ForbiddenError,
+    NotFoundError,
+    TenantScopeViolationError,
+    ValidationError,
+)
+from cairn_kernel.hex import TenantId
 from cairn_kernel.outbox import InMemoryOutboxStore
-from cairn_kernel.security import Role
+from cairn_kernel.security import Principal, Role
 from cairn_kits.mcp import McpRegistry
 from cairn_mcp_gateway.estate_server import (
     TOOL_GET_DEPENDENCIES,
@@ -86,6 +92,10 @@ def _real_assessment_service() -> AssessmentService:
     return service
 
 
+def _principal(tenant_id: str = TENANT) -> Principal:
+    return Principal(subject="user-1", tenant_id=TenantId(tenant_id), roles=(Role.VIEWER,))
+
+
 def _settings() -> OidcSettings:
     return OidcSettings(issuer=ISSUER, audience=AUDIENCE, algorithms=("HS256",), secret=SECRET)
 
@@ -123,7 +133,7 @@ def test_list_workloads_returns_real_data_through_the_application_service() -> N
     service = _real_assessment_service()
     server = build_estate_server(service)
 
-    workloads = server.handle(TOOL_LIST_WORKLOADS, {"assessment_run_id": RUN_ID})
+    workloads = server.handle(TOOL_LIST_WORKLOADS, {"assessment_run_id": RUN_ID}, _principal())
 
     assert workloads
     assert all(hasattr(workload, "workload_id") for workload in workloads)
@@ -133,16 +143,20 @@ def test_get_workload_and_dependencies_round_trip() -> None:
     service = _real_assessment_service()
     server = build_estate_server(service)
 
-    workloads = server.handle(TOOL_LIST_WORKLOADS, {"assessment_run_id": RUN_ID})
+    workloads = server.handle(TOOL_LIST_WORKLOADS, {"assessment_run_id": RUN_ID}, _principal())
     one = workloads[0]
 
     fetched = server.handle(
-        TOOL_GET_WORKLOAD, {"assessment_run_id": RUN_ID, "workload_id": one.workload_id}
+        TOOL_GET_WORKLOAD,
+        {"assessment_run_id": RUN_ID, "workload_id": one.workload_id},
+        _principal(),
     )
     assert fetched.workload_id == one.workload_id
 
     dependencies = server.handle(
-        TOOL_GET_DEPENDENCIES, {"assessment_run_id": RUN_ID, "workload_id": one.workload_id}
+        TOOL_GET_DEPENDENCIES,
+        {"assessment_run_id": RUN_ID, "workload_id": one.workload_id},
+        _principal(),
     )
     assert set(dependencies) == {"depends_on", "depended_on_by"}
 
@@ -151,7 +165,7 @@ def test_list_resources_returns_real_data() -> None:
     service = _real_assessment_service()
     server = build_estate_server(service)
 
-    resources = server.handle(TOOL_LIST_RESOURCES, {"assessment_run_id": RUN_ID})
+    resources = server.handle(TOOL_LIST_RESOURCES, {"assessment_run_id": RUN_ID}, _principal())
 
     assert resources
 
@@ -162,7 +176,9 @@ def test_get_workload_not_found_raises() -> None:
 
     with pytest.raises(NotFoundError):
         server.handle(
-            TOOL_GET_WORKLOAD, {"assessment_run_id": RUN_ID, "workload_id": "no-such-workload"}
+            TOOL_GET_WORKLOAD,
+            {"assessment_run_id": RUN_ID, "workload_id": "no-such-workload"},
+            _principal(),
         )
 
 
@@ -171,7 +187,7 @@ def test_unknown_tool_name_raises() -> None:
     server = build_estate_server(service)
 
     with pytest.raises(ValidationError):
-        server.handle("estate.delete_everything", {"assessment_run_id": RUN_ID})
+        server.handle("estate.delete_everything", {"assessment_run_id": RUN_ID}, _principal())
 
 
 def test_unknown_argument_key_is_rejected() -> None:
@@ -180,7 +196,22 @@ def test_unknown_argument_key_is_rejected() -> None:
 
     with pytest.raises(ValidationError):
         server.handle(
-            TOOL_LIST_WORKLOADS, {"assessment_run_id": RUN_ID, "unexpected_extra_key": "x"}
+            TOOL_LIST_WORKLOADS,
+            {"assessment_run_id": RUN_ID, "unexpected_extra_key": "x"},
+            _principal(),
+        )
+
+
+def test_reading_another_tenants_run_raises_tenant_scope_violation() -> None:
+    """ADR-020: a principal authenticated for a different tenant cannot
+    read this run's workloads, even though estate has no RLS layer of
+    its own to fall back on (every store behind it is in-memory)."""
+    service = _real_assessment_service()
+    server = build_estate_server(service)
+
+    with pytest.raises(TenantScopeViolationError):
+        server.handle(
+            TOOL_LIST_WORKLOADS, {"assessment_run_id": RUN_ID}, _principal("tenant-2-other")
         )
 
 

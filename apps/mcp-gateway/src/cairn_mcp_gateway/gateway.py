@@ -75,10 +75,16 @@ class McpGateway:
         before ``McpRegistry.lookup``/``invoke`` is ever called, so a
         rejected caller's request never reaches a registered server's
         handle -- not even to discover whether the tool exists.
+
+        ADR-020: the ``principal`` this method just authenticated is
+        propagated into the handle itself via ``McpRegistry.invoke``,
+        so every bounded-context server can enforce tenant scope
+        against who the gateway actually authenticated, not a
+        caller-supplied argument about itself.
         """
         principal = self.authenticate(token)
         self.authorize(principal, tool_name)
-        return self.registry.invoke(tool_name, arguments)
+        return self.registry.invoke(tool_name, principal, arguments)
 
 
 __all__ = ["McpGateway"]

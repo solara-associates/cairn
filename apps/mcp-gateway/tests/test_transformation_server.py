@@ -15,8 +15,14 @@ import pytest
 from cairn_adapters.auth_oidc import JwtAuthenticator, OidcSettings
 from cairn_adapters.transform_core.fake import FakeTransformationPort
 from cairn_contracts.transformation import SourceFile, SourceLanguage
-from cairn_kernel.errors import ForbiddenError, NotFoundError, ValidationError
-from cairn_kernel.security import Role
+from cairn_kernel.errors import (
+    ForbiddenError,
+    NotFoundError,
+    TenantScopeViolationError,
+    ValidationError,
+)
+from cairn_kernel.hex import TenantId
+from cairn_kernel.security import Principal, Role
 from cairn_kits.mcp import McpRegistry, ToolCapability
 from cairn_mcp_gateway.gateway import McpGateway
 from cairn_mcp_gateway.transformation_server import (
@@ -82,6 +88,10 @@ def _server() -> tuple:
     return server, repository
 
 
+def _principal(tenant_id: str = TENANT) -> Principal:
+    return Principal(subject="user-1", tenant_id=TenantId(tenant_id), roles=(Role.ENGINEER,))
+
+
 def _settings() -> OidcSettings:
     return OidcSettings(issuer=ISSUER, audience=AUDIENCE, algorithms=("HS256",), secret=SECRET)
 
@@ -117,7 +127,9 @@ def _gateway(server) -> McpGateway:
 def test_list_source_files_returns_real_data() -> None:
     server, _repository = _server()
 
-    files = server.handle(TOOL_LIST_SOURCE_FILES, {"tenant_id": TENANT, "project_id": PROJECT})
+    files = server.handle(
+        TOOL_LIST_SOURCE_FILES, {"tenant_id": TENANT, "project_id": PROJECT}, _principal()
+    )
 
     assert files == (IMPORT_IMP_FIXTURE,)
 
@@ -129,7 +141,9 @@ def test_run_is_propose_and_writes_nothing_outside_cairns_own_store() -> None:
     before = IMPORT_IMP_FIXTURE.content
 
     record = server.handle(
-        TOOL_RUN, {"tenant_id": TENANT, "project_id": PROJECT, "created_by": "user-1"}
+        TOOL_RUN,
+        {"tenant_id": TENANT, "project_id": PROJECT, "created_by": "user-1"},
+        _principal(),
     )
 
     # the fake source tree is byte-identical before and after: this tool
@@ -138,17 +152,23 @@ def test_run_is_propose_and_writes_nothing_outside_cairns_own_store() -> None:
     assert record.manifest.applied_count == 1
 
     fetched_run = server.handle(
-        TOOL_GET_RUN, {"tenant_id": TENANT, "project_id": PROJECT, "run_id": record.run_id}
+        TOOL_GET_RUN,
+        {"tenant_id": TENANT, "project_id": PROJECT, "run_id": record.run_id},
+        _principal(),
     )
     assert fetched_run.run_id == record.run_id
 
     manifest = server.handle(
-        TOOL_GET_MANIFEST, {"tenant_id": TENANT, "project_id": PROJECT, "run_id": record.run_id}
+        TOOL_GET_MANIFEST,
+        {"tenant_id": TENANT, "project_id": PROJECT, "run_id": record.run_id},
+        _principal(),
     )
     assert manifest.applied_count == 1
 
     diff = server.handle(
-        TOOL_GET_DIFF, {"tenant_id": TENANT, "project_id": PROJECT, "run_id": record.run_id}
+        TOOL_GET_DIFF,
+        {"tenant_id": TENANT, "project_id": PROJECT, "run_id": record.run_id},
+        _principal(),
     )
     assert "importlib" in diff.files[0].unified_diff
 
@@ -158,10 +178,14 @@ def test_validate_is_propose_and_produces_a_validation_run() -> None:
     assert server.capabilities[TOOL_VALIDATE] is ToolCapability.PROPOSE
 
     record = server.handle(
-        TOOL_RUN, {"tenant_id": TENANT, "project_id": PROJECT, "created_by": "user-1"}
+        TOOL_RUN,
+        {"tenant_id": TENANT, "project_id": PROJECT, "created_by": "user-1"},
+        _principal(),
     )
     validation = server.handle(
-        TOOL_VALIDATE, {"tenant_id": TENANT, "project_id": PROJECT, "run_id": record.run_id}
+        TOOL_VALIDATE,
+        {"tenant_id": TENANT, "project_id": PROJECT, "run_id": record.run_id},
+        _principal(),
     )
 
     # no checks configured for this server -- vacuously approved, and
@@ -174,7 +198,23 @@ def test_get_run_for_a_nonexistent_run_raises_not_found() -> None:
 
     with pytest.raises(NotFoundError):
         server.handle(
-            TOOL_GET_RUN, {"tenant_id": TENANT, "project_id": PROJECT, "run_id": "no-such-run"}
+            TOOL_GET_RUN,
+            {"tenant_id": TENANT, "project_id": PROJECT, "run_id": "no-such-run"},
+            _principal(),
+        )
+
+
+def test_a_tenant_b_principal_cannot_run_a_transformation_claiming_tenant_a() -> None:
+    """ADR-020: the real gap this unit closes. A caller-supplied
+    ``tenant_id`` is not enough on its own -- the authenticated
+    principal must actually be that tenant before anything is recorded."""
+    server, _repository = _server()
+
+    with pytest.raises(TenantScopeViolationError):
+        server.handle(
+            TOOL_RUN,
+            {"tenant_id": TENANT, "project_id": PROJECT, "created_by": "user-1"},
+            _principal("tenant-2-other"),
         )
 
 
@@ -182,7 +222,9 @@ def test_unknown_tool_name_raises() -> None:
     server, _repository = _server()
 
     with pytest.raises(ValidationError):
-        server.handle("transformation.apply", {"tenant_id": TENANT, "project_id": PROJECT})
+        server.handle(
+            "transformation.apply", {"tenant_id": TENANT, "project_id": PROJECT}, _principal()
+        )
 
 
 def test_unknown_argument_key_is_rejected() -> None:
@@ -190,7 +232,9 @@ def test_unknown_argument_key_is_rejected() -> None:
 
     with pytest.raises(ValidationError):
         server.handle(
-            TOOL_LIST_SOURCE_FILES, {"tenant_id": TENANT, "project_id": PROJECT, "extra": "nope"}
+            TOOL_LIST_SOURCE_FILES,
+            {"tenant_id": TENANT, "project_id": PROJECT, "extra": "nope"},
+            _principal(),
         )
 
 

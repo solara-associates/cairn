@@ -16,7 +16,8 @@ import jwt
 import pytest
 from cairn_adapters.auth_oidc import JwtAuthenticator, OidcSettings
 from cairn_kernel.errors import ControlUnavailableError, ForbiddenError, UnauthenticatedError
-from cairn_kernel.security import Role
+from cairn_kernel.hex import TenantId
+from cairn_kernel.security import Principal, Role
 from cairn_kits.mcp import BoundedContextServer, McpRegistry, ToolCapability, ToolNotRegisteredError
 from cairn_mcp_gateway import (
     TOOL_GET_CONTROL,
@@ -58,7 +59,8 @@ def _token(*, roles: tuple[str, ...] = (), subject: str = "user-1") -> str:
 def _counting_server(tool_name: str) -> tuple[BoundedContextServer, list[tuple[str, dict]]]:
     calls: list[tuple[str, dict]] = []
 
-    def handle(name: str, arguments: dict) -> object:
+    def handle(name: str, arguments: dict, principal: Principal) -> object:
+        del principal
         calls.append((name, dict(arguments)))
         return {"ok": True}
 
@@ -180,6 +182,9 @@ def test_posture_get_control_still_requires_its_scope() -> None:
 
 def test_build_posture_server_rejects_an_unknown_control_cleanly() -> None:
     server = build_posture_server()
+    principal = Principal(subject="user-1", tenant_id=TenantId(TENANT_ID), roles=(Role.AUDITOR,))
 
     with pytest.raises(ControlUnavailableError):
-        server.handle(TOOL_GET_CONTROL, {"version": "2026.11.1", "control_id": "does-not-exist"})
+        server.handle(
+            TOOL_GET_CONTROL, {"version": "2026.11.1", "control_id": "does-not-exist"}, principal
+        )

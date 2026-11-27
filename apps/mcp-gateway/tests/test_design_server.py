@@ -11,8 +11,14 @@ from datetime import UTC, datetime, timedelta
 import jwt
 import pytest
 from cairn_adapters.auth_oidc import JwtAuthenticator, OidcSettings
-from cairn_kernel.errors import ForbiddenError, NotFoundError, ValidationError
-from cairn_kernel.security import Role
+from cairn_kernel.errors import (
+    ForbiddenError,
+    NotFoundError,
+    TenantScopeViolationError,
+    ValidationError,
+)
+from cairn_kernel.hex import TenantId
+from cairn_kernel.security import Principal, Role
 from cairn_kits.mcp import McpRegistry, ToolCapability
 from cairn_mcp_gateway.design_server import (
     TOOL_GENERATE_ROADMAP,
@@ -70,6 +76,10 @@ def _workload(workload_id: str) -> dict:
     }
 
 
+def _principal(tenant_id: str = TENANT) -> Principal:
+    return Principal(subject="user-1", tenant_id=TenantId(tenant_id), roles=(Role.ARCHITECT,))
+
+
 def _settings() -> OidcSettings:
     return OidcSettings(issuer=ISSUER, audience=AUDIENCE, algorithms=("HS256",), secret=SECRET)
 
@@ -107,10 +117,10 @@ def _gateway(server) -> McpGateway:
 def test_list_patterns_and_get_pattern_return_real_data() -> None:
     server = build_design_server()
 
-    patterns = server.handle(TOOL_LIST_PATTERNS, {})
+    patterns = server.handle(TOOL_LIST_PATTERNS, {}, _principal())
     assert any(pattern.id == "web-app" for pattern in patterns)
 
-    pattern = server.handle(TOOL_GET_PATTERN, {"pattern_id": "web-app"})
+    pattern = server.handle(TOOL_GET_PATTERN, {"pattern_id": "web-app"}, _principal())
     assert pattern.id == "web-app"
 
 
@@ -133,13 +143,14 @@ def test_generate_target_model_is_declared_propose_and_produces_a_candidate() ->
                 "database_engine": "cloud_sql_postgres",
             },
         },
+        _principal(),
     )
 
     assert target_model.design_id == "design-1"
     # no approval state set on a freshly generated candidate
     assert not hasattr(target_model, "approval_status")
 
-    fetched = server.handle(TOOL_GET_TARGET_MODEL, {"design_id": "design-1"})
+    fetched = server.handle(TOOL_GET_TARGET_MODEL, {"design_id": "design-1"}, _principal())
     assert fetched.design_id == "design-1"
 
 
@@ -156,6 +167,7 @@ def test_generate_roadmap_is_declared_propose_and_produces_a_candidate() -> None
             "design_id": "design-never-generated",
             "workloads": [_workload("w-1")],
         },
+        _principal(),
     )
 
     assert roadmap.plan_id == "plan-1"
@@ -166,21 +178,44 @@ def test_get_target_model_before_generation_raises_not_found() -> None:
     server = build_design_server()
 
     with pytest.raises(NotFoundError):
-        server.handle(TOOL_GET_TARGET_MODEL, {"design_id": "never-generated"})
+        server.handle(TOOL_GET_TARGET_MODEL, {"design_id": "never-generated"}, _principal())
+
+
+def test_a_tenant_b_principal_cannot_generate_a_target_model_claiming_tenant_a() -> None:
+    """ADR-020: the real gap this unit closes. A caller-supplied
+    ``tenant_id`` is not enough on its own -- the authenticated
+    principal must actually be that tenant before anything generates."""
+    server = build_design_server()
+
+    with pytest.raises(TenantScopeViolationError):
+        server.handle(
+            TOOL_GENERATE_TARGET_MODEL,
+            {
+                "tenant_id": TENANT,
+                "project_id": PROJECT,
+                "design_id": "design-1",
+                "pattern_id": "web-app",
+                "mapping_version": "2026.11.2",
+                "target_provider": "gcp",
+                "resources": [_resource("r-1")],
+                "parameters": {},
+            },
+            _principal("tenant-2-other"),
+        )
 
 
 def test_unknown_tool_name_raises() -> None:
     server = build_design_server()
 
     with pytest.raises(ValidationError):
-        server.handle("design.publish_pattern", {})
+        server.handle("design.publish_pattern", {}, _principal())
 
 
 def test_unknown_argument_key_is_rejected() -> None:
     server = build_design_server()
 
     with pytest.raises(ValidationError):
-        server.handle(TOOL_GET_PATTERN, {"pattern_id": "web-app", "extra": "nope"})
+        server.handle(TOOL_GET_PATTERN, {"pattern_id": "web-app", "extra": "nope"}, _principal())
 
 
 def test_caller_below_declared_role_gets_forbidden_before_the_handle_runs() -> None:
