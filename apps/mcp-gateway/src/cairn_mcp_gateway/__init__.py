@@ -29,6 +29,16 @@ from cairn_mcp_gateway.estate_server import (
     build_estate_server,
 )
 from cairn_mcp_gateway.gateway import McpGateway
+from cairn_mcp_gateway.ingestion_server import (
+    TOOL_ASSESSMENT_COVERAGE_REPORT,
+    TOOL_ASSESSMENT_GET_DECISION,
+    TOOL_ASSESSMENT_GET_RESULTS,
+    TOOL_ASSESSMENT_GET_RUN,
+    TOOL_GET_COVERAGE,
+    TOOL_GET_RUN,
+    TOOL_LIST_RUNS,
+    build_ingestion_server,
+)
 from cairn_mcp_gateway.mappings_server import (
     TOOL_GET_RELEASE,
     TOOL_LIST_RELEASES,
@@ -40,12 +50,19 @@ from cairn_mcp_gateway.registry_factory import REQUIRED_ROLES, build_default_reg
 
 __all__ = [
     "REQUIRED_ROLES",
+    "TOOL_ASSESSMENT_COVERAGE_REPORT",
+    "TOOL_ASSESSMENT_GET_DECISION",
+    "TOOL_ASSESSMENT_GET_RESULTS",
+    "TOOL_ASSESSMENT_GET_RUN",
     "TOOL_GET_CONTROL",
+    "TOOL_GET_COVERAGE",
     "TOOL_GET_DEPENDENCIES",
     "TOOL_GET_RELEASE",
+    "TOOL_GET_RUN",
     "TOOL_GET_WORKLOAD",
     "TOOL_LIST_RELEASES",
     "TOOL_LIST_RESOURCES",
+    "TOOL_LIST_RUNS",
     "TOOL_LIST_WORKLOADS",
     "TOOL_RESOLVE",
     "A2ABridge",
@@ -59,6 +76,7 @@ __all__ = [
     "agent_cards_for_registry",
     "build_default_registry",
     "build_estate_server",
+    "build_ingestion_server",
     "build_mappings_server",
     "build_posture_server",
     "mcp_call_to_a2a_message",

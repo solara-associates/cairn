@@ -141,12 +141,8 @@ def test_resume_is_idempotent_on_already_completed_files() -> None:
     again, even across multiple resume calls."""
 
     store = InMemoryCheckpointStore()
-    queue_run(
-        store, run_id="run-multi", tenant_id="t1", project_id="p1", file_ids=("f1",)
-    )
-    run_or_resume(
-        store, "run-multi", load_content=lambda _fid: GOLDEN_CSV, parse=csv_adapter.parse
-    )
+    queue_run(store, run_id="run-multi", tenant_id="t1", project_id="p1", file_ids=("f1",))
+    run_or_resume(store, "run-multi", load_content=lambda _fid: GOLDEN_CSV, parse=csv_adapter.parse)
     completed = store.load("run-multi")
     assert completed.state is RunState.COMPLETED
     assert completed.pending_file_ids == ()
@@ -221,3 +217,14 @@ def test_empty_batch_has_zero_coverage_not_full_coverage() -> None:
     assert result.state is RunState.COMPLETED
     assert result.coverage == 0.0
     assert result.has_partial_coverage() is False
+
+
+def test_list_runs_scopes_to_tenant_and_project() -> None:
+    store = InMemoryCheckpointStore()
+    queue_run(store, run_id="run-t1-p1", tenant_id="t1", project_id="p1", file_ids=())
+    queue_run(store, run_id="run-t1-p2", tenant_id="t1", project_id="p2", file_ids=())
+    queue_run(store, run_id="run-t2-p1", tenant_id="t2", project_id="p1", file_ids=())
+
+    runs = store.list_runs(tenant_id="t1", project_id="p1")
+
+    assert [run.run_id for run in runs] == ["run-t1-p1"]
