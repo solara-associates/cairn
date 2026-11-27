@@ -13,9 +13,22 @@ from cairn_kits.loop import (
     AgentSpec,
     AgentStep,
     PromptRegistry,
+    RunBudget,
     StepKind,
     validate_agent_run_transition,
 )
+
+
+def _budget(**overrides: object) -> RunBudget:
+    kwargs: dict[str, object] = {
+        "max_steps": 10,
+        "max_model_calls": 10,
+        "max_wall_clock_seconds": 300,
+        "max_total_tokens": 100_000,
+        "max_cost_micro_usd": 500_000,
+    }
+    kwargs.update(overrides)
+    return RunBudget(**kwargs)  # type: ignore[arg-type]
 
 
 def _prompt_registry(tmp_path: Path) -> PromptRegistry:
@@ -34,7 +47,7 @@ def _spec(prompt_registry: PromptRegistry, **overrides: object) -> AgentSpec:
         "toolset": ("estate.read_estate",),
         "required_role": "APP",
         "prompt_references": (("demo-agent/system", 1),),
-        "max_steps": 10,
+        "budget": _budget(),
         "prompt_registry": prompt_registry,
     }
     kwargs.update(overrides)
@@ -102,7 +115,7 @@ def test_agent_spec_with_empty_toolset_raises(tmp_path: Path) -> None:
 def test_agent_spec_with_an_unbounded_budget_field_raises(tmp_path: Path) -> None:
     registry = _prompt_registry(tmp_path)
     with pytest.raises(ValidationError):
-        _spec(registry, max_steps=0)
+        _spec(registry, budget=_budget(max_steps=0))
 
 
 def test_agent_spec_with_an_unresolvable_prompt_reference_raises(tmp_path: Path) -> None:
