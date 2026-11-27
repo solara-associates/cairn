@@ -14,6 +14,7 @@ from cairn_kernel.security import Role
 from cairn_kits.mcp import McpRegistry
 from cairn_modules.assessment import AssessmentService, InMemoryCheckpointStore
 from cairn_modules.ingestion.run import InMemoryCheckpointStore as IngestionCheckpointStore
+from cairn_modules.projects.repository import InMemoryProjectRepository
 
 from cairn_mcp_gateway.estate_server import (
     TOOL_GET_DEPENDENCIES,
@@ -21,6 +22,12 @@ from cairn_mcp_gateway.estate_server import (
     TOOL_LIST_RESOURCES,
     TOOL_LIST_WORKLOADS,
     build_estate_server,
+)
+from cairn_mcp_gateway.finops_server import (
+    TOOL_GET_BASELINE,
+    TOOL_GET_TCO,
+    TOOL_LIST_PRICE_RELEASES,
+    build_finops_server,
 )
 from cairn_mcp_gateway.ingestion_server import (
     TOOL_ASSESSMENT_COVERAGE_REPORT,
@@ -39,6 +46,11 @@ from cairn_mcp_gateway.mappings_server import (
     build_mappings_server,
 )
 from cairn_mcp_gateway.posture_server import TOOL_GET_CONTROL, build_posture_server
+from cairn_mcp_gateway.tenancy_server import (
+    TOOL_GET_PROJECT,
+    TOOL_LIST_PROJECT_MEMBERS,
+    build_tenancy_server,
+)
 
 #: Scope required to call each registered tool, by tool name. A control
 #: catalogue entry is read-only but still compliance-sensitive content,
@@ -52,6 +64,9 @@ from cairn_mcp_gateway.posture_server import TOOL_GET_CONTROL, build_posture_ser
 #: §4.1's own table exactly -- every one of them is VIEWER.
 #: R6-09 (892/ingestion, folding in the four tools design originally
 #: proposed as a ninth "assessment" server): VIEWER again, same table.
+#: R6-10 (894/finops+tenancy): finops.* is VIEWER, same table;
+#: tenancy.list_project_members is TENANT_ADMIN, per design §4.1's own
+#: table and this unit's acceptance criterion.
 REQUIRED_ROLES: dict[str, Role] = {
     TOOL_GET_CONTROL: Role.AUDITOR,
     TOOL_LIST_WORKLOADS: Role.VIEWER,
@@ -68,16 +83,21 @@ REQUIRED_ROLES: dict[str, Role] = {
     TOOL_ASSESSMENT_GET_RESULTS: Role.VIEWER,
     TOOL_ASSESSMENT_COVERAGE_REPORT: Role.VIEWER,
     TOOL_ASSESSMENT_GET_DECISION: Role.VIEWER,
+    TOOL_GET_BASELINE: Role.VIEWER,
+    TOOL_GET_TCO: Role.VIEWER,
+    TOOL_LIST_PRICE_RELEASES: Role.VIEWER,
+    TOOL_GET_PROJECT: Role.VIEWER,
+    TOOL_LIST_PROJECT_MEMBERS: Role.TENANT_ADMIN,
 }
 
 
 def build_default_registry() -> McpRegistry:
     """Build this unit's reference registry: posture (R5-04a), estate,
-    mappings (R6-08) and ingestion (R6-09). ``estate`` and
-    ``ingestion``'s assessment.* tools share one fresh, empty, in-memory
-    ``AssessmentService`` -- this function is the internal reference
-    wiring R6 units build on, not the eventual production composition
-    root (``apps/worker``/``apps/api`` construct their own
+    mappings (R6-08), ingestion (R6-09), finops and tenancy (R6-10).
+    ``estate``, ``ingestion`` and ``finops`` share one fresh, empty,
+    in-memory ``AssessmentService`` -- this function is the internal
+    reference wiring R6 units build on, not the eventual production
+    composition root (``apps/worker``/``apps/api`` construct their own
     ``AssessmentService`` against real stores; a later unit binds this
     registry to that same instance instead of a fresh one).
     """
@@ -89,6 +109,8 @@ def build_default_registry() -> McpRegistry:
     registry.register(build_estate_server(assessment_service))
     registry.register(build_mappings_server())
     registry.register(build_ingestion_server(IngestionCheckpointStore(), assessment_service))
+    registry.register(build_finops_server(assessment_service))
+    registry.register(build_tenancy_server(InMemoryProjectRepository()))
     return registry
 
 
