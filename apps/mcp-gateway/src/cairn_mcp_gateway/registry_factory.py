@@ -9,9 +9,24 @@ bridge).
 
 from __future__ import annotations
 
+from cairn_kernel.outbox import InMemoryOutboxStore
 from cairn_kernel.security import Role
 from cairn_kits.mcp import McpRegistry
+from cairn_modules.assessment import AssessmentService, InMemoryCheckpointStore
 
+from cairn_mcp_gateway.estate_server import (
+    TOOL_GET_DEPENDENCIES,
+    TOOL_GET_WORKLOAD,
+    TOOL_LIST_RESOURCES,
+    TOOL_LIST_WORKLOADS,
+    build_estate_server,
+)
+from cairn_mcp_gateway.mappings_server import (
+    TOOL_GET_RELEASE,
+    TOOL_LIST_RELEASES,
+    TOOL_RESOLVE,
+    build_mappings_server,
+)
 from cairn_mcp_gateway.posture_server import TOOL_GET_CONTROL, build_posture_server
 
 #: Scope required to call each registered tool, by tool name. A control
@@ -21,16 +36,40 @@ from cairn_mcp_gateway.posture_server import TOOL_GET_CONTROL, build_posture_ser
 #: leaving it open to any authenticated VIEWER -- a judgement call, not
 #: a fact handed down by ADR-011, which only says the gateway "handles
 #: auth, per-tenant authorization".
+#:
+#: R6-08 (889/estate+mappings): both new servers' tools follow design
+#: §4.1's own table exactly -- every one of them is VIEWER.
 REQUIRED_ROLES: dict[str, Role] = {
     TOOL_GET_CONTROL: Role.AUDITOR,
+    TOOL_LIST_WORKLOADS: Role.VIEWER,
+    TOOL_GET_WORKLOAD: Role.VIEWER,
+    TOOL_LIST_RESOURCES: Role.VIEWER,
+    TOOL_GET_DEPENDENCIES: Role.VIEWER,
+    TOOL_RESOLVE: Role.VIEWER,
+    TOOL_GET_RELEASE: Role.VIEWER,
+    TOOL_LIST_RELEASES: Role.VIEWER,
 }
 
 
 def build_default_registry() -> McpRegistry:
-    """Build the registry this unit proves: the posture bounded
-    context's ``posture.get_control`` tool, and nothing else yet."""
+    """Build this unit's reference registry: posture (R5-04a), estate
+    and mappings (R6-08). ``estate``'s backing ``AssessmentService`` is
+    a fresh, empty, in-memory one here -- this function is the internal
+    reference wiring R6 units build on, not the eventual production
+    composition root (``apps/worker``/``apps/api`` construct their own
+    ``AssessmentService`` against real stores; a later unit binds this
+    registry to that same instance instead of a fresh one).
+    """
     registry = McpRegistry()
     registry.register(build_posture_server())
+    registry.register(
+        build_estate_server(
+            AssessmentService(
+                checkpoint_store=InMemoryCheckpointStore(), outbox=InMemoryOutboxStore()
+            )
+        )
+    )
+    registry.register(build_mappings_server())
     return registry
 
 
