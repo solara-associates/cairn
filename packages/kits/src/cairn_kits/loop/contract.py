@@ -30,6 +30,7 @@ from enum import Enum
 
 from cairn_kernel.errors import InvalidStateTransitionError, ValidationError
 
+from cairn_kits.loop.budget import RunBudget
 from cairn_kits.loop.prompt_registry import PromptRegistry
 
 
@@ -94,14 +95,19 @@ class AgentSpec:
     """A named, versioned agent. Constructed only through
     :meth:`build`, which is the one place a prompt reference is checked
     against a live :class:`PromptRegistry` -- never at the first call
-    that needs it (A5.13)."""
+    that needs it (A5.13).
+
+    ``budget`` is a :class:`RunBudget` (R6-03): all five dimensions
+    are required there already, so an "unbounded budget" is refused
+    by ``RunBudget`` itself, before ``AgentSpec`` is even constructed.
+    """
 
     agent_id: str
     version: int
     toolset: tuple[str, ...]
     required_role: str
     prompt_references: tuple[tuple[str, int], ...]
-    max_steps: int
+    budget: RunBudget
 
     def __post_init__(self) -> None:
         if not self.agent_id.strip():
@@ -116,13 +122,9 @@ class AgentSpec:
             raise ValidationError("agent spec toolset must contain unique, non-blank tool names")
         if not self.required_role.strip():
             raise ValidationError("agent spec needs a non-blank required_role")
-        if (
-            not isinstance(self.max_steps, int)
-            or isinstance(self.max_steps, bool)
-            or self.max_steps <= 0
-        ):
+        if not isinstance(self.budget, RunBudget):
             raise ValidationError(
-                "agent spec max_steps must be a positive integer (an unbounded budget is refused)"
+                "agent spec budget must be a RunBudget (an unbounded budget is refused)"
             )
 
     @classmethod
@@ -134,7 +136,7 @@ class AgentSpec:
         toolset: Sequence[str],
         required_role: str,
         prompt_references: Sequence[tuple[str, int]],
-        max_steps: int,
+        budget: RunBudget,
         prompt_registry: PromptRegistry,
     ) -> AgentSpec:
         prompt_registry.validate_references(prompt_references)
@@ -144,7 +146,7 @@ class AgentSpec:
             toolset=tuple(toolset),
             required_role=required_role,
             prompt_references=tuple(prompt_references),
-            max_steps=max_steps,
+            budget=budget,
         )
 
 
