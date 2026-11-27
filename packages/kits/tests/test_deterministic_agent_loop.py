@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 from cairn_kernel.errors import MissingDependencyError
+from cairn_kernel.model.ports import StructuredOutputExpectation
 from cairn_kernel.security import Role
 from cairn_kits.loop import (
     AgentRunState,
@@ -40,6 +41,21 @@ class _SequenceClock:
         if len(self._instants) > 1:
             return self._instants.pop(0)
         return self._instants[0]
+
+
+#: R6-11a: every ``AgentSpec`` now declares the shape of the one thing
+#: it produces. A small two-field object is enough for this file's own
+#: assertions, which are about the spec/loop contract, not about any
+#: real agent's proposal shape.
+_OUTPUT_SCHEMA = StructuredOutputExpectation(
+    schema_name="demo_proposal.v1",
+    schema={
+        "type": "object",
+        "required": ["summary"],
+        "properties": {"summary": {"type": "string"}, "confidence": {"type": "number"}},
+    },
+)
+_PROPOSAL: dict[str, object] = {"summary": "a proposal", "confidence": 0.5}
 
 
 def _budget(**overrides: object) -> RunBudget:
@@ -85,6 +101,7 @@ def _spec(prompt_registry: PromptRegistry, **overrides: object) -> AgentSpec:
         "required_role": Role.ENGINEER,
         "prompt_references": (("demo-agent/system", 1),),
         "budget": _budget(),
+        "output_schema": _OUTPUT_SCHEMA,
         "prompt_registry": prompt_registry,
         "mcp_registry": _mcp_registry(),
         "tool_roles": {"estate.read_estate": Role.ENGINEER},
@@ -110,12 +127,17 @@ def test_replays_scripted_steps_and_completes(tmp_path: Path) -> None:
         AgentStep(index=0, kind=StepKind.MODEL_CALL, detail={"prompt_id": "demo-agent/system"}),
         AgentStep(index=1, kind=StepKind.TOOL_CALL, detail={"tool_name": "estate.read_estate"}),
     )
-    loop = DeterministicAgentLoop(steps, clock=_SequenceClock([datetime(2026, 1, 1, tzinfo=UTC)]))
+    loop = DeterministicAgentLoop(
+        steps,
+        clock=_SequenceClock([datetime(2026, 1, 1, tzinfo=UTC)]),
+        scripted_proposal=_PROPOSAL,
+    )
     context = _context()
 
     run = loop.run(spec, {}, context=context)
 
     assert run.state is AgentRunState.COMPLETED
+    assert run.proposal == _PROPOSAL
     assert [step.index for step in run.steps] == [0, 1]
     assert context.step_recorder.steps_for(run.run_id) == run.steps
     assert context.budget_ledger.consumption(run.run_id)

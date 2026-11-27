@@ -27,6 +27,30 @@ tool in the toolset must resolve, through a live
 capability, and ``required_role`` must dominate every tool's own
 required role -- both checked once, at construction, the same shape
 as the prompt-reference check R6-01 already established.
+
+R6-11a closes the gap Wave 4 ran into: an agent's whole output is one
+structured proposal, and until this unit there was nowhere for it to
+go. ``AgentSpec`` gains the ``output_schema`` ADR-019 §1 always named
+(a ``StructuredOutputExpectation``, required, because a spec with no
+declared output contract is exactly the hole R-AI-01 exists to close),
+and ``AgentRun`` gains ``proposal``. The two are tied together by one
+rule, enforced here rather than trusted to each loop: **a run is
+``COMPLETED`` if and only if it carries a proposal that satisfied
+``spec.output_schema``.** A run whose proposal was missing, malformed
+or schema-invalid ends ``FAILED`` with the reason recorded and
+``proposal`` still ``None``; a run whose budget ran out ends
+``BUDGET_EXCEEDED`` with ``proposal`` still ``None``, even if the
+model did eventually produce one. Both are structural: ``__post_init__``
+rejects a ``COMPLETED`` run with no proposal and a non-``COMPLETED``
+run that carries one, so a loop implementation cannot report a
+half-valid proposal by mistake, and an application service above can
+read ``run.proposal is not None`` as "this was validated", never as
+"this was returned".
+
+``content_hash`` covers the proposal and the steps in one canonical
+projection, so whatever R6-15 seals into the run's evidence envelope
+carries the proposal under the same integrity as the step list: change
+one field of the proposal and the hash changes.
 """
 
 from __future__ import annotations
@@ -35,7 +59,14 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from enum import Enum
 
-from cairn_kernel.errors import InvalidStateTransitionError, MissingDependencyError, ValidationError
+from cairn_kernel.errors import (
+    InvalidStateTransitionError,
+    MissingDependencyError,
+    ModelSchemaValidationError,
+    ValidationError,
+)
+from cairn_kernel.evidence.hashing import payload_hash
+from cairn_kernel.model import StructuredOutputExpectation, validate_structured_output
 from cairn_kernel.security import Role
 
 from cairn_kits.loop.budget import RunBudget
@@ -121,6 +152,10 @@ class AgentSpec:
     ``budget`` is a :class:`RunBudget` (R6-03): all five dimensions
     are required there already, so an "unbounded budget" is refused
     by ``RunBudget`` itself, before ``AgentSpec`` is even constructed.
+
+    ``output_schema`` (R6-11a) is required and has no default, for the
+    same reason: a default would be a silent "any output will do", and
+    the one thing an agent produces is its proposal.
     """
 
     agent_id: str
@@ -129,6 +164,7 @@ class AgentSpec:
     required_role: Role
     prompt_references: tuple[tuple[str, int], ...]
     budget: RunBudget
+    output_schema: StructuredOutputExpectation
 
     def __post_init__(self) -> None:
         if not self.agent_id.strip():
@@ -147,6 +183,11 @@ class AgentSpec:
             raise ValidationError(
                 "agent spec budget must be a RunBudget (an unbounded budget is refused)"
             )
+        if not isinstance(self.output_schema, StructuredOutputExpectation):
+            raise ValidationError(
+                "agent spec output_schema must be a StructuredOutputExpectation "
+                "(an agent with no declared output contract is refused)"
+            )
 
     @classmethod
     def build(
@@ -158,6 +199,7 @@ class AgentSpec:
         required_role: Role,
         prompt_references: Sequence[tuple[str, int]],
         budget: RunBudget,
+        output_schema: StructuredOutputExpectation,
         prompt_registry: PromptRegistry,
         mcp_registry: McpRegistry,
         tool_roles: Mapping[str, Role],
@@ -198,6 +240,7 @@ class AgentSpec:
             required_role=required_role,
             prompt_references=tuple(prompt_references),
             budget=budget,
+            output_schema=output_schema,
         )
 
 
@@ -206,7 +249,16 @@ class AgentRun:
     """A run in progress. ``steps`` only grows: the one way to add a
     step is :meth:`with_step`, which returns a new ``AgentRun`` (this
     type is frozen) -- there is no method that replaces or removes a
-    step, because nothing here may rewrite history."""
+    step, because nothing here may rewrite history.
+
+    ``proposal`` (R6-11a) is the run's single structured output, set
+    once, through :meth:`with_proposal`, only after it has satisfied
+    the spec's ``output_schema``. It is ``None`` for every run that did
+    not finish with a valid one, and ``__post_init__`` holds that to a
+    biconditional against ``state``: ``COMPLETED`` iff ``proposal`` is
+    not ``None``. An application service above this package therefore
+    never has to ask whether the proposal it is holding was checked.
+    """
 
     run_id: str
     agent_id: str
@@ -216,6 +268,7 @@ class AgentRun:
     state: AgentRunState
     steps: tuple[AgentStep, ...] = ()
     terminal_reason: str | None = None
+    proposal: Mapping[str, object] | None = None
 
     def __post_init__(self) -> None:
         for field_name, value in (
@@ -231,6 +284,18 @@ class AgentRun:
                 raise ValidationError(
                     f"agent run steps must be sequential from 0; got index {step.index} at position {index}"
                 )
+        if self.proposal is not None and not isinstance(self.proposal, Mapping):
+            raise ValidationError("agent run proposal must be an object")
+        if self.state is AgentRunState.COMPLETED and self.proposal is None:
+            raise ValidationError(
+                f"agent run {self.run_id} cannot complete with no proposal: a run that"
+                " produced no valid proposal is FAILED or BUDGET_EXCEEDED, never COMPLETED"
+            )
+        if self.state is not AgentRunState.COMPLETED and self.proposal is not None:
+            raise ValidationError(
+                f"agent run {self.run_id} is {self.state.value} and must not carry a"
+                " proposal: an unvalidated or budget-stopped run proposes nothing"
+            )
 
     def with_step(self, step: AgentStep) -> AgentRun:
         if step.index != len(self.steps):
@@ -243,6 +308,93 @@ class AgentRun:
         validate_agent_run_transition(self.state, target)
         return replace(self, state=target)
 
+    def with_proposal(self, spec: AgentSpec, proposal: Mapping[str, object]) -> AgentRun:
+        """Validate ``proposal`` against ``spec.output_schema`` and
+        attach it, moving the run to ``COMPLETED`` in the same call --
+        one step, because a validated proposal *is* what completing
+        means, and splitting the two would let a caller leave a run
+        holding a proposal in a non-terminal state.
+
+        Raises ``ModelSchemaValidationError`` if the proposal does not
+        satisfy the schema, and ``ValidationError`` if this run already
+        carries one. Both leave this run untouched: the loop catches
+        the raise and terminates ``FAILED`` with the reason, which is
+        why ``proposal`` is still ``None`` on the run it returns.
+        """
+
+        if self.proposal is not None:
+            raise ValidationError(
+                f"agent run {self.run_id} already carries a proposal; a run proposes once"
+            )
+        validate_agent_run_transition(self.state, AgentRunState.COMPLETED)
+        validate_structured_output(spec.output_schema, proposal)
+        return replace(self, proposal=dict(proposal), state=AgentRunState.COMPLETED)
+
+    @property
+    def content_hash(self) -> str:
+        """A stable fingerprint over this run's identity, step list and
+        proposal, built the same way ``TargetModel.content_hash`` and
+        ``MigrationRoadmap.content_hash`` are (canonical JSON, sorted
+        keys, sha256). R6-15 seals this into the run's evidence
+        envelope, so the proposal is covered by the same integrity as
+        the steps: alter one field of either and this changes.
+        """
+
+        return payload_hash(
+            {
+                "run_id": self.run_id,
+                "agent_id": self.agent_id,
+                "agent_version": self.agent_version,
+                "tenant_id": self.tenant_id,
+                "actor": self.actor,
+                "state": self.state.value,
+                "terminal_reason": self.terminal_reason,
+                "steps": [
+                    {
+                        "index": step.index,
+                        "kind": step.kind.value,
+                        "detail": dict(step.detail),
+                    }
+                    for step in self.steps
+                ],
+                "proposal": None if self.proposal is None else dict(self.proposal),
+            }
+        )
+
+
+def complete_with_proposal(
+    run: AgentRun, spec: AgentSpec, proposal: Mapping[str, object] | None
+) -> AgentRun:
+    """Terminate ``run`` on its proposal, the one way both
+    :class:`AgentLoopPort` implementations are allowed to finish a run
+    that got as far as producing (or failing to produce) output.
+
+    Returns a ``COMPLETED`` run carrying ``proposal`` when it satisfies
+    ``spec.output_schema``; otherwise a ``FAILED`` run whose
+    ``terminal_reason`` says why and whose ``proposal`` is ``None``.
+    Nothing is raised at the caller: an agent run's own failure to
+    propose something valid is a terminal state of that run, not an
+    exception for the service above it to handle -- the same rule
+    ``AdkAgentLoop.run`` already applies to every other failure.
+
+    This lives here, next to the invariant it upholds, rather than once
+    per loop implementation, because "what counts as a finished run"
+    is the contract, not an implementation detail. A loop that wants a
+    different answer is wrong, not configurable.
+    """
+
+    if proposal is None:
+        return replace(
+            run,
+            terminal_reason="agent run produced no final proposal",
+        ).with_state(AgentRunState.FAILED)
+    try:
+        return run.with_proposal(spec, proposal)
+    except (ModelSchemaValidationError, ValidationError) as exc:
+        return replace(run, terminal_reason=f"agent run proposal rejected: {exc}").with_state(
+            AgentRunState.FAILED
+        )
+
 
 __all__ = [
     "ALLOWED_AGENT_RUN_TRANSITIONS",
@@ -251,5 +403,6 @@ __all__ = [
     "AgentSpec",
     "AgentStep",
     "StepKind",
+    "complete_with_proposal",
     "validate_agent_run_transition",
 ]
