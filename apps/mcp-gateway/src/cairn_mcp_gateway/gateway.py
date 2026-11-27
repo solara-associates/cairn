@@ -31,6 +31,12 @@ from dataclasses import dataclass, field
 
 from cairn_adapters.auth_oidc import JwtAuthenticator
 from cairn_kernel.errors import ForbiddenError, UnauthenticatedError
+from cairn_kernel.governance import (
+    GovernancePort,
+    GovernanceRequest,
+    NoOpGovernance,
+    require_tool_call_allowed,
+)
 from cairn_kernel.security import Principal, Role
 from cairn_kernel.vaid import VaidAuthenticator, VaidPresentation, VaidVerificationError
 from cairn_kits.mcp import McpRegistry
@@ -53,12 +59,18 @@ class McpGateway:
     presenting a bearer token are unaffected either way (ADR-020 §3).
     ``cairn_kernel.vaid.resolve_vaid_authenticator`` is what builds it
     where one is wanted.
+
+    ``governance`` is the optional policy-substrate port (ADR-020 §4)
+    and defaults to :class:`NoOpGovernance`, which allows every call and
+    records nothing -- so the default path is byte-for-byte today's
+    behaviour and CAIRN works fully with no governance adapter bound.
     """
 
     authenticator: JwtAuthenticator
     registry: McpRegistry
     required_roles: Mapping[str, Role] = field(default_factory=dict)
     vaid_authenticator: VaidAuthenticator | None = None
+    governance: GovernancePort = field(default_factory=NoOpGovernance)
 
     def authenticate(
         self, token: str | None = None, *, vaid: VaidPresentation | None = None
@@ -139,10 +151,40 @@ class McpGateway:
         produces that principal (see :meth:`authenticate`). A refused
         VAID raises before ``authorize`` and therefore before the
         registry, exactly as a refused token already did.
+
+        ADR-020 §4: the ``governance`` port is consulted after
+        ``authorize`` and still before the registry. The order is not
+        arbitrary -- governance is an *extra* layer that can only
+        subtract authority, so CAIRN's own checks must have already
+        passed before it is asked anything, and nothing it says can let
+        a call through that ``authorize`` would have refused. With the
+        default :class:`NoOpGovernance` bound this adds one allow and
+        changes nothing.
+
+        One consequence of needing the tool's declared capability to ask
+        governance anything: ``lookup`` now runs before the governance
+        call rather than inside ``invoke`` after it. The ordering
+        guarantee that matters is intact -- an *unauthenticated or
+        wrongly-scoped* caller still raises before the registry is
+        touched at all. What changes is only that a caller who passed
+        both of CAIRN's own checks and was then denied by an external
+        policy substrate can tell the tool exists. No handle runs for
+        them, and they were already authorized for that tool's required
+        role, so there is nothing there they did not already know.
         """
         principal = self.authenticate(token, vaid=vaid)
         self.authorize(principal, tool_name)
-        return self.registry.invoke(tool_name, principal, arguments)
+        registration = self.registry.lookup(tool_name)
+        require_tool_call_allowed(
+            self.governance,
+            GovernanceRequest.for_tool_call(
+                principal=principal,
+                tool_name=tool_name,
+                capability=registration.capability.value,
+                arguments=arguments,
+            ),
+        )
+        return registration.invoke(principal, arguments)
 
 
 __all__ = ["McpGateway"]
