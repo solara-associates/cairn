@@ -1,39 +1,50 @@
-"""Unit 825 negative proof: VAID and SYNTHERA are documented boundaries
-only (``docs/specs/r5-integration-boundaries.md``), never implemented.
+"""SYNTHERA is a documented boundary only; VAID is now core (ADR-020).
 
-This test asserts that no actual import, package dependency, or network
-host/string reference to either name exists anywhere in this repository
-today. It is intentionally repo-wide (not scoped to one package) because
-the claim it proves is repo-wide: "nothing in CAIRN talks to VAID or
-SYNTHERA" has to hold for every file, not just the MCP/A2A gateway that the
-spec names as the hypothetical attach point.
+Unit 825 proved both names absent from this repository. ADR-020, accepted
+2026-11-27, changed that for one of them: §3 adopts **VAID** for real, as
+an open-source library dependency verifying a presented credential in
+``cairn_kernel``. So the blanket "neither name appears anywhere" claim is
+no longer true of VAID, and keeping it alive behind a growing list of
+path exemptions would be asserting something false rather than proving
+something true.
 
-Three independent scan mechanisms, so a reference can't dodge all of them:
+What this file asserts after ADR-020, therefore, is two different things
+about two different systems:
 
-1. ``ast``-parsed import statements in every ``*.py`` file (catches a real
-   ``import vaid_sdk`` or ``from synthera import ...``).
-2. A plain-text scan of every ``pyproject.toml``/``Cargo.toml`` dependency
-   manifest (catches a dependency declared as a string, which ``ast`` over
-   Python source would never see).
-3. A plain-text, case-insensitive scan over the *entire* tracked tree
-   (catches a stray network host string, env var, or config key naming
-   either system, which an import/manifest scan alone would miss).
+1. **SYNTHERA: still absent.** The original negative proof, unchanged in
+   substance, scoped to that one name. ADR-020 §4 keeps SYNTHERA exactly
+   where unit 825's spec put it -- optional, commercial, behind a port
+   that does not exist yet -- so "nothing in CAIRN imports or wires
+   SYNTHERA" still has to hold for every file. Three independent scan
+   mechanisms, so a reference cannot dodge all of them:
 
-Excluded from all three: this test file itself (whose own source
-necessarily contains the strings it looks for), ``docs/specs/
-r5-integration-boundaries.md`` (the original place in the repo required to
-name them, since it documents the boundary) and, since ADR-020, ``docs/adr/
-ADR-020-principal-tenant-propagation.md`` (the ADR that names VAID and
-SYNTHERA by design, deciding how each would attach -- it does not implement
-either, so this proof's actual guarantee, that nothing in the codebase
-imports or wires either one, still holds). Everything else in the
-repository, tests included, must stay clean.
+   a. ``ast``-parsed import statements in every ``*.py`` file;
+   b. a plain-text scan of every ``pyproject.toml``/``Cargo.toml``
+      (a dependency declared as a string, which ``ast`` would never see);
+   c. a plain-text, case-insensitive scan over the entire tree (a stray
+      network host, env var or config key an import/manifest scan misses).
+
+2. **VAID: present, and confined to core.** ADR-020 §3 says VAID
+   verification belongs in ``cairn_kernel`` -- core, not
+   ``cairn_adapters`` -- because verifying a credential's own
+   cryptographic structure has no provider SDK underneath it. That is now
+   a structural claim worth a test of its own: the only production
+   package importing the VAID library is ``cairn_kernel``, and the only
+   manifest declaring it is that package's.
+
+Paths allowed to *name* SYNTHERA, because each is required to: this test,
+``docs/specs/r5-integration-boundaries.md`` (the spec documenting the
+boundary), ``docs/adr/ADR-020-principal-tenant-propagation.md`` (the ADR
+deciding where it would attach) and ``docs/adr/README.md`` (whose
+decision-log row carries that ADR's own title). None of them implements,
+imports or wires anything.
 
 Verified as a real negative proof, not a trivial always-pass: a fake
-``import vaid_client`` line was temporarily added to a scratch module in
+import of the forbidden name was temporarily added to a scratch module in
 this tree, this test was re-run and confirmed to fail on all applicable
 checks, the line was removed, and the test was confirmed to pass again
-clean. See the unit's PR description for that verification run.
+clean. The VAID half is self-evidently not vacuous -- it fails if
+``cairn_kernel`` stops importing the library at all.
 """
 
 from __future__ import annotations
@@ -45,18 +56,28 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-#: Names this test proves are absent from the codebase (case-insensitive).
-FORBIDDEN_NAMES: tuple[str, ...] = ("vaid", "synthera")
+#: The one name this test still proves absent (case-insensitive). VAID
+#: left this tuple when ADR-020 §3 adopted it; see this module's docstring.
+FORBIDDEN_NAMES: tuple[str, ...] = ("synthera",)
 
-#: Paths allowed to mention the names (relative to REPO_ROOT), because they
-#: are the test and the spec documenting the boundary itself.
+#: Paths allowed to mention the forbidden name (relative to REPO_ROOT),
+#: because each is required to name it: this test, the spec documenting the
+#: boundary, the ADR deciding where it would attach, and the ADR index
+#: whose decision-log row carries that ADR's title.
 ALLOWED_PATHS: frozenset[str] = frozenset(
     {
         "tests/contract/test_no_vaid_synthera_dependency.py",
         "docs/specs/r5-integration-boundaries.md",
         "docs/adr/ADR-020-principal-tenant-propagation.md",
+        "docs/adr/README.md",
     }
 )
+
+#: The root module names the published VAID library installs as.
+VAID_MODULE_ROOTS: frozenset[str] = frozenset({"vaid_mint", "vaid_pop"})
+
+#: The one production package ADR-020 §3 puts VAID verification in.
+VAID_HOME_PACKAGE = "cairn_kernel"
 
 #: Directories never scanned: VCS internals and build/dependency caches
 #: that are not part of the tracked source tree.
@@ -151,9 +172,9 @@ def _contains_forbidden_name(text: str) -> str | None:
     return None
 
 
-def test_no_python_import_of_vaid_or_synthera() -> None:
+def test_no_python_import_of_synthera() -> None:
     """No ``*.py`` file imports anything whose root module name contains
-    ``vaid`` or ``synthera`` (case-insensitive)."""
+    ``synthera`` (case-insensitive)."""
     violations: dict[str, set[str]] = {}
     for path in _python_files():
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
@@ -162,14 +183,14 @@ def test_no_python_import_of_vaid_or_synthera() -> None:
         if hit:
             violations[_relative(path)] = hit
     assert not violations, (
-        "found an import referencing a forbidden name (VAID/SYNTHERA are a"
-        f" documented boundary only, see docs/specs/r5-integration-boundaries.md): {violations}"
+        "found an import referencing SYNTHERA, which is a documented boundary only"
+        f" (see docs/specs/r5-integration-boundaries.md and ADR-020 §4): {violations}"
     )
 
 
-def test_no_dependency_manifest_references_vaid_or_synthera() -> None:
+def test_no_dependency_manifest_references_synthera() -> None:
     """No ``pyproject.toml``/``Cargo.toml`` anywhere in the repo declares a
-    dependency naming VAID or SYNTHERA."""
+    dependency naming SYNTHERA."""
     violations: dict[str, str] = {}
     for path in _dependency_manifests():
         text = path.read_text(encoding="utf-8")
@@ -177,14 +198,14 @@ def test_no_dependency_manifest_references_vaid_or_synthera() -> None:
         if hit:
             violations[_relative(path)] = hit
     assert not violations, (
-        "found a dependency-manifest reference to a forbidden name (VAID/SYNTHERA"
-        f" are a documented boundary only, not a dependency): {violations}"
+        "found a dependency-manifest reference to SYNTHERA, which is a documented"
+        f" boundary only, not a dependency: {violations}"
     )
 
 
-def test_no_repo_text_references_vaid_or_synthera() -> None:
-    """No tracked file in the repository (outside the test and the spec
-    that documents the boundary) mentions VAID or SYNTHERA, case-insensitive.
+def test_no_repo_text_references_synthera() -> None:
+    """No file in the repository, outside the four paths required to name
+    it, mentions SYNTHERA, case-insensitive.
 
     This is the broadest of the three checks: it also catches a network
     host string, an environment variable name, or a config key that an
@@ -204,13 +225,99 @@ def test_no_repo_text_references_vaid_or_synthera() -> None:
         if hit:
             violations[_relative(path)] = hit
     assert not violations, (
-        "found a repo-wide text reference to a forbidden name outside the"
-        f" documented boundary spec and this test: {violations}"
+        "found a repo-wide text reference to SYNTHERA outside the four paths"
+        f" required to name it: {violations}"
     )
 
 
 @pytest.mark.parametrize("allowed_path", sorted(ALLOWED_PATHS))
 def test_allowed_paths_exist(allowed_path: str) -> None:
-    """Sanity check: the two paths this test deliberately exempts are real
+    """Sanity check: the paths this test deliberately exempts are real
     files, not typos that would silently widen the exemption to nothing."""
     assert (REPO_ROOT / allowed_path).is_file(), f"expected {allowed_path} to exist"
+
+
+# -- VAID: present, and confined to core (ADR-020 §3) -----------------
+
+
+def _production_python_files() -> list[Path]:
+    """Every ``*.py`` file under a package's or app's ``src/``.
+
+    Tests are excluded deliberately: a test anywhere may import the VAID
+    library to build a fixture (``cairn_kernel.testing`` exists precisely
+    so they share one), and that says nothing about where the production
+    dependency sits. What this test is about is the shipped import graph.
+    """
+
+    roots = [*REPO_ROOT.glob("packages/*/src"), *REPO_ROOT.glob("apps/*/src")]
+    return [
+        path
+        for root in roots
+        for path in root.rglob("*.py")
+        if not _is_excluded_dir(path)
+    ]
+
+
+def _owning_package(path: Path) -> str:
+    """The top-level Python package a ``src/`` file belongs to."""
+
+    parts = path.relative_to(REPO_ROOT).parts
+    return parts[parts.index("src") + 1]
+
+
+def test_vaid_is_imported_only_from_core() -> None:
+    """ADR-020 §3 puts VAID verification in ``cairn_kernel`` -- core, not
+    an adapter -- because verifying a credential's own cryptographic
+    structure is a kernel-level concern with no provider SDK underneath
+    it. Nothing else in the shipped import graph may reach the library
+    directly; everything else goes through ``cairn_kernel.vaid``.
+    """
+
+    offenders: dict[str, set[str]] = {}
+    for path in _production_python_files():
+        if _owning_package(path) == VAID_HOME_PACKAGE:
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        hit = _imported_roots(tree) & VAID_MODULE_ROOTS
+        if hit:
+            offenders[_relative(path)] = hit
+    assert not offenders, (
+        "the VAID library may only be imported from cairn_kernel (ADR-020 §3: core, not"
+        f" an adapter); everything else imports cairn_kernel.vaid: {offenders}"
+    )
+
+
+def test_vaid_is_actually_imported_by_core() -> None:
+    """The positive half, so the test above cannot pass vacuously: if
+    ``cairn_kernel`` stopped importing the library, VAID verification
+    would be gone and this file would be asserting nothing.
+    """
+
+    importers = {
+        _relative(path)
+        for path in _production_python_files()
+        if _owning_package(path) == VAID_HOME_PACKAGE
+        and _imported_roots(ast.parse(path.read_text(encoding="utf-8"), filename=str(path)))
+        & VAID_MODULE_ROOTS
+    }
+    assert importers, (
+        f"expected {VAID_HOME_PACKAGE} to import the VAID library ({sorted(VAID_MODULE_ROOTS)});"
+        " ADR-020 §3 adopted it, so its absence is a regression, not a clean tree"
+    )
+
+
+def test_only_core_declares_the_vaid_dependency() -> None:
+    """One package owns the dependency, pinned, in one manifest -- so a
+    second copy of it cannot drift to a different version
+    (A7.supply-chain).
+    """
+
+    declaring = {
+        _relative(path)
+        for path in _dependency_manifests()
+        if "vaid" in path.read_text(encoding="utf-8").lower()
+    }
+    assert declaring == {f"packages/{VAID_HOME_PACKAGE.split("_")[1]}/pyproject.toml"}, (
+        "exactly one manifest may declare the VAID dependency, the one for"
+        f" {VAID_HOME_PACKAGE}; found {sorted(declaring)}"
+    )

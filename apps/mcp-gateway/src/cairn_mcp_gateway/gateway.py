@@ -13,6 +13,15 @@ authorizes *before* ever touching the registry: an unauthenticated or
 wrongly-scoped caller raises before ``McpRegistry.lookup``/``invoke`` is
 reached, so a registered tool's handle never executes for a rejected
 caller.
+
+ADR-020 §3 adds a second way to authenticate at exactly that one step:
+a caller may present a **VAID** (``cairn_kernel.vaid``), instead of or
+in addition to a bearer token. It is a second implementation of the
+same credential-in/``Principal``-out shape ``JwtAuthenticator`` already
+fills -- not a parallel path -- so ``call_tool``'s ordering guarantee
+(authenticate, then authorize, then and only then resolve/invoke) is
+unchanged, and so is the behaviour of every caller that presents a
+token and no VAID.
 """
 
 from __future__ import annotations
@@ -21,35 +30,77 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 from cairn_adapters.auth_oidc import JwtAuthenticator
-from cairn_kernel.errors import ForbiddenError
+from cairn_kernel.errors import ForbiddenError, UnauthenticatedError
 from cairn_kernel.security import Principal, Role
+from cairn_kernel.vaid import VaidAuthenticator, VaidPresentation, VaidVerificationError
 from cairn_kits.mcp import McpRegistry
 
 
 @dataclass(frozen=True, slots=True)
 class McpGateway:
-    """Authenticates a bearer token, checks the tool's required scope
-    (expressed as a tenant ``Role``, same vocabulary R0-13's OIDC claims
-    already carry), and only then resolves/invokes the tool through the
-    registry.
+    """Authenticates the caller's credential, checks the tool's required
+    scope (expressed as a tenant ``Role``, same vocabulary R0-13's OIDC
+    claims already carry), and only then resolves/invokes the tool
+    through the registry.
 
     ``required_roles`` maps a tool name to the ``Role`` a principal must
     hold to call it. A tool with no entry requires only a valid,
-    authenticated token -- any principal may call it.
+    authenticated credential -- any principal may call it.
+
+    ``vaid_authenticator`` is optional and defaults to ``None``: a
+    deployment that accepts no VAID binds none, a caller presenting one
+    is then refused for want of a pinned trust anchor, and callers
+    presenting a bearer token are unaffected either way (ADR-020 §3).
+    ``cairn_kernel.vaid.resolve_vaid_authenticator`` is what builds it
+    where one is wanted.
     """
 
     authenticator: JwtAuthenticator
     registry: McpRegistry
     required_roles: Mapping[str, Role] = field(default_factory=dict)
+    vaid_authenticator: VaidAuthenticator | None = None
 
-    def authenticate(self, token: str) -> Principal:
-        """Verify ``token`` and return the calling ``Principal``.
+    def authenticate(
+        self, token: str | None = None, *, vaid: VaidPresentation | None = None
+    ) -> Principal:
+        """Verify the presented credential(s) and return the calling
+        ``Principal``.
 
-        Raises ``cairn_kernel.errors.UnauthenticatedError`` (via
-        ``JwtAuthenticator.verify``) for a missing, malformed, expired or
-        otherwise invalid token -- before any registry lookup happens.
+        Three cases, and only three:
+
+        - **token only** -- today's behaviour, byte for byte:
+          ``JwtAuthenticator.verify``, raising
+          ``cairn_kernel.errors.UnauthenticatedError`` for a missing,
+          malformed, expired or otherwise invalid token.
+        - **VAID only** -- ``VaidAuthenticator.verify``, returning the
+          *narrowed* principal the credential itself carries.
+        - **both** (ADR-020 §3's "in addition to") -- the token is
+          verified first, and the VAID is then verified *against* the
+          principal it proved: same tenant, and a subset of its roles.
+          The narrowed VAID principal is what is returned. This is the
+          case where "scope can only shrink" is checked against the
+          authority backing the VAID, rather than only within the
+          VAID's own chain.
+
+        Either way the result is one ``Principal``, and nothing
+        downstream can tell which credential produced it -- which is
+        why a VAID cannot be a way around the role check below or the
+        tenant checks in every bounded-context server (ADR-020 §2).
         """
-        return self.authenticator.verify(token)
+
+        if vaid is None:
+            if token is None:
+                raise UnauthenticatedError("no credential was presented")
+            return self.authenticator.verify(token)
+        if self.vaid_authenticator is None:
+            raise VaidVerificationError(
+                "a VAID was presented but this deployment accepts none: no VAID trust anchor"
+                " is configured, so there is nothing to verify it against"
+            )
+        backing_principal = self.authenticator.verify(token) if token else None
+        return self.vaid_authenticator.verify(
+            vaid, backing_principal=backing_principal
+        ).principal
 
     def authorize(self, principal: Principal, tool_name: str) -> None:
         """Raise ``ForbiddenError`` if ``principal`` lacks the role
@@ -66,8 +117,10 @@ class McpGateway:
     def call_tool(
         self,
         tool_name: str,
-        token: str,
+        token: str | None = None,
         arguments: Mapping[str, object] | None = None,
+        *,
+        vaid: VaidPresentation | None = None,
     ) -> object:
         """Authenticate, authorize, then resolve and invoke ``tool_name``.
 
@@ -76,13 +129,18 @@ class McpGateway:
         rejected caller's request never reaches a registered server's
         handle -- not even to discover whether the tool exists.
 
-        ADR-020: the ``principal`` this method just authenticated is
+        ADR-020 §1/§2: the ``principal`` this method just authenticated is
         propagated into the handle itself via ``McpRegistry.invoke``,
         so every bounded-context server can enforce tenant scope
         against who the gateway actually authenticated, not a
         caller-supplied argument about itself.
+
+        ADR-020 §3: ``vaid``, when given, is the credential that
+        produces that principal (see :meth:`authenticate`). A refused
+        VAID raises before ``authorize`` and therefore before the
+        registry, exactly as a refused token already did.
         """
-        principal = self.authenticate(token)
+        principal = self.authenticate(token, vaid=vaid)
         self.authorize(principal, tool_name)
         return self.registry.invoke(tool_name, principal, arguments)
 
