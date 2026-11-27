@@ -888,6 +888,116 @@ OPERATIONS: tuple[OperationEntry, ...] = (
         mutation_class=MutationClass.READ_ONLY,
         tenancy_scope=TenancyScope.PROJECT,
     ),
+    # --- apps/mcp-gateway: design server (R6-11, folding planning.
+    # generate_roadmap onto it rather than a separate context) ---
+    # design.list_patterns/get_pattern read the real pattern catalogue
+    # (patterns/*.yaml, PUBLISHED at construction) -- a global,
+    # CAIRN-operated artefact, same reasoning mcp.posture.get_control
+    # already uses: Class A READ_ONLY, GLOBAL scope.
+    OperationEntry(
+        surface=SurfaceKind.MCP_TOOL,
+        name="mcp.design.list_patterns",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.GLOBAL,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.MCP_TOOL,
+        name="mcp.design.get_pattern",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.GLOBAL,
+    ),
+    # design.get_target_model reads this server's own in-process cache
+    # of what design.generate_target_model already produced for one
+    # design id -- PROJECT scope (a design belongs to one project).
+    OperationEntry(
+        surface=SurfaceKind.MCP_TOOL,
+        name="mcp.design.get_target_model",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    # design.generate_target_model / planning.generate_roadmap are
+    # PROPOSE-capability (an agent may call them), but at this unit's
+    # own layer neither persists a row anywhere: both are pure,
+    # principal-free generators (cairn_modules.design.target_model /
+    # cairn_modules.planning.roadmap) whose result this server only
+    # caches in process memory, lost on restart. Honestly Class A
+    # READ_ONLY here -- turning a candidate into a persisted,
+    # approvable revision row is the design-proposer agent's own job
+    # (Wave 4, R6-13), not this tool's; that unit reclassifies this
+    # entry if it changes what actually happens underneath it.
+    OperationEntry(
+        surface=SurfaceKind.MCP_TOOL,
+        name="mcp.design.generate_target_model",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.MCP_TOOL,
+        name="mcp.planning.generate_roadmap",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    # --- apps/mcp-gateway: transformation server (R6-11) ---
+    # list_source_files/get_run/get_manifest/get_diff all read one
+    # project's own scope/already-recorded run -- Class A READ_ONLY,
+    # PROJECT scope, same reasoning as every other per-run read above.
+    OperationEntry(
+        surface=SurfaceKind.MCP_TOOL,
+        name="mcp.transformation.list_source_files",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.MCP_TOOL,
+        name="mcp.transformation.get_run",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.MCP_TOOL,
+        name="mcp.transformation.get_manifest",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.MCP_TOOL,
+        name="mcp.transformation.get_diff",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    # transformation.run genuinely appends a new transformation_run row
+    # through the real TransformationRunRepository (design §3.3:
+    # "through the existing transformation service") -- CAIRN's own
+    # workspace state, never a customer environment (ADR-010), so
+    # Class B INTERNAL_MUTATION with no compensation contract, the
+    # same reasoning every other CAIRN-internal-store write in this
+    # matrix already uses.
+    OperationEntry(
+        surface=SurfaceKind.MCP_TOOL,
+        name="mcp.transformation.run",
+        operation_class=OperationClass.WORKSPACE_MUTATION,
+        mutation_class=MutationClass.INTERNAL_MUTATION,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    # transformation.validate computes and returns a ValidationRun; this
+    # unit's implementation does not persist it anywhere -- Class A
+    # READ_ONLY, PROJECT scope.
+    OperationEntry(
+        surface=SurfaceKind.MCP_TOOL,
+        name="mcp.transformation.validate",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
     OperationEntry(
         surface=SurfaceKind.EVENT,
         name="execution.failed.v1",
