@@ -20,22 +20,33 @@ from cairn_mcp_gateway import (
     TOOL_ASSESSMENT_GET_DECISION,
     TOOL_ASSESSMENT_GET_RESULTS,
     TOOL_ASSESSMENT_GET_RUN,
+    TOOL_GENERATE_ROADMAP,
+    TOOL_GENERATE_TARGET_MODEL,
     TOOL_GET_BASELINE,
     TOOL_GET_CONTROL,
     TOOL_GET_COVERAGE,
     TOOL_GET_DEPENDENCIES,
+    TOOL_GET_DIFF,
+    TOOL_GET_MANIFEST,
+    TOOL_GET_PATTERN,
     TOOL_GET_PROJECT,
     TOOL_GET_RELEASE,
     TOOL_GET_RUN,
+    TOOL_GET_TARGET_MODEL,
     TOOL_GET_TCO,
     TOOL_GET_WORKLOAD,
+    TOOL_LIST_PATTERNS,
     TOOL_LIST_PRICE_RELEASES,
     TOOL_LIST_PROJECT_MEMBERS,
     TOOL_LIST_RELEASES,
     TOOL_LIST_RESOURCES,
     TOOL_LIST_RUNS,
+    TOOL_LIST_SOURCE_FILES,
     TOOL_LIST_WORKLOADS,
     TOOL_RESOLVE,
+    TOOL_RUN,
+    TOOL_TRANSFORMATION_GET_RUN,
+    TOOL_VALIDATE,
     A2ABridge,
     McpGateway,
     build_default_registry,
@@ -111,6 +122,53 @@ _TOOL_FIXTURES: dict[str, tuple[tuple[str, ...], dict[str, object]]] = {
         (Role.TENANT_ADMIN.value,),
         {"tenant_id": "t1", "project_id": "no-such-project"},
     ),
+    TOOL_LIST_PATTERNS: ((Role.VIEWER.value,), {}),
+    TOOL_GET_PATTERN: ((Role.VIEWER.value,), {"pattern_id": "web-app"}),
+    TOOL_GET_TARGET_MODEL: ((Role.VIEWER.value,), {"design_id": "no-such-design"}),
+    TOOL_GENERATE_TARGET_MODEL: (
+        (Role.ARCHITECT.value,),
+        {
+            "tenant_id": "t1",
+            "project_id": "p1",
+            "design_id": "design-1",
+            "pattern_id": "web-app",
+            "mapping_version": "2026.11.2",
+            "target_provider": "gcp",
+            "resources": [],
+            "parameters": {
+                "compute_platform": "cloud_run",
+                "database_engine": "cloud_sql_postgres",
+            },
+        },
+    ),
+    TOOL_GENERATE_ROADMAP: (
+        (Role.ARCHITECT.value,),
+        {
+            "tenant_id": "t1",
+            "project_id": "p1",
+            "plan_id": "plan-1",
+            "design_id": "no-such-design",
+            "workloads": [],
+        },
+    ),
+    TOOL_LIST_SOURCE_FILES: ((Role.VIEWER.value,), {"tenant_id": "t1", "project_id": "p1"}),
+    TOOL_TRANSFORMATION_GET_RUN: (
+        (Role.VIEWER.value,),
+        {"tenant_id": "t1", "project_id": "p1", "run_id": "no-such-run"},
+    ),
+    TOOL_GET_MANIFEST: (
+        (Role.VIEWER.value,),
+        {"tenant_id": "t1", "project_id": "p1", "run_id": "no-such-run"},
+    ),
+    TOOL_GET_DIFF: (
+        (Role.VIEWER.value,),
+        {"tenant_id": "t1", "project_id": "p1", "run_id": "no-such-run"},
+    ),
+    TOOL_RUN: ((Role.ENGINEER.value,), {"tenant_id": "t1", "project_id": "p1", "created_by": "u1"}),
+    TOOL_VALIDATE: (
+        (Role.ENGINEER.value,),
+        {"tenant_id": "t1", "project_id": "p1", "run_id": "no-such-run"},
+    ),
 }
 
 ISSUER = "https://auth.example.cairn/"
@@ -166,6 +224,14 @@ def test_every_registered_server_is_reachable_through_both_paths_identically(
     ``_TOOL_FIXTURES`` rather than one hardcoded (role, arguments) pair.
     A registered tool with no fixture entry fails this test loudly
     (``KeyError``), rather than being silently skipped.
+
+    ``TOOL_RUN`` (``transformation.run``) is excluded from the strict
+    success-value comparison: it is a ``PROPOSE`` tool whose own job is
+    to append a new, non-deterministic row (a fresh ``run_id`` and
+    ``created_at`` each call, by design -- R6-15's eventual real
+    repository would do the same) -- calling it twice, once per path,
+    can never produce two equal rows. Both calls succeeding with the
+    same *type* of result is still checked.
     """
     gateway, bridge = default_gateway_and_bridge
 
@@ -193,7 +259,10 @@ def test_every_registered_server_is_reachable_through_both_paths_identically(
                 a2a_output = None
 
             if mcp_error is None and a2a_error is None:
-                assert a2a_output == mcp_result
+                if tool_name == TOOL_RUN:
+                    assert type(a2a_output) is type(mcp_result)
+                else:
+                    assert a2a_output == mcp_result
             else:
                 assert type(mcp_error) is type(a2a_error)
                 assert str(mcp_error) == str(a2a_error)
