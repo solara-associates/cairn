@@ -47,6 +47,15 @@ forbidden_modules =
     cairn_modules
     cairn_adapters
 
+[importlinter:contract:loop-cannot-execute]
+name = Loop cannot reach approval or execution authority
+type = forbidden
+source_modules = cairn_kits.loop
+forbidden_modules =
+    cairn_kernel.execution_gate
+    cairn_modules.approvals
+    cairn_modules.execution
+
 [importlinter:contract:domain-purity]
 name = Domain modules import no adapters or applications
 type = forbidden

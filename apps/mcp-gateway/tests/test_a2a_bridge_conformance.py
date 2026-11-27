@@ -13,7 +13,7 @@ import jwt
 import pytest
 from cairn_adapters.auth_oidc import JwtAuthenticator, OidcSettings
 from cairn_kernel.security import Role
-from cairn_kits.mcp import BoundedContextServer, McpRegistry, ToolNotRegisteredError
+from cairn_kits.mcp import BoundedContextServer, McpRegistry, ToolCapability, ToolNotRegisteredError
 from cairn_mcp_gateway import (
     TOOL_GET_CONTROL,
     A2ABridge,
@@ -188,7 +188,11 @@ def test_unregistered_server_is_unreachable_through_either_path_fresh_registry()
 
     registry.register(
         BoundedContextServer(
-            context_id="fixture", name="fixture", tools=("fixture.read_only_thing",), handle=handle
+            context_id="fixture",
+            name="fixture",
+            tools=("fixture.read_only_thing",),
+            capabilities={"fixture.read_only_thing": ToolCapability.READ},
+            handle=handle,
         )
     )
     authenticator = JwtAuthenticator(_settings())

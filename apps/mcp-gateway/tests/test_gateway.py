@@ -17,7 +17,7 @@ import pytest
 from cairn_adapters.auth_oidc import JwtAuthenticator, OidcSettings
 from cairn_kernel.errors import ControlUnavailableError, ForbiddenError, UnauthenticatedError
 from cairn_kernel.security import Role
-from cairn_kits.mcp import BoundedContextServer, McpRegistry, ToolNotRegisteredError
+from cairn_kits.mcp import BoundedContextServer, McpRegistry, ToolCapability, ToolNotRegisteredError
 from cairn_mcp_gateway import (
     TOOL_GET_CONTROL,
     McpGateway,
@@ -63,7 +63,11 @@ def _counting_server(tool_name: str) -> tuple[BoundedContextServer, list[tuple[s
         return {"ok": True}
 
     server = BoundedContextServer(
-        context_id="fixture", name="fixture", tools=(tool_name,), handle=handle
+        context_id="fixture",
+        name="fixture",
+        tools=(tool_name,),
+        capabilities={tool_name: ToolCapability.READ},
+        handle=handle,
     )
     return server, calls
 

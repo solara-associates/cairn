@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 from cairn_kernel.errors import InvalidStateTransitionError, MissingDependencyError, ValidationError
+from cairn_kernel.security import Role
 from cairn_kits.loop import (
     AgentRun,
     AgentRunState,
@@ -17,6 +18,7 @@ from cairn_kits.loop import (
     StepKind,
     validate_agent_run_transition,
 )
+from cairn_kits.mcp import BoundedContextServer, McpRegistry, ToolCapability
 
 
 def _budget(**overrides: object) -> RunBudget:
@@ -40,15 +42,32 @@ def _prompt_registry(tmp_path: Path) -> PromptRegistry:
     return PromptRegistry.load(tmp_path)
 
 
+def _mcp_registry(**tool_capabilities: ToolCapability) -> McpRegistry:
+    registry = McpRegistry()
+    capabilities = tool_capabilities or {"estate.read_estate": ToolCapability.READ}
+    registry.register(
+        BoundedContextServer(
+            context_id="fixture",
+            name="fixture",
+            tools=tuple(capabilities),
+            capabilities=capabilities,
+            handle=lambda tool_name, arguments: None,
+        )
+    )
+    return registry
+
+
 def _spec(prompt_registry: PromptRegistry, **overrides: object) -> AgentSpec:
     kwargs: dict[str, object] = {
         "agent_id": "demo-agent",
         "version": 1,
         "toolset": ("estate.read_estate",),
-        "required_role": "APP",
+        "required_role": Role.ENGINEER,
         "prompt_references": (("demo-agent/system", 1),),
         "budget": _budget(),
         "prompt_registry": prompt_registry,
+        "mcp_registry": _mcp_registry(),
+        "tool_roles": {"estate.read_estate": Role.ENGINEER},
     }
     kwargs.update(overrides)
     return AgentSpec.build(**kwargs)  # type: ignore[arg-type]

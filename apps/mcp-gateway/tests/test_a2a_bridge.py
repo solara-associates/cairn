@@ -5,7 +5,7 @@ conformance suite in ``test_a2a_bridge_conformance.py``.
 
 from __future__ import annotations
 
-from cairn_kits.mcp import BoundedContextServer
+from cairn_kits.mcp import BoundedContextServer, ToolCapability
 from cairn_mcp_gateway.a2a_bridge import (
     A2AMessage,
     A2AResult,
@@ -23,6 +23,10 @@ def _server() -> BoundedContextServer:
         context_id="posture",
         name="posture",
         tools=("posture.get_control", "posture.list_controls"),
+        capabilities={
+            "posture.get_control": ToolCapability.READ,
+            "posture.list_controls": ToolCapability.READ,
+        },
         handle=lambda tool_name, arguments: None,
     )
 
