@@ -16,12 +16,19 @@ from cairn_kernel.errors import CairnError
 from cairn_kernel.security import Role
 from cairn_kits.mcp import BoundedContextServer, McpRegistry, ToolCapability, ToolNotRegisteredError
 from cairn_mcp_gateway import (
+    TOOL_ASSESSMENT_COVERAGE_REPORT,
+    TOOL_ASSESSMENT_GET_DECISION,
+    TOOL_ASSESSMENT_GET_RESULTS,
+    TOOL_ASSESSMENT_GET_RUN,
     TOOL_GET_CONTROL,
+    TOOL_GET_COVERAGE,
     TOOL_GET_DEPENDENCIES,
     TOOL_GET_RELEASE,
+    TOOL_GET_RUN,
     TOOL_GET_WORKLOAD,
     TOOL_LIST_RELEASES,
     TOOL_LIST_RESOURCES,
+    TOOL_LIST_RUNS,
     TOOL_LIST_WORKLOADS,
     TOOL_RESOLVE,
     A2ABridge,
@@ -69,6 +76,25 @@ _TOOL_FIXTURES: dict[str, tuple[tuple[str, ...], dict[str, object]]] = {
     ),
     TOOL_GET_RELEASE: ((Role.VIEWER.value,), {"version": "2026.11.2"}),
     TOOL_LIST_RELEASES: ((Role.VIEWER.value,), {}),
+    TOOL_GET_RUN: ((Role.VIEWER.value,), {"tenant_id": "t1", "run_id": "no-such-run"}),
+    TOOL_LIST_RUNS: ((Role.VIEWER.value,), {"tenant_id": "t1", "project_id": "p1"}),
+    TOOL_GET_COVERAGE: ((Role.VIEWER.value,), {"tenant_id": "t1", "run_id": "no-such-run"}),
+    TOOL_ASSESSMENT_GET_RUN: (
+        (Role.VIEWER.value,),
+        {"tenant_id": "t1", "assessment_run_id": "no-such-run"},
+    ),
+    TOOL_ASSESSMENT_GET_RESULTS: (
+        (Role.VIEWER.value,),
+        {"tenant_id": "t1", "assessment_run_id": "no-such-run"},
+    ),
+    TOOL_ASSESSMENT_COVERAGE_REPORT: (
+        (Role.VIEWER.value,),
+        {"tenant_id": "t1", "assessment_run_id": "no-such-run"},
+    ),
+    TOOL_ASSESSMENT_GET_DECISION: (
+        (Role.VIEWER.value,),
+        {"tenant_id": "t1", "assessment_run_id": "no-such-run", "decision_id": "d-1"},
+    ),
 }
 
 ISSUER = "https://auth.example.cairn/"

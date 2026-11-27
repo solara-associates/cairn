@@ -784,6 +784,64 @@ OPERATIONS: tuple[OperationEntry, ...] = (
         mutation_class=MutationClass.READ_ONLY,
         tenancy_scope=TenancyScope.GLOBAL,
     ),
+    # --- apps/mcp-gateway: ingestion server (R6-09) ---
+    # ingestion.* reads one file-ingestion run's own checkpoint record
+    # (cairn_modules.ingestion.run.CheckpointStore) -- a run belongs to
+    # exactly one tenant/project, same reasoning as estate.* above:
+    # Class A READ_ONLY, PROJECT scope.
+    OperationEntry(
+        surface=SurfaceKind.MCP_TOOL,
+        name="mcp.ingestion.get_run",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.MCP_TOOL,
+        name="mcp.ingestion.list_runs",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.MCP_TOOL,
+        name="mcp.ingestion.get_coverage",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    # assessment.* (folded into this same server rather than a ninth
+    # bounded context -- Allan's decision for this session) reads one
+    # assessment run's own header and artifacts through
+    # AssessmentService.get_run -- PROJECT scope, same reasoning.
+    OperationEntry(
+        surface=SurfaceKind.MCP_TOOL,
+        name="mcp.assessment.get_run",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.MCP_TOOL,
+        name="mcp.assessment.get_results",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.MCP_TOOL,
+        name="mcp.assessment.coverage_report",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.MCP_TOOL,
+        name="mcp.assessment.get_decision",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
     OperationEntry(
         surface=SurfaceKind.EVENT,
         name="execution.failed.v1",

@@ -53,12 +53,8 @@ class RunState(str, Enum):
 # (InvalidStateTransitionError), not silently re-run.
 ALLOWED_RUN_TRANSITIONS: dict[RunState, frozenset[RunState]] = {
     RunState.QUEUED: frozenset({RunState.RUNNING, RunState.FAILED}),
-    RunState.RUNNING: frozenset(
-        {RunState.CHECKPOINTED, RunState.COMPLETED, RunState.FAILED}
-    ),
-    RunState.CHECKPOINTED: frozenset(
-        {RunState.RUNNING, RunState.COMPLETED, RunState.FAILED}
-    ),
+    RunState.RUNNING: frozenset({RunState.CHECKPOINTED, RunState.COMPLETED, RunState.FAILED}),
+    RunState.CHECKPOINTED: frozenset({RunState.RUNNING, RunState.COMPLETED, RunState.FAILED}),
     RunState.COMPLETED: frozenset(),
     RunState.FAILED: frozenset(),
 }
@@ -145,6 +141,8 @@ class CheckpointStore(Protocol):
 
     def load(self, run_id: str) -> IngestionRun: ...
 
+    def list_runs(self, *, tenant_id: str, project_id: str) -> tuple[IngestionRun, ...]: ...
+
 
 class InMemoryCheckpointStore:
     """Reference ``CheckpointStore`` adapter: a dict keyed by ``run_id``.
@@ -166,6 +164,18 @@ class InMemoryCheckpointStore:
             return self._runs[run_id]
         except KeyError:
             raise NotFoundError(f"ingestion run {run_id} not found") from None
+
+    def list_runs(self, *, tenant_id: str, project_id: str) -> tuple[IngestionRun, ...]:
+        """R6-09: every run queued for one tenant/project -- added for
+        ``ingestion.list_runs``'s MCP tool, the first caller that needs
+        more than a single run looked up by id.
+        """
+
+        return tuple(
+            run
+            for run in self._runs.values()
+            if run.tenant_id == tenant_id and run.project_id == project_id
+        )
 
 
 def queue_run(
@@ -280,8 +290,7 @@ def coverage_report(run: IngestionRun) -> Mapping[str, object]:
         "completed_files": len(run.completed_file_ids),
         "coverage": run.coverage,
         "gaps": tuple(
-            {"file_id": outcome.file_id, "error": outcome.error}
-            for outcome in run.failed_outcomes
+            {"file_id": outcome.file_id, "error": outcome.error} for outcome in run.failed_outcomes
         ),
     }
 
