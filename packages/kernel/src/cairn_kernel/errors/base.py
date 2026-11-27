@@ -29,6 +29,7 @@ class ErrorCode(str, Enum):
     MODEL_CIRCUIT_OPEN = "MODEL_CIRCUIT_OPEN"
     MODEL_OUTPUT_SCHEMA_INVALID = "MODEL_OUTPUT_SCHEMA_INVALID"
     MODEL_PRICE_UNAVAILABLE = "MODEL_PRICE_UNAVAILABLE"
+    RUN_BUDGET_EXCEEDED = "RUN_BUDGET_EXCEEDED"
     INTERNAL = "INTERNAL"
 
 
@@ -177,6 +178,11 @@ class ModelSchemaValidationError(CairnError):
 class ModelPriceUnavailableError(CairnError):
     code = ErrorCode.MODEL_PRICE_UNAVAILABLE
     title = "Model price rate unavailable"
+
+
+class RunBudgetExceededError(CairnError):
+    code = ErrorCode.RUN_BUDGET_EXCEEDED
+    title = "Agent run budget exceeded"
 
 
 class ConfigurationError(CairnError):

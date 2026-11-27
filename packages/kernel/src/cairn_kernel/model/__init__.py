@@ -37,6 +37,7 @@ from cairn_kernel.model.ports import (
     SafetyParameters,
     StructuredOutputExpectation,
 )
+from cairn_kernel.model.run_budget import RunBudgetLimits, RunBudgetPolicy
 from cairn_kernel.model.schema import validate_structured_output
 
 __all__ = [
@@ -54,6 +55,8 @@ __all__ = [
     "ModelRequest",
     "ModelResponse",
     "RateLimiter",
+    "RunBudgetLimits",
+    "RunBudgetPolicy",
     "SafetyMetadata",
     "SafetyParameters",
     "StructuredOutputExpectation",

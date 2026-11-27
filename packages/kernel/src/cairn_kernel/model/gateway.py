@@ -6,9 +6,10 @@ observability (``cairn_kernel.observability.ai``) rather than inventing a
 parallel logging path.
 
 Every policy check runs *before* ``adapter.generate`` is called, in the
-same order every time (deny-list, then rate limit, then circuit breaker),
-so a blocked call never reaches the adapter -- this is what lets a test
-assert the adapter's own call counter stayed at zero past the block point.
+same order every time (deny-list, then rate limit, then circuit breaker,
+then run budget -- R6-04), so a blocked call never reaches the adapter --
+this is what lets a test assert the adapter's own call counter stayed at
+zero past the block point.
 """
 
 from __future__ import annotations
@@ -16,11 +17,12 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass, field
 
-from cairn_kernel.errors import ModelPriceUnavailableError
+from cairn_kernel.errors import ModelPriceUnavailableError, RunBudgetExceededError
 from cairn_kernel.hex.ports import Clock
 from cairn_kernel.model.cost import ModelPriceTable, compute_cost_micro_usd, default_price_table
 from cairn_kernel.model.policy import CircuitBreaker, DenyListPolicy, RateLimiter
 from cairn_kernel.model.ports import ModelPort, ModelRequest, ModelResponse
+from cairn_kernel.model.run_budget import RunBudgetPolicy
 from cairn_kernel.model.schema import validate_structured_output
 from cairn_kernel.observability.ai import AiCallLogger, AiCallRecord, JsonAiCallLogger
 
@@ -45,18 +47,30 @@ class ModelGateway:
     deny_list: DenyListPolicy = field(default_factory=DenyListPolicy)
     rate_limiter: RateLimiter | None = None
     circuit_breaker: CircuitBreaker | None = None
+    run_budget_policy: RunBudgetPolicy = field(default_factory=RunBudgetPolicy)
     ai_call_logger: AiCallLogger = field(default_factory=JsonAiCallLogger)
     price_table: ModelPriceTable = field(default_factory=default_price_table)
 
     def generate(self, request: ModelRequest) -> ModelResponse:
         now = self.clock.now()
+        input_hash = _input_hash(request)
         self.deny_list.check(request)
         if self.rate_limiter is not None:
             self.rate_limiter.check(request.tenant_id, now=now)
         if self.circuit_breaker is not None:
             self.circuit_breaker.check(now=now)
+        try:
+            self.run_budget_policy.check(request)
+        except RunBudgetExceededError:
+            self._log(
+                request,
+                input_hash,
+                outcome="RUN_BUDGET_EXCEEDED",
+                schema_valid=False,
+                response=None,
+            )
+            raise
 
-        input_hash = _input_hash(request)
         try:
             response = self.adapter.generate(request)
         except Exception:
@@ -64,6 +78,8 @@ class ModelGateway:
                 self.circuit_breaker.record_failure(now=self.clock.now())
             self._log(request, input_hash, outcome="ERROR", schema_valid=False, response=None)
             raise
+
+        self._record_run_budget(request, response)
 
         try:
             validate_structured_output(request.structured_output, response.output)
@@ -79,6 +95,15 @@ class ModelGateway:
             self.circuit_breaker.record_success()
         self._log(request, input_hash, outcome="OK", schema_valid=True, response=response)
         return response
+
+    def _record_run_budget(self, request: ModelRequest, response: ModelResponse) -> None:
+        if request.agent_run_id is None:
+            return
+        self.run_budget_policy.record(
+            request.agent_run_id,
+            tokens=response.input_tokens + response.output_tokens,
+            cost_micro_usd=self._cost_micro_usd(response),
+        )
 
     def _log(
         self,
