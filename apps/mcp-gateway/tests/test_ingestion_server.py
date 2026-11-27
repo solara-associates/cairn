@@ -14,8 +14,9 @@ import jwt
 import pytest
 from cairn_adapters.auth_oidc import JwtAuthenticator, OidcSettings
 from cairn_kernel.errors import ForbiddenError, TenantScopeViolationError, ValidationError
+from cairn_kernel.hex import TenantId
 from cairn_kernel.outbox import InMemoryOutboxStore
-from cairn_kernel.security import Role
+from cairn_kernel.security import Principal, Role
 from cairn_kits.mcp import McpRegistry
 from cairn_mcp_gateway.gateway import McpGateway
 from cairn_mcp_gateway.ingestion_server import (
@@ -96,6 +97,10 @@ def _real_ingestion_checkpoint_store() -> IngestionCheckpointStore:
     return store
 
 
+def _principal(tenant_id: str = TENANT) -> Principal:
+    return Principal(subject="user-1", tenant_id=TenantId(tenant_id), roles=(Role.VIEWER,))
+
+
 def _settings() -> OidcSettings:
     return OidcSettings(issuer=ISSUER, audience=AUDIENCE, algorithms=("HS256",), secret=SECRET)
 
@@ -136,11 +141,15 @@ def test_assessment_get_run_and_get_results_return_real_data() -> None:
     assessment_service = _real_assessment_service()
     server = build_ingestion_server(_real_ingestion_checkpoint_store(), assessment_service)
 
-    run = server.handle(TOOL_ASSESSMENT_GET_RUN, {"tenant_id": TENANT, "assessment_run_id": RUN_ID})
+    run = server.handle(
+        TOOL_ASSESSMENT_GET_RUN, {"tenant_id": TENANT, "assessment_run_id": RUN_ID}, _principal()
+    )
     assert run.run_id == RUN_ID
 
     results = server.handle(
-        TOOL_ASSESSMENT_GET_RESULTS, {"tenant_id": TENANT, "assessment_run_id": RUN_ID}
+        TOOL_ASSESSMENT_GET_RESULTS,
+        {"tenant_id": TENANT, "assessment_run_id": RUN_ID},
+        _principal(),
     )
     assert "workloads" in results
     assert "disposition_decisions" in results
@@ -151,18 +160,23 @@ def test_assessment_coverage_report_and_get_decision() -> None:
     server = build_ingestion_server(_real_ingestion_checkpoint_store(), assessment_service)
 
     report = server.handle(
-        TOOL_ASSESSMENT_COVERAGE_REPORT, {"tenant_id": TENANT, "assessment_run_id": RUN_ID}
+        TOOL_ASSESSMENT_COVERAGE_REPORT,
+        {"tenant_id": TENANT, "assessment_run_id": RUN_ID},
+        _principal(),
     )
     assert report["state"] == "COMPLETED"
 
     results = server.handle(
-        TOOL_ASSESSMENT_GET_RESULTS, {"tenant_id": TENANT, "assessment_run_id": RUN_ID}
+        TOOL_ASSESSMENT_GET_RESULTS,
+        {"tenant_id": TENANT, "assessment_run_id": RUN_ID},
+        _principal(),
     )
     decision_id = results["disposition_decisions"][0].decision_id
 
     decision = server.handle(
         TOOL_ASSESSMENT_GET_DECISION,
         {"tenant_id": TENANT, "assessment_run_id": RUN_ID, "decision_id": decision_id},
+        _principal(),
     )
     assert decision.decision_id == decision_id
 
@@ -171,13 +185,15 @@ def test_ingestion_get_run_and_list_runs_return_real_data() -> None:
     store = _real_ingestion_checkpoint_store()
     server = build_ingestion_server(store, _real_assessment_service())
 
-    run = server.handle(TOOL_GET_RUN, {"tenant_id": TENANT, "run_id": "ingest-run-1"})
+    run = server.handle(TOOL_GET_RUN, {"tenant_id": TENANT, "run_id": "ingest-run-1"}, _principal())
     assert run.run_id == "ingest-run-1"
 
-    runs = server.handle(TOOL_LIST_RUNS, {"tenant_id": TENANT, "project_id": PROJECT})
+    runs = server.handle(TOOL_LIST_RUNS, {"tenant_id": TENANT, "project_id": PROJECT}, _principal())
     assert [r.run_id for r in runs] == ["ingest-run-1"]
 
-    coverage = server.handle(TOOL_GET_COVERAGE, {"tenant_id": TENANT, "run_id": "ingest-run-1"})
+    coverage = server.handle(
+        TOOL_GET_COVERAGE, {"tenant_id": TENANT, "run_id": "ingest-run-1"}, _principal()
+    )
     assert "coverage" in coverage
 
 
@@ -187,7 +203,9 @@ def test_reading_another_tenants_run_raises_tenant_scope_violation() -> None:
 
     with pytest.raises(TenantScopeViolationError):
         server.handle(
-            TOOL_ASSESSMENT_GET_RUN, {"tenant_id": OTHER_TENANT, "assessment_run_id": RUN_ID}
+            TOOL_ASSESSMENT_GET_RUN,
+            {"tenant_id": OTHER_TENANT, "assessment_run_id": RUN_ID},
+            _principal(OTHER_TENANT),
         )
 
 
@@ -196,21 +214,44 @@ def test_reading_another_tenants_ingestion_run_raises_tenant_scope_violation() -
     server = build_ingestion_server(store, _real_assessment_service())
 
     with pytest.raises(TenantScopeViolationError):
-        server.handle(TOOL_GET_RUN, {"tenant_id": OTHER_TENANT, "run_id": "ingest-run-1"})
+        server.handle(
+            TOOL_GET_RUN,
+            {"tenant_id": OTHER_TENANT, "run_id": "ingest-run-1"},
+            _principal(OTHER_TENANT),
+        )
+
+
+def test_a_tenant_b_principal_cannot_claim_tenant_as_its_own_run() -> None:
+    """ADR-020: the real gap this unit closes. A caller-supplied
+    ``tenant_id`` naming the run's real tenant is not enough on its
+    own -- the authenticated principal must actually be that tenant."""
+    assessment_service = _real_assessment_service()
+    server = build_ingestion_server(_real_ingestion_checkpoint_store(), assessment_service)
+
+    with pytest.raises(TenantScopeViolationError):
+        server.handle(
+            TOOL_ASSESSMENT_GET_RUN,
+            {"tenant_id": TENANT, "assessment_run_id": RUN_ID},
+            _principal(OTHER_TENANT),
+        )
 
 
 def test_unknown_tool_name_raises() -> None:
     server = build_ingestion_server(_real_ingestion_checkpoint_store(), _real_assessment_service())
 
     with pytest.raises(ValidationError):
-        server.handle("ingestion.delete_everything", {"tenant_id": TENANT})
+        server.handle("ingestion.delete_everything", {"tenant_id": TENANT}, _principal())
 
 
 def test_unknown_argument_key_is_rejected() -> None:
     server = build_ingestion_server(_real_ingestion_checkpoint_store(), _real_assessment_service())
 
     with pytest.raises(ValidationError):
-        server.handle(TOOL_LIST_RUNS, {"tenant_id": TENANT, "project_id": PROJECT, "extra": "nope"})
+        server.handle(
+            TOOL_LIST_RUNS,
+            {"tenant_id": TENANT, "project_id": PROJECT, "extra": "nope"},
+            _principal(),
+        )
 
 
 def test_caller_below_declared_role_gets_forbidden_before_the_handle_runs() -> None:

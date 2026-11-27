@@ -13,8 +13,9 @@ import jwt
 import pytest
 from cairn_adapters.auth_oidc import JwtAuthenticator, OidcSettings
 from cairn_kernel.errors import ForbiddenError, TenantScopeViolationError, ValidationError
+from cairn_kernel.hex import TenantId
 from cairn_kernel.outbox import InMemoryOutboxStore
-from cairn_kernel.security import Role
+from cairn_kernel.security import Principal, Role
 from cairn_kits.mcp import McpRegistry
 from cairn_mcp_gateway.finops_server import (
     TOOL_GET_BASELINE,
@@ -81,6 +82,10 @@ def _real_assessment_service() -> AssessmentService:
     return service
 
 
+def _principal(tenant_id: str = TENANT) -> Principal:
+    return Principal(subject="user-1", tenant_id=TenantId(tenant_id), roles=(Role.VIEWER,))
+
+
 def _settings() -> OidcSettings:
     return OidcSettings(issuer=ISSUER, audience=AUDIENCE, algorithms=("HS256",), secret=SECRET)
 
@@ -116,17 +121,21 @@ def _gateway(server) -> McpGateway:
 def test_get_baseline_and_get_tco_return_real_data() -> None:
     server = build_finops_server(_real_assessment_service())
 
-    baseline = server.handle(TOOL_GET_BASELINE, {"tenant_id": TENANT, "assessment_run_id": RUN_ID})
+    baseline = server.handle(
+        TOOL_GET_BASELINE, {"tenant_id": TENANT, "assessment_run_id": RUN_ID}, _principal()
+    )
     assert baseline.total_amount_minor == 200_000
 
-    tco = server.handle(TOOL_GET_TCO, {"tenant_id": TENANT, "assessment_run_id": RUN_ID})
+    tco = server.handle(
+        TOOL_GET_TCO, {"tenant_id": TENANT, "assessment_run_id": RUN_ID}, _principal()
+    )
     assert tco.price_list_version == "2026.11.1"
 
 
 def test_list_price_releases_returns_the_real_seed() -> None:
     server = build_finops_server(_real_assessment_service())
 
-    releases = server.handle(TOOL_LIST_PRICE_RELEASES, {})
+    releases = server.handle(TOOL_LIST_PRICE_RELEASES, {}, _principal())
 
     assert releases
     assert releases[0].version == "2026.11.1"
@@ -136,21 +145,40 @@ def test_reading_another_tenants_run_raises_tenant_scope_violation() -> None:
     server = build_finops_server(_real_assessment_service())
 
     with pytest.raises(TenantScopeViolationError):
-        server.handle(TOOL_GET_BASELINE, {"tenant_id": OTHER_TENANT, "assessment_run_id": RUN_ID})
+        server.handle(
+            TOOL_GET_BASELINE,
+            {"tenant_id": OTHER_TENANT, "assessment_run_id": RUN_ID},
+            _principal(OTHER_TENANT),
+        )
+
+
+def test_a_tenant_b_principal_cannot_claim_tenant_as_its_own_run() -> None:
+    """ADR-020: the real gap this unit closes. The caller-supplied
+    ``tenant_id`` names the run's real tenant, but the gateway actually
+    authenticated a different tenant -- the handler must trust what the
+    gateway authenticated, not what the caller claims about itself."""
+    server = build_finops_server(_real_assessment_service())
+
+    with pytest.raises(TenantScopeViolationError):
+        server.handle(
+            TOOL_GET_BASELINE,
+            {"tenant_id": TENANT, "assessment_run_id": RUN_ID},
+            _principal(OTHER_TENANT),
+        )
 
 
 def test_unknown_tool_name_raises() -> None:
     server = build_finops_server(_real_assessment_service())
 
     with pytest.raises(ValidationError):
-        server.handle("finops.delete_everything", {})
+        server.handle("finops.delete_everything", {}, _principal())
 
 
 def test_unknown_argument_key_is_rejected() -> None:
     server = build_finops_server(_real_assessment_service())
 
     with pytest.raises(ValidationError):
-        server.handle(TOOL_LIST_PRICE_RELEASES, {"extra": "nope"})
+        server.handle(TOOL_LIST_PRICE_RELEASES, {"extra": "nope"}, _principal())
 
 
 def test_caller_below_declared_role_gets_forbidden_before_the_handle_runs() -> None:

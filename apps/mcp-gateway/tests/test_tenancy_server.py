@@ -13,7 +13,7 @@ import pytest
 from cairn_adapters.auth_oidc import JwtAuthenticator, OidcSettings
 from cairn_kernel.errors import ForbiddenError, TenantScopeViolationError, ValidationError
 from cairn_kernel.hex import TenantId
-from cairn_kernel.security import Role
+from cairn_kernel.security import Principal, Role
 from cairn_kernel.tenancy import TenantContext, tenant_scope
 from cairn_kits.mcp import McpRegistry
 from cairn_mcp_gateway.gateway import McpGateway
@@ -54,6 +54,10 @@ def _seeded_repository() -> tuple[InMemoryProjectRepository, str]:
     return repository, project.project_id.value
 
 
+def _principal(tenant_id: str = TENANT) -> Principal:
+    return Principal(subject="user-1", tenant_id=TenantId(tenant_id), roles=(Role.TENANT_ADMIN,))
+
+
 def _settings() -> OidcSettings:
     return OidcSettings(issuer=ISSUER, audience=AUDIENCE, algorithms=("HS256",), secret=SECRET)
 
@@ -89,7 +93,9 @@ def test_get_project_returns_real_data() -> None:
     repository, project_id = _seeded_repository()
     server = build_tenancy_server(repository)
 
-    project = server.handle(TOOL_GET_PROJECT, {"tenant_id": TENANT, "project_id": project_id})
+    project = server.handle(
+        TOOL_GET_PROJECT, {"tenant_id": TENANT, "project_id": project_id}, _principal()
+    )
 
     assert project.name == "Pilot migration"
 
@@ -99,7 +105,7 @@ def test_list_project_members_returns_real_data() -> None:
     server = build_tenancy_server(repository)
 
     members = server.handle(
-        TOOL_LIST_PROJECT_MEMBERS, {"tenant_id": TENANT, "project_id": project_id}
+        TOOL_LIST_PROJECT_MEMBERS, {"tenant_id": TENANT, "project_id": project_id}, _principal()
     )
 
     assert [member.user_id for member in members] == ["user-1"]
@@ -110,7 +116,26 @@ def test_reading_another_tenants_project_raises_tenant_scope_violation() -> None
     server = build_tenancy_server(repository)
 
     with pytest.raises(TenantScopeViolationError):
-        server.handle(TOOL_GET_PROJECT, {"tenant_id": OTHER_TENANT, "project_id": project_id})
+        server.handle(
+            TOOL_GET_PROJECT,
+            {"tenant_id": OTHER_TENANT, "project_id": project_id},
+            _principal(OTHER_TENANT),
+        )
+
+
+def test_a_tenant_b_principal_cannot_claim_tenant_as_its_own_project() -> None:
+    """ADR-020: the real gap this unit closes. A caller-supplied
+    ``tenant_id`` naming the project's real tenant is not enough on its
+    own -- the authenticated principal must actually be that tenant."""
+    repository, project_id = _seeded_repository()
+    server = build_tenancy_server(repository)
+
+    with pytest.raises(TenantScopeViolationError):
+        server.handle(
+            TOOL_GET_PROJECT,
+            {"tenant_id": TENANT, "project_id": project_id},
+            _principal(OTHER_TENANT),
+        )
 
 
 def test_unknown_tool_name_raises() -> None:
@@ -118,7 +143,7 @@ def test_unknown_tool_name_raises() -> None:
     server = build_tenancy_server(repository)
 
     with pytest.raises(ValidationError):
-        server.handle("tenancy.create_project", {"tenant_id": TENANT})
+        server.handle("tenancy.create_project", {"tenant_id": TENANT}, _principal())
 
 
 def test_unknown_argument_key_is_rejected() -> None:
@@ -127,7 +152,9 @@ def test_unknown_argument_key_is_rejected() -> None:
 
     with pytest.raises(ValidationError):
         server.handle(
-            TOOL_GET_PROJECT, {"tenant_id": TENANT, "project_id": project_id, "extra": "nope"}
+            TOOL_GET_PROJECT,
+            {"tenant_id": TENANT, "project_id": project_id, "extra": "nope"},
+            _principal(),
         )
 
 

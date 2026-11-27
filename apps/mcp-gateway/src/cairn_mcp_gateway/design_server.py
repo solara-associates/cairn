@@ -20,6 +20,12 @@ an immutable, approvable revision row is the design-proposer agent's
 own job (Wave 4, R6-13), not this tool's -- the same split design §3.2
 describes ("the agent chooses the pattern and the parameters... the
 generators do the generating").
+
+**ADR-020 fix:** ``generate_target_model``/``generate_roadmap``
+previously passed the caller-supplied ``tenant_id``/``project_id``
+straight into the generator with no check against anything. Both now
+require the caller-supplied ``tenant_id`` to match the gateway's
+propagated, authenticated ``Principal`` before generating anything.
 """
 
 from __future__ import annotations
@@ -32,7 +38,8 @@ from typing import Any, TypeVar
 from cairn_contracts.estate import Resource, Workload
 from cairn_contracts.mapping import ReleaseStatus
 from cairn_contracts.mapping.pattern import PatternReleaseStatus
-from cairn_kernel.errors import NotFoundError, ValidationError
+from cairn_kernel.errors import NotFoundError, TenantScopeViolationError, ValidationError
+from cairn_kernel.security import Principal
 from cairn_kits.mcp import BoundedContextServer, ToolCapability
 from cairn_modules.design.patterns import load_pattern_catalogue
 from cairn_modules.design.target_model import TargetModel, generate_target_model
@@ -104,6 +111,14 @@ def _parse(model_cls: type[_ArgsT], arguments: Mapping[str, object]) -> _ArgsT:
         raise ValidationError(str(exc)) from exc
 
 
+def _require_caller_matches_principal(caller_tenant_id: str, principal: Principal) -> None:
+    if caller_tenant_id != principal.tenant_id.value:
+        raise TenantScopeViolationError(
+            f"caller-supplied tenant_id {caller_tenant_id!r} does not match the"
+            f" authenticated principal's tenant {principal.tenant_id.value!r}"
+        )
+
+
 def build_design_server(
     *,
     patterns_dir: Path | str = DEFAULT_PATTERNS_DIR,
@@ -134,7 +149,7 @@ def build_design_server(
                 return pattern
         raise NotFoundError(f"pattern {pattern_id} not found in catalogue {catalogue.version}")
 
-    def handle(tool_name: str, arguments: Mapping[str, object]) -> object:
+    def handle(tool_name: str, arguments: Mapping[str, object], principal: Principal) -> object:
         if tool_name == TOOL_LIST_PATTERNS:
             _parse(_NoArgs, arguments)
             return catalogue.patterns
@@ -154,6 +169,7 @@ def build_design_server(
 
         if tool_name == TOOL_GENERATE_TARGET_MODEL:
             args = _parse(_GenerateTargetModelArgs, arguments)
+            _require_caller_matches_principal(args.tenant_id, principal)
             pattern = _pattern(args.pattern_id)
             resources = tuple(Resource.model_validate(r) for r in args.resources)
             target_model = generate_target_model(
@@ -172,6 +188,7 @@ def build_design_server(
 
         if tool_name == TOOL_GENERATE_ROADMAP:
             args = _parse(_GenerateRoadmapArgs, arguments)
+            _require_caller_matches_principal(args.tenant_id, principal)
             workloads = tuple(Workload.model_validate(w) for w in args.workloads)
             roadmap = generate_roadmap(
                 tenant_id=args.tenant_id,

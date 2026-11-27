@@ -15,6 +15,12 @@ asking, so ``get_baseline``/``get_tco`` take the caller's own
 CAIRN's own global, versioned artefact (the same reasoning
 ``mappings_server.py`` already uses for a published mapping release),
 so it carries no tenant check.
+
+**ADR-020 fix:** ``get_baseline``/``get_tco`` now also require the
+caller-supplied ``tenant_id`` to match the gateway's propagated,
+authenticated ``Principal`` -- previously the check only compared the
+caller's claim to the run's own recorded tenant, never to who the
+gateway actually authenticated.
 """
 
 from __future__ import annotations
@@ -24,6 +30,7 @@ from pathlib import Path
 from typing import TypeVar
 
 from cairn_kernel.errors import TenantScopeViolationError, ValidationError
+from cairn_kernel.security import Principal
 from cairn_kits.mcp import BoundedContextServer, ToolCapability
 from cairn_modules.assessment import AssessmentService
 from cairn_modules.finops.pricing import InMemoryPriceList
@@ -61,7 +68,14 @@ def _parse(model_cls: type[_ArgsT], arguments: Mapping[str, object]) -> _ArgsT:
         raise ValidationError(str(exc)) from exc
 
 
-def _require_tenant(run_tenant_id: str, caller_tenant_id: str, *, run_id: str) -> None:
+def _require_tenant(
+    run_tenant_id: str, caller_tenant_id: str, *, principal: Principal, run_id: str
+) -> None:
+    if caller_tenant_id != principal.tenant_id.value:
+        raise TenantScopeViolationError(
+            f"caller-supplied tenant_id {caller_tenant_id!r} does not match the"
+            f" authenticated principal's tenant {principal.tenant_id.value!r}"
+        )
     if run_tenant_id != caller_tenant_id:
         raise TenantScopeViolationError(
             f"run {run_id} belongs to a different tenant than the caller"
@@ -82,17 +96,21 @@ def build_finops_server(
     price_list = InMemoryPriceList()
     price_list.load(price_list_seed)
 
-    def handle(tool_name: str, arguments: Mapping[str, object]) -> object:
+    def handle(tool_name: str, arguments: Mapping[str, object], principal: Principal) -> object:
         if tool_name == TOOL_GET_BASELINE:
             args = _parse(_AssessmentRunArgs, arguments)
             run = assessment_service.get_run(args.assessment_run_id)
-            _require_tenant(run.tenant_id, args.tenant_id, run_id=args.assessment_run_id)
+            _require_tenant(
+                run.tenant_id, args.tenant_id, principal=principal, run_id=args.assessment_run_id
+            )
             return run.context.artifacts.get("cost_baseline")
 
         if tool_name == TOOL_GET_TCO:
             args = _parse(_AssessmentRunArgs, arguments)
             run = assessment_service.get_run(args.assessment_run_id)
-            _require_tenant(run.tenant_id, args.tenant_id, run_id=args.assessment_run_id)
+            _require_tenant(
+                run.tenant_id, args.tenant_id, principal=principal, run_id=args.assessment_run_id
+            )
             return run.context.artifacts.get("tco_result")
 
         if tool_name == TOOL_LIST_PRICE_RELEASES:

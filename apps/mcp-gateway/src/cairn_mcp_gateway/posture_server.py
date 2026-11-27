@@ -16,6 +16,7 @@ from collections.abc import Mapping
 from pathlib import Path
 
 from cairn_kernel.errors import ValidationError
+from cairn_kernel.security import Principal
 from cairn_kits.mcp import BoundedContextServer, ToolCapability
 from cairn_modules.posture import InMemoryControlCatalogue
 
@@ -35,7 +36,12 @@ def build_posture_server(seed_path: Path | str = DEFAULT_SEED_PATH) -> BoundedCo
     catalogue = InMemoryControlCatalogue()
     catalogue.load(seed_path)
 
-    def handle(tool_name: str, arguments: Mapping[str, object]) -> object:
+    def handle(tool_name: str, arguments: Mapping[str, object], principal: Principal) -> object:
+        # Global data (ADR-012): the control catalogue carries no tenant,
+        # so ADR-020's propagated principal needs no tenant check here --
+        # it is still required by the handle signature for every server,
+        # the same shape every other bounded-context server uses.
+        del principal
         if tool_name != TOOL_GET_CONTROL:
             raise ValidationError(f"posture MCP server does not expose tool {tool_name!r}")
         version = arguments.get("version")

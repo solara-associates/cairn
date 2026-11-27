@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import pytest
+from cairn_kernel.hex import TenantId
+from cairn_kernel.security import Principal, Role
 from cairn_kits.mcp import (
     BoundedContextServer,
     DuplicateToolRegistrationError,
@@ -11,11 +13,14 @@ from cairn_kits.mcp import (
     ToolNotRegisteredError,
 )
 
+_PRINCIPAL = Principal(subject="user-1", tenant_id=TenantId("tenant-1"), roles=(Role.VIEWER,))
+
 
 def _server(
     context_id: str, tools: tuple[str, ...], calls: list[tuple[str, dict]]
 ) -> BoundedContextServer:
-    def handle(tool_name: str, arguments: dict) -> object:
+    def handle(tool_name: str, arguments: dict, principal: Principal) -> object:
+        del principal
         calls.append((tool_name, dict(arguments)))
         return {"tool": tool_name, "context": context_id, "arguments": arguments}
 
@@ -54,7 +59,7 @@ def test_invoke_calls_the_resolved_servers_own_handle_only() -> None:
     registry.register(_server("posture", ("posture.get_control",), posture_calls))
     registry.register(_server("finops", ("finops.get_budget",), finops_calls))
 
-    result = registry.invoke("finops.get_budget", {"budget_id": "b1"})
+    result = registry.invoke("finops.get_budget", _PRINCIPAL, {"budget_id": "b1"})
 
     assert result == {
         "tool": "finops.get_budget",
@@ -79,7 +84,7 @@ def test_invoke_for_an_unregistered_tool_also_fails_cleanly_without_calling_anyt
     registry.register(_server("posture", ("posture.get_control",), calls))
 
     with pytest.raises(ToolNotRegisteredError):
-        registry.invoke("does.not.exist")
+        registry.invoke("does.not.exist", _PRINCIPAL)
 
     assert calls == []
 

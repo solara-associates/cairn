@@ -21,6 +21,7 @@ from typing import TypeVar
 
 from cairn_contracts.mapping import MappingRelease, ReleaseStatus
 from cairn_kernel.errors import MappingUnavailableError, ValidationError
+from cairn_kernel.security import Principal
 from cairn_kits.mcp import BoundedContextServer, ToolCapability
 from cairn_modules.mappings import load_mapping_release, resolve_mapping
 from pydantic import BaseModel, ConfigDict
@@ -82,7 +83,12 @@ def build_mappings_server(seed_path: Path | str = DEFAULT_SEED_PATH) -> BoundedC
     published = raw.model_copy(update={"status": ReleaseStatus.PUBLISHED})
     releases: dict[str, MappingRelease] = {published.version: published}
 
-    def handle(tool_name: str, arguments: Mapping[str, object]) -> object:
+    def handle(tool_name: str, arguments: Mapping[str, object], principal: Principal) -> object:
+        # Global data (ADR-012): a published mapping release carries no
+        # tenant, so ADR-020's propagated principal needs no tenant check
+        # here -- required by the handle signature regardless.
+        del principal
+
         if tool_name == TOOL_RESOLVE:
             args = _parse(_ResolveArgs, arguments)
             release = releases.get(args.mapping_version)
