@@ -20,12 +20,17 @@ from cairn_mcp_gateway import (
     TOOL_ASSESSMENT_GET_DECISION,
     TOOL_ASSESSMENT_GET_RESULTS,
     TOOL_ASSESSMENT_GET_RUN,
+    TOOL_GET_BASELINE,
     TOOL_GET_CONTROL,
     TOOL_GET_COVERAGE,
     TOOL_GET_DEPENDENCIES,
+    TOOL_GET_PROJECT,
     TOOL_GET_RELEASE,
     TOOL_GET_RUN,
+    TOOL_GET_TCO,
     TOOL_GET_WORKLOAD,
+    TOOL_LIST_PRICE_RELEASES,
+    TOOL_LIST_PROJECT_MEMBERS,
     TOOL_LIST_RELEASES,
     TOOL_LIST_RESOURCES,
     TOOL_LIST_RUNS,
@@ -94,6 +99,17 @@ _TOOL_FIXTURES: dict[str, tuple[tuple[str, ...], dict[str, object]]] = {
     TOOL_ASSESSMENT_GET_DECISION: (
         (Role.VIEWER.value,),
         {"tenant_id": "t1", "assessment_run_id": "no-such-run", "decision_id": "d-1"},
+    ),
+    TOOL_GET_BASELINE: (
+        (Role.VIEWER.value,),
+        {"tenant_id": "t1", "assessment_run_id": "no-such-run"},
+    ),
+    TOOL_GET_TCO: ((Role.VIEWER.value,), {"tenant_id": "t1", "assessment_run_id": "no-such-run"}),
+    TOOL_LIST_PRICE_RELEASES: ((Role.VIEWER.value,), {}),
+    TOOL_GET_PROJECT: ((Role.VIEWER.value,), {"tenant_id": "t1", "project_id": "no-such-project"}),
+    TOOL_LIST_PROJECT_MEMBERS: (
+        (Role.TENANT_ADMIN.value,),
+        {"tenant_id": "t1", "project_id": "no-such-project"},
     ),
 }
 

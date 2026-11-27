@@ -842,6 +842,52 @@ OPERATIONS: tuple[OperationEntry, ...] = (
         mutation_class=MutationClass.READ_ONLY,
         tenancy_scope=TenancyScope.PROJECT,
     ),
+    # --- apps/mcp-gateway: finops and tenancy servers (R6-10) ---
+    # finops.get_baseline/get_tco read one assessment run's own already-
+    # computed cost artifacts -- PROJECT scope, same reasoning as every
+    # other per-run read above.
+    OperationEntry(
+        surface=SurfaceKind.MCP_TOOL,
+        name="mcp.finops.get_baseline",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.MCP_TOOL,
+        name="mcp.finops.get_tco",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    # finops.list_price_releases reads CAIRN's own global price-list
+    # registry (pricing/gcp-price-list-seed.yaml) -- GLOBAL scope, same
+    # reasoning mcp.mappings.list_releases already uses.
+    OperationEntry(
+        surface=SurfaceKind.MCP_TOOL,
+        name="mcp.finops.list_price_releases",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.GLOBAL,
+    ),
+    # tenancy.* reads one project's own record/membership through
+    # cairn_modules.projects' existing ProjectRepository -- PROJECT
+    # scope. Read-only by design (design §0 assumption 5): no tool here
+    # creates a tenant, grants a membership or changes a setting.
+    OperationEntry(
+        surface=SurfaceKind.MCP_TOOL,
+        name="mcp.tenancy.get_project",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
+    OperationEntry(
+        surface=SurfaceKind.MCP_TOOL,
+        name="mcp.tenancy.list_project_members",
+        operation_class=OperationClass.READ,
+        mutation_class=MutationClass.READ_ONLY,
+        tenancy_scope=TenancyScope.PROJECT,
+    ),
     OperationEntry(
         surface=SurfaceKind.EVENT,
         name="execution.failed.v1",
