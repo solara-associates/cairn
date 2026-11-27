@@ -16,7 +16,14 @@ test runs against instead of a real provider.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from dataclasses import replace
 
+from cairn_kernel.governance import (
+    GovernancePort,
+    GovernanceRequest,
+    NoOpGovernance,
+    evaluate_tool_call,
+)
 from cairn_kernel.hex.ports import Clock
 
 from cairn_kits.loop.budget import BudgetDimension
@@ -39,9 +46,15 @@ class DeterministicAgentLoop:
     ends ``COMPLETED``.
     """
 
-    def __init__(self, scripted_steps: Sequence[AgentStep], clock: Clock) -> None:
+    def __init__(
+        self,
+        scripted_steps: Sequence[AgentStep],
+        clock: Clock,
+        governance: GovernancePort | None = None,
+    ) -> None:
         self._scripted_steps = tuple(scripted_steps)
         self._clock = clock
+        self._governance = governance if governance is not None else NoOpGovernance()
 
     def run(
         self,
@@ -66,6 +79,18 @@ class DeterministicAgentLoop:
         last_checked_at = started_at
 
         for step in self._scripted_steps:
+            decision = evaluate_tool_call(
+                self._governance, _governance_request(spec, context, step)
+            )
+            if not decision.allowed:
+                return replace(
+                    run,
+                    terminal_reason=(
+                        f"governance denied step {step.index}"
+                        f" ({decision.check.value}): {decision.reason}"
+                    ),
+                ).with_state(AgentRunState.FAILED)
+
             now = self._clock.now()
             elapsed_delta = max(int((now - last_checked_at).total_seconds()), 0)
             last_checked_at = now
@@ -91,6 +116,35 @@ class DeterministicAgentLoop:
                 return run.with_state(AgentRunState.BUDGET_EXCEEDED)
 
         return run.with_state(AgentRunState.COMPLETED)
+
+
+def _governance_request(
+    spec: AgentSpec, context: AgentRunContext, step: AgentStep
+) -> GovernanceRequest:
+    """One step, as the governance port sees it.
+
+    ``tool_name``/``capability`` come from the step's own ``detail`` for
+    a ``TOOL_CALL`` and are the step kind itself for a ``MODEL_CALL`` --
+    a model call has no tool and no ``ToolCapability``, and inventing one
+    would misreport it to an adapter. ``actor_roles`` is the run's
+    ``required_role``, which ``AgentSpec.build`` already proved dominates
+    every role the toolset needs, so it is the authority the run acts
+    under rather than a guess.
+    """
+
+    detail = step.detail
+    tool_name = detail.get("tool_name") if step.kind is StepKind.TOOL_CALL else None
+    return GovernanceRequest(
+        tenant_id=context.tenant_id,
+        actor=context.actor,
+        actor_roles=(spec.required_role.value,),
+        tool_name=str(tool_name) if tool_name else step.kind.value,
+        capability=step.kind.value,
+        arguments=dict(detail),
+        run_id=context.run_id,
+        project_id=context.project_id,
+        correlation_id=context.correlation_id,
+    )
 
 
 __all__ = ["DeterministicAgentLoop"]
