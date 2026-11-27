@@ -1,7 +1,7 @@
 # ADR-019: Agentic workflows as bounded plan-act-observe loops that only propose
 
-- **Status:** Proposed
-- **Date:** 2026-11-24
+- **Status:** Accepted
+- **Date:** 2026-11-24 (proposed); accepted 2026-11-27
 - **Deciders:** Product owner (Allan Smeyatsky)
 - **Related:** ADR-002, ADR-008, ADR-009, ADR-010, ADR-011, ADR-014, Implementation spec §5, §10, §11
 
