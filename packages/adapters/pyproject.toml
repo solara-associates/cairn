@@ -9,6 +9,7 @@ dependencies = [
     "cairn-kernel",
     "cairn-modules",
     "google-cloud-kms>=3.0",
+    "google-genai==3.6.1",
     "psycopg[binary]>=3.2",
     "pyjwt[crypto]>=2.10",
 ]
