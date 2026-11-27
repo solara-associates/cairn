@@ -57,6 +57,20 @@ export async function renderTransformReview(
   const statusSlot = container.querySelector<HTMLElement>("[data-slot='status']");
   const commentsSlot = container.querySelector<HTMLElement>("[data-slot='comments']");
 
+  // The initial load below and a comment submission both fetch a
+  // ReviewThread and render it; they are two independent in-flight
+  // requests with no guaranteed resolution order (the submission can
+  // settle before the initial load if the user acts quickly, or after
+  // it under ordinary load). Without this guard, whichever one
+  // *resolves* last wins the render regardless of which was *issued*
+  // last, so a slow initial GET that resolves after a fast POST can
+  // silently overwrite the just-posted comment's thread with stale
+  // data. `latestRequestSeq` makes the request issued last win
+  // instead, by tagging each render with the sequence number current
+  // when its request started and skipping it if a newer request has
+  // since started.
+  let latestRequestSeq = 0;
+
   function renderThread(thread: ReviewThread): void {
     if (statusSlot) {
       statusSlot.innerHTML = `
@@ -81,18 +95,24 @@ export async function renderTransformReview(
       showError(container, "A comment body is required.");
       return;
     }
+    const seq = ++latestRequestSeq;
     try {
       const thread = await api.createReviewComment(runId, { decision, body });
-      renderThread(thread);
+      if (seq === latestRequestSeq) {
+        renderThread(thread);
+      }
       form.reset();
     } catch (error) {
       showError(container, error instanceof ApiError ? error.message : "could not post the comment");
     }
   });
 
+  const initialLoadSeq = ++latestRequestSeq;
   try {
     const thread = await api.listReviewComments(runId);
-    renderThread(thread);
+    if (initialLoadSeq === latestRequestSeq) {
+      renderThread(thread);
+    }
   } catch (error) {
     showError(container, error instanceof ApiError ? error.message : "could not load the review thread");
   }
