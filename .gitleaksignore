@@ -69,3 +69,13 @@ fc245ce6688be1ec9a0fe4837c4a4d3cd640ce7b:apps/api/tests/test_transformations_evi
 # Same dummy HS256 test secret constant, reused in 792/R4-05's
 # approval-console HTTP-layer test fixture.
 f90ee4edde728b7b75770524dc8d80d5580b0989:apps/api/tests/test_approval_console_api.py:generic-api-key:37
+
+# 915: not a secret at all -- gitleaks' generic-api-key rule matched a
+# *parameter name* followed by a colon in `VaidTestIssuer.forge`'s own
+# type annotation (`Ed25519PrivateKey | None = None`). Nothing was
+# redacted because there is nothing there. The parameter was renamed to
+# `signed_by` in the following commit so no future commit trips it; this
+# entry covers the one commit already in this history, which a rename
+# cannot reach and which only a force-push could remove. The offending
+# name is deliberately not written out here, for the same reason.
+5d147ebec38824ff5b8a17410c829b2abe4420ed:packages/kernel/src/cairn_kernel/testing/vaid.py:generic-api-key:145
