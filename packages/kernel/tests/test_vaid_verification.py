@@ -178,7 +178,7 @@ def test_a_vaid_signed_by_an_unpinned_key_is_refused(issuer, revocation) -> None
         tenant_id=TENANT_A,
         capability_set=["VIEWER"],
         scope_prefixes=[PROJECT_SCOPE],
-        signing_key=Ed25519PrivateKey.generate(),
+        signed_by=Ed25519PrivateKey.generate(),
     )
 
     with pytest.raises(VaidVerificationError) as exc_info:

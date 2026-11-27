@@ -232,7 +232,7 @@ def test_a_refused_vaid_never_reaches_the_registry(
                 tenant_id=TENANT_A,
                 capability_set=["AUDITOR"],
                 scope_prefixes=[PROJECT_SCOPE],
-                signing_key=Ed25519PrivateKey.generate(),
+                signed_by=Ed25519PrivateKey.generate(),
             )
         )
     else:
