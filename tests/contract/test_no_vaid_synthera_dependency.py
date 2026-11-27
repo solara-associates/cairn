@@ -20,10 +20,14 @@ Three independent scan mechanisms, so a reference can't dodge all of them:
    either system, which an import/manifest scan alone would miss).
 
 Excluded from all three: this test file itself (whose own source
-necessarily contains the strings it looks for) and
-``docs/specs/r5-integration-boundaries.md`` (the one place in the repo that
-is *required* to name them, since it documents the boundary). Everything
-else in the repository, tests included, must stay clean.
+necessarily contains the strings it looks for), ``docs/specs/
+r5-integration-boundaries.md`` (the original place in the repo required to
+name them, since it documents the boundary) and, since ADR-020, ``docs/adr/
+ADR-020-principal-tenant-propagation.md`` (the ADR that names VAID and
+SYNTHERA by design, deciding how each would attach -- it does not implement
+either, so this proof's actual guarantee, that nothing in the codebase
+imports or wires either one, still holds). Everything else in the
+repository, tests included, must stay clean.
 
 Verified as a real negative proof, not a trivial always-pass: a fake
 ``import vaid_client`` line was temporarily added to a scratch module in
@@ -50,6 +54,7 @@ ALLOWED_PATHS: frozenset[str] = frozenset(
     {
         "tests/contract/test_no_vaid_synthera_dependency.py",
         "docs/specs/r5-integration-boundaries.md",
+        "docs/adr/ADR-020-principal-tenant-propagation.md",
     }
 )
 
